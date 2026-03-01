@@ -1,5 +1,9 @@
 # DocumentLens
 
+<!-- BADGES:START -->
+[![edtech](https://img.shields.io/badge/-edtech-4caf50?style=flat-square)](https://github.com/topics/edtech) [![academic-integrity](https://img.shields.io/badge/-academic--integrity-blue?style=flat-square)](https://github.com/topics/academic-integrity) [![api](https://img.shields.io/badge/-api-blue?style=flat-square)](https://github.com/topics/api) [![docker](https://img.shields.io/badge/-docker-2496ed?style=flat-square)](https://github.com/topics/docker) [![document-analysis](https://img.shields.io/badge/-document--analysis-blue?style=flat-square)](https://github.com/topics/document-analysis) [![microservice](https://img.shields.io/badge/-microservice-blue?style=flat-square)](https://github.com/topics/microservice) [![natural-language-processing](https://img.shields.io/badge/-natural--language--processing-blue?style=flat-square)](https://github.com/topics/natural-language-processing) [![nlp](https://img.shields.io/badge/-nlp-blue?style=flat-square)](https://github.com/topics/nlp) [![python](https://img.shields.io/badge/-python-3776ab?style=flat-square)](https://github.com/topics/python) [![readability](https://img.shields.io/badge/-readability-blue?style=flat-square)](https://github.com/topics/readability)
+<!-- BADGES:END -->
+
 **Text Analysis & Academic Intelligence Microservice**
 
 Transform text content into actionable insights through comprehensive linguistic analysis, writing quality assessment, and academic integrity checking.
