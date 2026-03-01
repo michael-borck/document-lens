@@ -1,5 +1,9 @@
 # Document Lens Desktop
 
+<!-- BADGES:START -->
+[![edtech](https://img.shields.io/badge/-edtech-4caf50?style=flat-square)](https://github.com/topics/edtech) [![batch-processing](https://img.shields.io/badge/-batch--processing-blue?style=flat-square)](https://github.com/topics/batch-processing) [![cross-platform](https://img.shields.io/badge/-cross--platform-blue?style=flat-square)](https://github.com/topics/cross-platform) [![data-visualization](https://img.shields.io/badge/-data--visualization-blue?style=flat-square)](https://github.com/topics/data-visualization) [![desktop-app](https://img.shields.io/badge/-desktop--app-blue?style=flat-square)](https://github.com/topics/desktop-app) [![document-analysis](https://img.shields.io/badge/-document--analysis-blue?style=flat-square)](https://github.com/topics/document-analysis) [![electron](https://img.shields.io/badge/-electron-47848f?style=flat-square)](https://github.com/topics/electron) [![keyword-analysis](https://img.shields.io/badge/-keyword--analysis-blue?style=flat-square)](https://github.com/topics/keyword-analysis) [![pdf-analysis](https://img.shields.io/badge/-pdf--analysis-blue?style=flat-square)](https://github.com/topics/pdf-analysis) [![research](https://img.shields.io/badge/-research-3f51b5?style=flat-square)](https://github.com/topics/research)
+<!-- BADGES:END -->
+
 A cross-platform Electron desktop application for batch PDF analysis, designed for researchers analyzing large document collections across various domains.
 
 ## Overview
