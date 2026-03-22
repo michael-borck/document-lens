@@ -18,9 +18,12 @@ import {
   createKeywordList,
   updateKeywordList,
   parseKeywordsFromCSV,
+  parseKeywordsFromExcel,
   flattenKeywords,
   type KeywordList,
   type ParsedKeywordList,
+  type ExcelImportPreview,
+  type HierarchyNode,
 } from '@/services/keywords'
 import { KeywordListViewer } from '@/components/KeywordListViewer'
 import { FOCUSES, getFocus } from '@/data/focuses'
@@ -37,6 +40,11 @@ export function KeywordLists() {
   const [showDuplicate, setShowDuplicate] = useState<KeywordList | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState<KeywordList | null>(null)
+  const [showExcelPreview, setShowExcelPreview] = useState(false)
+  const [excelPreview, setExcelPreview] = useState<ExcelImportPreview | null>(null)
+  const [excelImportName, setExcelImportName] = useState('')
+  const [excelTierNames, setExcelTierNames] = useState<string[]>([])
+  const [excelFilename, setExcelFilename] = useState('')
 
   // New list form
   const [newListName, setNewListName] = useState('')
@@ -207,37 +215,80 @@ export function KeywordLists() {
     }
   }
 
-  const handleImportCSV = async () => {
+  const handleImportFile = async () => {
     try {
       const result = await window.electron.openFileDialog({
-        title: 'Select CSV file',
-        filters: [{ name: 'CSV Files', extensions: ['csv', 'txt'] }],
+        title: 'Import keyword list',
+        filters: [
+          { name: 'All Supported', extensions: ['xlsx', 'xls', 'csv', 'txt'] },
+          { name: 'Excel Files', extensions: ['xlsx', 'xls'] },
+          { name: 'CSV Files', extensions: ['csv', 'txt'] },
+        ],
       })
 
       if (result.canceled || result.filePaths.length === 0) return
 
       const filePath = result.filePaths[0]
       const buffer = await window.electron.readFile(filePath)
-      const content = new TextDecoder().decode(buffer)
-      
-      // Check if CSV has categories (two columns)
-      const firstLine = content.split('\n')[0]
-      const hasCategories = firstLine.includes(',')
-      
-      const keywords = parseKeywordsFromCSV(content, hasCategories)
-      const filename = filePath.split('/').pop()?.replace(/\.(csv|txt)$/i, '') || 'Imported List'
-      
+      const filename = filePath.split('/').pop() || 'Imported List'
+      const ext = filename.split('.').pop()?.toLowerCase()
+
+      if (ext === 'xlsx' || ext === 'xls') {
+        // Excel: parse and show preview
+        const preview = parseKeywordsFromExcel(buffer)
+        setExcelPreview(preview)
+        setExcelImportName(filename.replace(/\.(xlsx|xls)$/i, ''))
+        setExcelTierNames([...preview.tierNames])
+        setExcelFilename(filename)
+        setShowExcelPreview(true)
+      } else {
+        // CSV: direct import (existing behavior)
+        const content = new TextDecoder().decode(buffer)
+        const firstLine = content.split('\n')[0]
+        const hasCategories = firstLine.includes(',')
+        const keywords = parseKeywordsFromCSV(content, hasCategories)
+        const name = filename.replace(/\.(csv|txt)$/i, '')
+
+        await createKeywordList(
+          name,
+          `Imported from ${filename}`,
+          hasCategories ? 'grouped' : 'simple',
+          keywords
+        )
+        loadLists()
+      }
+    } catch (error) {
+      console.error('Failed to import file:', error)
+      alert('Failed to import file. Please check the format.')
+    }
+  }
+
+  const handleExcelImportConfirm = async () => {
+    if (!excelPreview || !excelImportName.trim()) return
+
+    try {
+      let keywords = excelPreview.keywords
+      let listType = excelPreview.listType
+
+      // Update tier names if user changed them
+      if (listType === 'hierarchical' && excelTierNames.length > 0) {
+        const hierKeywords = keywords as { tiers: string[]; tree: HierarchyNode }
+        keywords = { ...hierKeywords, tiers: excelTierNames }
+      }
+
       await createKeywordList(
-        filename,
-        `Imported from ${filePath.split('/').pop()}`,
-        hasCategories ? 'grouped' : 'simple',
+        excelImportName.trim(),
+        `Imported from ${excelFilename}`,
+        listType,
         keywords
       )
-      
+
+      setShowExcelPreview(false)
+      setExcelPreview(null)
       loadLists()
     } catch (error) {
-      console.error('Failed to import CSV:', error)
-      alert('Failed to import CSV file')
+      console.error('Failed to import Excel:', error)
+      alert('Failed to import Excel file')
     }
   }
 
@@ -410,10 +461,10 @@ export function KeywordLists() {
             variant="outline"
             size="sm"
             className="w-full justify-start"
-            onClick={handleImportCSV}
+            onClick={handleImportFile}
           >
             <FileUp className="h-4 w-4 mr-2" />
-            Import CSV
+            Import File
           </Button>
         </div>
       </div>
@@ -531,6 +582,83 @@ export function KeywordLists() {
             </Button>
             <Button onClick={handleEditList} disabled={!editName.trim() || !editKeywords.trim()}>
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Excel Import Preview Dialog */}
+      <Dialog open={showExcelPreview} onOpenChange={setShowExcelPreview}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Import from Excel</DialogTitle>
+          </DialogHeader>
+          {excelPreview && (
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">List Name</label>
+                <Input
+                  value={excelImportName}
+                  onChange={(e) => setExcelImportName(e.target.value)}
+                  placeholder="Imported keyword list"
+                />
+              </div>
+
+              {/* Detected structure */}
+              <div className="bg-muted/50 rounded-lg p-3 space-y-2">
+                <div className="text-sm font-medium">Detected Structure</div>
+                <div className="text-sm text-muted-foreground space-y-1">
+                  <div>Type: <span className="font-medium capitalize">{excelPreview.listType}</span></div>
+                  <div>Keywords: <span className="font-medium">{excelPreview.totalKeywords}</span></div>
+                  {excelPreview.topCategories.length > 0 && (
+                    <div>Categories: <span className="font-medium">{excelPreview.topCategories.length}</span>
+                      <span className="text-xs ml-1">
+                        ({excelPreview.topCategories.slice(0, 4).join(', ')}
+                        {excelPreview.topCategories.length > 4 && '...'})
+                      </span>
+                    </div>
+                  )}
+                  {excelPreview.sheets.length > 1 && (
+                    <div>Sheets: <span className="font-medium">{excelPreview.sheets.join(', ')}</span></div>
+                  )}
+                </div>
+              </div>
+
+              {/* Tier name editing (hierarchical only) */}
+              {excelPreview.listType === 'hierarchical' && excelTierNames.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Name the hierarchy levels</label>
+                  <p className="text-xs text-muted-foreground">
+                    These names describe each level of your taxonomy (e.g., Pillar, Goal)
+                  </p>
+                  {excelTierNames.map((name, i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground w-16">Level {i + 1}:</span>
+                      <Input
+                        value={name}
+                        onChange={(e) => {
+                          const updated = [...excelTierNames]
+                          updated[i] = e.target.value
+                          setExcelTierNames(updated)
+                        }}
+                        placeholder={`Level ${i + 1} name`}
+                        className="flex-1"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowExcelPreview(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleExcelImportConfirm}
+              disabled={!excelImportName.trim() || !excelPreview}
+            >
+              Import {excelPreview?.totalKeywords || 0} Keywords
             </Button>
           </DialogFooter>
         </DialogContent>

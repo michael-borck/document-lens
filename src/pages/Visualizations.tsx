@@ -9,6 +9,7 @@ import {
   Radar,
   Loader2,
   Settings2,
+  Layers,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -22,6 +23,8 @@ import {
   FrameworkRadarChart,
   GroupedBarChart,
   ChartExportButton,
+  TaxonomyTreemap,
+  TaxonomyStackedBar,
   type WordCloudWord,
   type KeywordBarData,
   type HeatmapCell,
@@ -31,13 +34,19 @@ import {
 } from '@/components/charts'
 import { KeywordSelector } from '@/components/KeywordSelector'
 import { DocumentFilter } from '@/components/DocumentFilter'
-import { searchKeywordsLocal, type BatchKeywordSearchResult } from '@/services/analysis'
+import {
+  searchKeywordsLocal,
+  buildHierarchicalAggregations,
+  type BatchKeywordSearchResult,
+  type HierarchicalSearchResult,
+} from '@/services/analysis'
 import type { DocumentRecord } from '@/services/documents'
 import {
   getActiveProfile,
   getEnabledKeywords,
   type ParsedAnalysisProfile,
 } from '@/services/profiles'
+import { type HierarchicalKeywords } from '@/services/keywords'
 
 export function Visualizations() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -53,6 +62,7 @@ export function Visualizations() {
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
   const [selectedListName, setSelectedListName] = useState('')
   const [searchResults, setSearchResults] = useState<BatchKeywordSearchResult | null>(null)
+  const [hierarchicalResults, setHierarchicalResults] = useState<HierarchicalSearchResult | null>(null)
 
   // Profile
   const [profile, setProfile] = useState<ParsedAnalysisProfile | null>(null)
@@ -65,6 +75,8 @@ export function Visualizations() {
   const trendChartRef = useRef<HTMLDivElement>(null)
   const radarChartRef = useRef<HTMLDivElement>(null)
   const groupedBarRef = useRef<HTMLDivElement>(null)
+  const taxonomyTreemapRef = useRef<HTMLDivElement>(null)
+  const taxonomyBarRef = useRef<HTMLDivElement>(null)
 
   // LocalStorage key for persisting keyword selection
   const storageKey = `visualization-keywords-${projectId}`
@@ -163,6 +175,28 @@ export function Visualizations() {
     try {
       const results = await searchKeywordsLocal(activeDocuments, keywords, 100)
       setSearchResults(results)
+
+      // Check if the selected list is hierarchical
+      try {
+        const allLists = await window.electron.dbQuery<{ list_type: string; keywords: string }>(
+          'SELECT list_type, keywords FROM keyword_lists WHERE name = ?',
+          [listName]
+        )
+        const list = allLists[0]
+        if (list?.list_type === 'hierarchical') {
+          const raw = JSON.parse(list.keywords)
+          if (raw.tiers && raw.tree) {
+            const hier = buildHierarchicalAggregations(results, { tiers: raw.tiers, tree: raw.tree })
+            setHierarchicalResults(hier)
+          } else {
+            setHierarchicalResults(null)
+          }
+        } else {
+          setHierarchicalResults(null)
+        }
+      } catch {
+        setHierarchicalResults(null)
+      }
     } catch (error) {
       console.error('Analysis failed:', error)
     } finally {
@@ -274,18 +308,28 @@ export function Visualizations() {
   const radarData = useMemo(() => {
     if (!searchResults || !selectedListName) return { data: [], dataKeys: [] }
 
-    // Group keywords by category (simplified - would need actual category data)
-    // For now, create synthetic categories from keyword prefixes or group by first letter
+    // Use hierarchical tier data if available
+    if (hierarchicalResults) {
+      const topTier = hierarchicalResults.hierarchy.tiers[0]
+      const tierAgg = hierarchicalResults.overallTiers[topTier]
+      if (tierAgg) {
+        const data: RadarDataPoint[] = Object.entries(tierAgg).map(([category, agg]) => ({
+          category,
+          value: agg.matchCount,
+        }))
+        return {
+          data,
+          dataKeys: [{ key: 'value', name: topTier, color: '#3b82f6' }],
+        }
+      }
+    }
+
+    // Fallback: heuristic categorization
     const categories: Record<string, number> = {}
-    
-    // Try to detect framework-based categories
     for (const [keyword, count] of Object.entries(searchResults.summary.keywordCounts)) {
       if (count === 0) continue
-      
-      // Simple categorization based on common sustainability terms
       let category = 'Other'
       const lowerKeyword = keyword.toLowerCase()
-      
       if (lowerKeyword.includes('carbon') || lowerKeyword.includes('emission') || lowerKeyword.includes('climate')) {
         category = 'Climate'
       } else if (lowerKeyword.includes('water') || lowerKeyword.includes('waste') || lowerKeyword.includes('energy')) {
@@ -297,7 +341,6 @@ export function Visualizations() {
       } else if (lowerKeyword.includes('sustainable') || lowerKeyword.includes('esg')) {
         category = 'Sustainability'
       }
-      
       categories[category] = (categories[category] || 0) + count
     }
 
@@ -310,7 +353,7 @@ export function Visualizations() {
       data,
       dataKeys: [{ key: 'value', name: selectedListName, color: '#3b82f6' }],
     }
-  }, [searchResults, selectedListName])
+  }, [searchResults, selectedListName, hierarchicalResults])
 
   // Transform data for Grouped Bar Chart (documents comparison)
   const groupedBarData = useMemo(() => {
@@ -453,6 +496,12 @@ export function Visualizations() {
               <BarChart3 className="h-4 w-4 mr-2" />
               Comparison
             </TabsTrigger>
+            {hierarchicalResults && (
+              <TabsTrigger value="taxonomy">
+                <Layers className="h-4 w-4 mr-2" />
+                Taxonomy
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Word Cloud */}
@@ -569,6 +618,49 @@ export function Visualizations() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Taxonomy Charts (hierarchical only) */}
+          {hierarchicalResults && (
+            <TabsContent value="taxonomy">
+              <div className="space-y-6">
+                {/* Treemap for each tier */}
+                {hierarchicalResults.hierarchy.tiers.map(tierName => (
+                  <Card key={tierName}>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <CardTitle>{tierName} Distribution</CardTitle>
+                      <ChartExportButton chartRef={taxonomyTreemapRef} filename={`taxonomy-${tierName.toLowerCase()}`} />
+                    </CardHeader>
+                    <CardContent>
+                      <div ref={tierName === hierarchicalResults.hierarchy.tiers[0] ? taxonomyTreemapRef : undefined}>
+                        <TaxonomyTreemap
+                          tierAggregation={hierarchicalResults.overallTiers[tierName]}
+                          tierName={tierName}
+                          height={400}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+
+                {/* Stacked bar: documents x top tier */}
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between">
+                    <CardTitle>Documents by {hierarchicalResults.hierarchy.tiers[0]}</CardTitle>
+                    <ChartExportButton chartRef={taxonomyBarRef} filename="taxonomy-documents" />
+                  </CardHeader>
+                  <CardContent>
+                    <div ref={taxonomyBarRef}>
+                      <TaxonomyStackedBar
+                        hierarchicalResults={hierarchicalResults}
+                        tierName={hierarchicalResults.hierarchy.tiers[0]}
+                        height={450}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </TabsContent>
+          )}
         </Tabs>
       ) : (
         <Card>

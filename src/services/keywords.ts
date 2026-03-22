@@ -5,6 +5,7 @@
  */
 
 import { v4 as uuidv4 } from 'uuid'
+import * as XLSX from 'xlsx'
 
 // Import framework data - Sustainability focus
 import tcfdData from '@/data/frameworks/tcfd.json'
@@ -588,4 +589,137 @@ export function getAvailableFrameworks(): Array<{ id: string; name: string; desc
     description: data.description,
     keywordCount: data.total_keywords,
   }))
+}
+
+/**
+ * Parse an Excel file into a keyword list.
+ * Auto-detects hierarchy from column structure:
+ * - 1 column: simple list
+ * - 2 columns: grouped (category, keyword)
+ * - 3+ columns: hierarchical (tier1, tier2, ..., keyword, [note])
+ *
+ * Returns the detected structure and data for preview before import.
+ */
+export interface ExcelImportPreview {
+  listType: 'simple' | 'grouped' | 'hierarchical'
+  tierNames: string[]
+  keywords: string[] | Record<string, string[]> | { tiers: string[]; tree: HierarchyNode }
+  totalKeywords: number
+  sheets: string[]
+  /** Top-level categories for preview */
+  topCategories: string[]
+}
+
+export function parseKeywordsFromExcel(
+  buffer: ArrayBuffer,
+): ExcelImportPreview {
+  const workbook = XLSX.read(new Uint8Array(buffer), { type: 'array' })
+  const sheets = workbook.SheetNames
+
+  // Use the first sheet
+  const sheetName = sheets[0]
+  const sheet = workbook.Sheets[sheetName]
+  const rawRows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' }) as string[][]
+  const rows = rawRows.filter(row => row.some(cell => cell && String(cell).trim()))
+
+  if (rows.length === 0) {
+    return { listType: 'simple', tierNames: [], keywords: [], totalKeywords: 0, sheets, topCategories: [] }
+  }
+
+  // Detect column count (ignoring trailing empty columns and note columns)
+  const firstRow = rows[0].map(c => String(c).trim())
+
+  // Heuristic: look at all rows to find the max meaningful columns
+  // A "note" column usually has longer text and appears last
+  let maxCols = 0
+  for (const row of rows.slice(0, 20)) {
+    let nonEmpty = 0
+    for (const cell of row) {
+      if (String(cell).trim()) nonEmpty = row.indexOf(cell) + 1
+    }
+    maxCols = Math.max(maxCols, nonEmpty)
+  }
+
+  // Check if last column looks like notes (long text, different from others)
+  const lastColValues = rows.slice(0, 10).map(r => String(r[maxCols - 1] || '').trim())
+  const avgLastColLen = lastColValues.reduce((s, v) => s + v.length, 0) / lastColValues.length
+  const hasNoteColumn = maxCols >= 3 && avgLastColLen > 20
+
+  const dataCols = hasNoteColumn ? maxCols - 1 : maxCols
+
+  if (dataCols <= 1) {
+    // Simple list
+    const keywords = rows.map(r => String(r[0]).trim()).filter(k => k)
+    return { listType: 'simple', tierNames: [], keywords, totalKeywords: keywords.length, sheets, topCategories: [] }
+  }
+
+  if (dataCols === 2) {
+    // Grouped: column 0 = category, column 1 = keyword
+    const grouped: Record<string, string[]> = {}
+    for (const row of rows) {
+      const category = String(row[0]).trim()
+      const keyword = String(row[1]).trim()
+      if (category && keyword) {
+        if (!grouped[category]) grouped[category] = []
+        grouped[category].push(keyword)
+      }
+    }
+    const totalKeywords = Object.values(grouped).flat().length
+    return {
+      listType: 'grouped',
+      tierNames: [],
+      keywords: grouped,
+      totalKeywords,
+      sheets,
+      topCategories: Object.keys(grouped),
+    }
+  }
+
+  // 3+ data columns: hierarchical
+  // Columns before the last data column are tiers, last data column is keywords
+  const tierCount = dataCols - 1
+  const tierNames = Array.from({ length: tierCount }, (_, i) => `Tier ${i + 1}`)
+
+  // Build the tree
+  const tree: HierarchyNode = {}
+  for (const row of rows) {
+    const tiers = Array.from({ length: tierCount }, (_, i) => String(row[i] || '').trim())
+    const keyword = String(row[tierCount] || '').trim()
+    if (!keyword) continue
+
+    // Navigate/create the tree path
+    let current: HierarchyNode = tree
+    for (let i = 0; i < tiers.length - 1; i++) {
+      const tierValue = tiers[i] || 'Uncategorized'
+      if (!current[tierValue]) current[tierValue] = {}
+      const next = current[tierValue]
+      if (Array.isArray(next)) {
+        // Shouldn't happen with proper data, but handle gracefully
+        current[tierValue] = { Uncategorized: next }
+        current = current[tierValue] as HierarchyNode
+      } else {
+        current = next
+      }
+    }
+
+    // Last tier level → keyword array
+    const lastTier = tiers[tiers.length - 1] || 'Uncategorized'
+    if (!current[lastTier]) current[lastTier] = []
+    const leaf = current[lastTier]
+    if (Array.isArray(leaf)) {
+      leaf.push(keyword)
+    }
+  }
+
+  const totalKeywords = flattenHierarchy(tree).length
+  const topCategories = Object.keys(tree)
+
+  return {
+    listType: 'hierarchical',
+    tierNames,
+    keywords: { tiers: tierNames, tree },
+    totalKeywords,
+    sheets,
+    topCategories,
+  }
 }
