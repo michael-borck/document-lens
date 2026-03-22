@@ -24,9 +24,12 @@ import {
 import { exportNgramResults } from '@/services/export'
 import { DocumentFilter } from '@/components/DocumentFilter'
 import type { DocumentRecord } from '@/services/documents'
+import { useProjectStore } from '@/stores/projectStore'
+import { ProjectContextBar } from '@/components/ProjectContextBar'
 
 export function NgramAnalysis() {
   const { projectId } = useParams<{ projectId: string }>()
+  const loadProject = useProjectStore(s => s.loadProject)
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
@@ -59,6 +62,7 @@ export function NgramAnalysis() {
 
   useEffect(() => {
     if (projectId) {
+      loadProject(projectId)
       loadDocuments()
     }
   }, [projectId])
@@ -208,25 +212,9 @@ export function NgramAnalysis() {
   }
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link to={`/project/${projectId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">N-gram Analysis</h1>
-            <HelpButton section="analysis-workflows" tooltip="Learn about N-gram analysis" />
-          </div>
-          <p className="text-muted-foreground">
-            Extract frequent phrases from {activeDocuments.length} document{activeDocuments.length !== 1 ? 's' : ''}
-            {filteredDocIds !== null && ` (filtered from ${documents.length})`}
-          </p>
-        </div>
-      </div>
+    <div>
+      <ProjectContextBar />
+      <div className="p-8">
 
       {/* Analysis Controls */}
       <Card className="mb-6">
@@ -271,11 +259,26 @@ export function NgramAnalysis() {
             {/* Filter Terms */}
             <div className="flex items-center gap-4">
               <div className="flex-1 max-w-md">
-                <Input
-                  placeholder="Filter terms (optional): e.g., carbon, climate, emissions"
-                  value={filterTerms}
-                  onChange={(e) => setFilterTerms(e.target.value)}
-                />
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Filter terms (optional): e.g., carbon, climate, emissions"
+                    value={filterTerms}
+                    onChange={(e) => setFilterTerms(e.target.value)}
+                    className="flex-1"
+                  />
+                  {useProjectStore.getState().resolvedKeywords.length > 0 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const keywords = useProjectStore.getState().resolvedKeywords
+                        setFilterTerms(keywords.join(', '))
+                      }}
+                    >
+                      Use Profile ({useProjectStore.getState().resolvedKeywords.length})
+                    </Button>
+                  )}
+                </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Only show n-grams containing these terms (comma-separated)
                 </p>
@@ -627,6 +630,7 @@ export function NgramAnalysis() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   )
 }

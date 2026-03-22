@@ -47,9 +47,12 @@ import {
   type ParsedAnalysisProfile,
 } from '@/services/profiles'
 import { type HierarchicalKeywords } from '@/services/keywords'
+import { useProjectStore } from '@/stores/projectStore'
+import { ProjectContextBar } from '@/components/ProjectContextBar'
 
 export function Visualizations() {
   const { projectId } = useParams<{ projectId: string }>()
+  const loadProject = useProjectStore(s => s.loadProject)
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
@@ -89,6 +92,7 @@ export function Visualizations() {
 
   useEffect(() => {
     if (projectId) {
+      loadProject(projectId)
       loadDocuments()
       loadProfile()
     }
@@ -403,25 +407,9 @@ export function Visualizations() {
   }
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link to={`/project/${projectId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Visualizations</h1>
-            <HelpButton section="user-guide" tooltip="Learn about visualizations" />
-          </div>
-          <p className="text-muted-foreground">
-            Explore keyword patterns across {activeDocuments.length} document{activeDocuments.length !== 1 ? 's' : ''}
-            {filteredDocIds !== null && ` (filtered from ${documents.length})`}
-          </p>
-        </div>
-      </div>
+    <div>
+      <ProjectContextBar />
+      <div className="p-8">
 
       {/* Analysis Controls */}
       <Card className="mb-6">
@@ -696,6 +684,7 @@ export function Visualizations() {
         onClose={() => setShowKeywordSelector(false)}
         onSelect={handleKeywordSelect}
       />
+      </div>
     </div>
   )
 }

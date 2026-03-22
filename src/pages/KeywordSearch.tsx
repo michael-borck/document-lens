@@ -20,16 +20,19 @@ import {
   type HierarchicalKeywords,
 } from '@/services/keywords'
 import { exportKeywordResults } from '@/services/export'
+import { ProjectContextBar } from '@/components/ProjectContextBar'
 import { getOrCreateProjectProfile, updateProfile, type ProfileConfig } from '@/services/profiles'
+import { useProjectStore } from '@/stores/projectStore'
 import type { DocumentRecord } from '@/services/documents'
 
 export function KeywordSearch() {
   const { projectId } = useParams<{ projectId: string }>()
+  const loadProject = useProjectStore(s => s.loadProject)
   const [documents, setDocuments] = useState<DocumentRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [searching, setSearching] = useState(false)
   const [searchProgress, setSearchProgress] = useState(0)
-  
+
   // Search state
   const [showKeywordSelector, setShowKeywordSelector] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
@@ -50,6 +53,7 @@ export function KeywordSearch() {
 
   useEffect(() => {
     if (projectId) {
+      loadProject(projectId)
       loadDocuments()
       loadSavedSearch()
     }
@@ -272,24 +276,9 @@ export function KeywordSearch() {
   }
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link to={`/project/${projectId}`}>
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold">Keyword Search</h1>
-            <HelpButton section="user-guide" tooltip="Learn about keyword search" />
-          </div>
-          <p className="text-muted-foreground">
-            Search across {documents.length} documents
-          </p>
-        </div>
-      </div>
+    <div>
+      <ProjectContextBar />
+      <div className="p-8">
 
       {/* Search Controls */}
       <Card className="mb-6">
@@ -613,6 +602,7 @@ export function KeywordSearch() {
         onClose={() => setShowKeywordSelector(false)}
         onSelect={handleKeywordSelect}
       />
+      </div>
     </div>
   )
 }

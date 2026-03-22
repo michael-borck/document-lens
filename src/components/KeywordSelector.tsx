@@ -26,6 +26,7 @@ import {
   type ParsedKeywordList,
 } from '@/services/keywords'
 import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
+import { useProjectStore } from '@/stores/projectStore'
 
 interface KeywordSelectorProps {
   open: boolean
@@ -34,6 +35,7 @@ interface KeywordSelectorProps {
 }
 
 export function KeywordSelector({ open, onClose, onSelect }: KeywordSelectorProps) {
+  const { resolvedKeywords, profile } = useProjectStore()
   const [lists, setLists] = useState<KeywordList[]>([])
   const [selectedListId, setSelectedListId] = useState<string>('')
   const [selectedKeywords, setSelectedKeywords] = useState<Set<string>>(new Set())
@@ -167,6 +169,24 @@ export function KeywordSelector({ open, onClose, onSelect }: KeywordSelectorProp
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+          {/* Profile Keywords Quick Start */}
+          {resolvedKeywords.length > 0 && (
+            <div className="flex items-center gap-2 mb-3 p-2 bg-primary/5 rounded-md border border-primary/20">
+              <Button
+                size="sm"
+                onClick={() => {
+                  onSelect(resolvedKeywords, profile?.name ? `${profile.name} Keywords` : 'Profile Keywords')
+                  onClose()
+                }}
+              >
+                Use Profile Keywords ({resolvedKeywords.length})
+              </Button>
+              <span className="text-xs text-muted-foreground">
+                from your Research Profile
+              </span>
+            </div>
+          )}
+
           {/* List Selector and Quick Actions */}
           <div className="flex items-center gap-4 mb-4">
             <div className="w-64">
