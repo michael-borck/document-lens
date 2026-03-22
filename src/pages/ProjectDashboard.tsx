@@ -396,8 +396,13 @@ export function ProjectDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {documents.filter((d) => d.analysis_status === 'pending').length}
+              {documents.filter((d) => d.analysis_status !== 'completed').length}
             </div>
+            {documents.filter((d) => d.analysis_status === 'failed').length > 0 && (
+              <div className="text-xs text-destructive mt-1">
+                {documents.filter((d) => d.analysis_status === 'failed').length} failed
+              </div>
+            )}
           </CardContent>
         </Card>
         <Card>
@@ -413,6 +418,65 @@ export function ProjectDashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Analysis Workflow Guide */}
+      {!localStorage.getItem('hideWorkflowGuide') && (
+        <Card className="mb-6 border-primary/20 bg-primary/5">
+          <CardContent className="pt-6">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="font-medium">Analysis Workflow</h3>
+              <button
+                onClick={() => {
+                  localStorage.setItem('hideWorkflowGuide', 'true')
+                  // Force re-render
+                  setDocuments([...documents])
+                }}
+                className="text-xs text-muted-foreground hover:underline"
+              >
+                Dismiss
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-4">
+              <div className="space-y-1">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">1</span>
+                  Import & Analyze
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Import PDFs and run document-level analysis (readability, writing quality, word frequency).
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
+                  <Link to={`/project/${projectId}/search`} className="hover:underline">Keyword Search</Link>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Search for framework terms across documents. Use taxonomy hierarchies for tier-level analysis.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">3</span>
+                  <Link to={`/project/${projectId}/ngrams`} className="hover:underline">N-gram Discovery</Link>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Find frequently occurring 2-3 word phrases to discover patterns and terminology.
+                </p>
+              </div>
+              <div className="space-y-1">
+                <div className="text-sm font-medium flex items-center gap-2">
+                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">4</span>
+                  <Link to={`/project/${projectId}/visualize`} className="hover:underline">Visualize</Link>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Generate charts comparing keyword usage, trends, and document coverage.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2 mb-6">
@@ -437,6 +501,7 @@ export function ProjectDashboard() {
         {(() => {
           const analyzedCount = documents.filter(d => d.analysis_status === 'completed').length
           const analyzableCount = documents.filter(d => d.extracted_text).length
+          const failedCount = documents.filter(d => d.analysis_status === 'failed').length
           const allAnalyzed = analyzedCount === analyzableCount && analyzableCount > 0
           const pendingCount = analyzableCount - analyzedCount
 
@@ -460,6 +525,15 @@ export function ProjectDashboard() {
                   <DropdownMenuItem onClick={() => handleAnalyzeAll(false)}>
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Analyze Pending ({pendingCount})
+                  </DropdownMenuItem>
+                )}
+                {failedCount > 0 && (
+                  <DropdownMenuItem onClick={() => {
+                    const failedDocs = documents.filter(d => d.analysis_status === 'failed' && d.extracted_text)
+                    if (failedDocs.length > 0) handleAnalyzeAll(false)
+                  }}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry Failed ({failedCount})
                   </DropdownMenuItem>
                 )}
                 {analyzableCount > 0 && (

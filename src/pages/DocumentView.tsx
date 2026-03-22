@@ -21,6 +21,7 @@ import { getDocument, type DocumentRecord } from '@/services/documents'
 import { analyzeDocument, getDocumentAnalysis } from '@/services/analysis'
 import { downloadDocumentJson } from '@/services/export'
 import { KeywordSelector } from '@/components/KeywordSelector'
+import { DocumentMetadataModal } from '@/components/DocumentMetadataModal'
 
 interface PageData {
   page_number: number
@@ -76,6 +77,7 @@ export function DocumentView() {
   
   // Keywords tab state
   const [showKeywordSelector, setShowKeywordSelector] = useState(false)
+  const [showMetadataEdit, setShowMetadataEdit] = useState(false)
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([])
   const [keywordMatches, setKeywordMatches] = useState<Record<string, { count: number; contexts: string[] }>>({})
 
@@ -676,7 +678,12 @@ export function DocumentView() {
 
       {/* Sidebar - Document Info */}
       <div className="w-72 border-l bg-muted/20 p-4 overflow-y-auto">
-        <h3 className="font-medium mb-4">Document Info</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-medium">Document Info</h3>
+          <Button variant="ghost" size="sm" onClick={() => setShowMetadataEdit(true)}>
+            Edit
+          </Button>
+        </div>
         
         <div className="space-y-3 text-sm">
           <div>
@@ -715,6 +722,15 @@ export function DocumentView() {
             }`}>
               {document.analysis_status}
             </div>
+            {document.analysis_status === 'failed' && (
+              <button
+                onClick={handleAnalyze}
+                disabled={analyzing}
+                className="text-xs text-primary hover:underline mt-1"
+              >
+                Retry Analysis
+              </button>
+            )}
           </div>
 
           {document.analyzed_at && (
@@ -753,6 +769,17 @@ export function DocumentView() {
         onSelect={(keywords) => {
           handleKeywordSearch(keywords)
           setShowKeywordSelector(false)
+        }}
+      />
+
+      {/* Metadata Edit Modal */}
+      <DocumentMetadataModal
+        open={showMetadataEdit}
+        onClose={() => setShowMetadataEdit(false)}
+        document={document}
+        onSaved={() => {
+          setShowMetadataEdit(false)
+          loadDocument()
         }}
       />
     </div>
