@@ -9,10 +9,8 @@ import { api } from './api'
 import type { DocumentRecord } from './documents'
 import {
   type HierarchicalKeywords,
-  type HierarchyNode,
   flattenHierarchy,
   aggregateAtTier,
-  getKeywordPath,
 } from './keywords'
 
 export interface AnalysisProgress {
@@ -274,76 +272,6 @@ export async function searchKeywordsLocal(
 }
 
 /**
- * Search for keywords using the API (if available)
- */
-export async function searchKeywordsApi(
-  documents: DocumentRecord[],
-  keywords: string[],
-  contextChars: number = 100
-): Promise<BatchKeywordSearchResult> {
-  try {
-    // Try to use the batch API endpoint
-    const texts = documents.map(d => d.extracted_text || '')
-    const names = documents.map(d => d.filename)
-    
-    const apiResult = await api.searchKeywords(keywords, texts, names, contextChars)
-    
-    // Transform API result to our format
-    const results: KeywordSearchResult[] = documents.map((doc, index) => {
-      const docResults = apiResult.results[doc.filename] || {}
-      const matches: Record<string, KeywordMatch> = {}
-      let totalMatches = 0
-
-      for (const [keyword, data] of Object.entries(docResults)) {
-        matches[keyword] = {
-          keyword,
-          count: data.count,
-          contexts: data.contexts,
-        }
-        totalMatches += data.count
-      }
-
-      return {
-        documentId: doc.id,
-        documentName: doc.filename,
-        companyName: doc.company_name,
-        reportYear: doc.report_year,
-        matches,
-        totalMatches,
-      }
-    })
-
-    // Calculate summary
-    const keywordCounts: Record<string, number> = {}
-    keywords.forEach(k => { keywordCounts[k] = 0 })
-    
-    let totalMatches = 0
-    for (const result of results) {
-      for (const [keyword, match] of Object.entries(result.matches)) {
-        keywordCounts[keyword] += match.count
-        totalMatches += match.count
-      }
-    }
-
-    results.sort((a, b) => b.totalMatches - a.totalMatches)
-
-    return {
-      keywords,
-      documents: results,
-      summary: {
-        totalDocuments: documents.length,
-        totalMatches,
-        keywordCounts,
-      },
-    }
-  } catch (error) {
-    // Fall back to local search if API fails
-    console.warn('API search failed, using local search:', error)
-    return searchKeywordsLocal(documents, keywords, contextChars)
-  }
-}
-
-/**
  * Get analysis results for a document
  */
 export async function getDocumentAnalysis(
@@ -366,57 +294,6 @@ export async function getDocumentAnalysis(
   return analysis
 }
 
-/**
- * Save keyword search results to database
- */
-export async function saveKeywordSearchResults(
-  projectId: string,
-  keywordListId: string,
-  selectedKeywords: string[],
-  results: BatchKeywordSearchResult
-): Promise<string> {
-  const id = uuidv4()
-  
-  await window.electron.dbRun(
-    `INSERT INTO keyword_results (id, project_id, keyword_list_id, selected_keywords, results)
-     VALUES (?, ?, ?, ?, ?)`,
-    [id, projectId, keywordListId, JSON.stringify(selectedKeywords), JSON.stringify(results)]
-  )
-
-  return id
-}
-
-/**
- * Get saved keyword search results for a project
- */
-export async function getKeywordSearchResults(
-  projectId: string
-): Promise<Array<{
-  id: string
-  keyword_list_id: string
-  selected_keywords: string[]
-  results: BatchKeywordSearchResult
-  created_at: string
-}>> {
-  const rows = await window.electron.dbQuery<{
-    id: string
-    keyword_list_id: string
-    selected_keywords: string
-    results: string
-    created_at: string
-  }>(
-    'SELECT * FROM keyword_results WHERE project_id = ? ORDER BY created_at DESC',
-    [projectId]
-  )
-
-  return rows.map(row => ({
-    id: row.id,
-    keyword_list_id: row.keyword_list_id,
-    selected_keywords: JSON.parse(row.selected_keywords),
-    results: JSON.parse(row.results),
-    created_at: row.created_at,
-  }))
-}
 
 /**
  * Tier-level aggregation for a single category

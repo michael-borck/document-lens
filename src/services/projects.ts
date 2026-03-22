@@ -76,14 +76,3 @@ export async function duplicateProject(
 
   return newProjectId
 }
-
-/**
- * Get document count for a project
- */
-export async function getProjectDocumentCount(projectId: string): Promise<number> {
-  const result = await window.electron.dbQuery<{ count: number }>(
-    'SELECT COUNT(*) as count FROM project_documents WHERE project_id = ?',
-    [projectId]
-  )
-  return result[0]?.count || 0
-}

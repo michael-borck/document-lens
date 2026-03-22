@@ -26,7 +26,7 @@ import {
   type HierarchyNode,
 } from '@/services/keywords'
 import { KeywordListViewer } from '@/components/KeywordListViewer'
-import { FOCUSES, getFocus } from '@/data/focuses'
+import { FOCUSES } from '@/data/focuses'
 import { cn } from '@/lib/utils'
 
 export function KeywordLists() {

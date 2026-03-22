@@ -135,20 +135,6 @@ export function flattenHierarchy(node: HierarchyNode): string[] {
 }
 
 /**
- * Get a subtree at a given path (e.g., ["Environmental", "SDG 6"])
- */
-export function getNodeAtPath(tree: HierarchyNode, path: string[]): HierarchyNode | string[] | null {
-  let current: HierarchyNode | string[] = tree
-  for (const segment of path) {
-    if (isLeafNode(current)) return null
-    const next: HierarchyNode | string[] | undefined = current[segment]
-    if (next === undefined) return null
-    current = next
-  }
-  return current
-}
-
-/**
  * Aggregate keywords by category at a specific tier depth.
  * depth=0 returns top-level categories, depth=1 returns second-level, etc.
  * Returns a map of category name → flat keyword array beneath it.
@@ -173,44 +159,7 @@ export function aggregateAtTier(tree: HierarchyNode, depth: number): Record<stri
   return result
 }
 
-/**
- * Get the ancestry path for a keyword in the tree.
- * Returns e.g. ["Environmental", "SDG 13 - Climate Action"] for "carbon neutrality"
- */
-export function getKeywordPath(tree: HierarchyNode, keyword: string): string[] | null {
-  for (const [key, value] of Object.entries(tree)) {
-    if (isLeafNode(value)) {
-      if (value.includes(keyword)) return [key]
-    } else {
-      const subPath = getKeywordPath(value, keyword)
-      if (subPath) return [key, ...subPath]
-    }
-  }
-  return null
-}
 
-/**
- * Get the depth of a hierarchy tree (number of nesting levels before leaf arrays)
- */
-export function getHierarchyDepth(node: HierarchyNode): number {
-  const firstValue = Object.values(node)[0]
-  if (!firstValue || isLeafNode(firstValue)) return 1
-  return 1 + getHierarchyDepth(firstValue)
-}
-
-/**
- * Get all category names at a specific tier depth
- */
-export function getCategoriesAtTier(tree: HierarchyNode, depth: number): string[] {
-  if (depth === 0) return Object.keys(tree)
-  const categories: string[] = []
-  for (const value of Object.values(tree)) {
-    if (!isLeafNode(value)) {
-      categories.push(...getCategoriesAtTier(value, depth - 1))
-    }
-  }
-  return categories
-}
 
 // Framework data map
 const FRAMEWORKS: Record<string, FrameworkData> = {
@@ -325,44 +274,6 @@ export async function getKeywordList(id: string): Promise<KeywordList | null> {
     [id]
   )
   return results[0] || null
-}
-
-/**
- * Get built-in framework lists
- */
-export async function getBuiltinLists(): Promise<KeywordList[]> {
-  return window.electron.dbQuery<KeywordList>(
-    'SELECT * FROM keyword_lists WHERE is_builtin = 1 ORDER BY name'
-  )
-}
-
-/**
- * Get custom lists
- */
-export async function getCustomLists(): Promise<KeywordList[]> {
-  return window.electron.dbQuery<KeywordList>(
-    'SELECT * FROM keyword_lists WHERE is_builtin = 0 ORDER BY name'
-  )
-}
-
-/**
- * Get built-in keyword lists by focus
- */
-export async function getKeywordListsByFocus(focus: string): Promise<KeywordList[]> {
-  return window.electron.dbQuery<KeywordList>(
-    'SELECT * FROM keyword_lists WHERE focus = ? AND is_builtin = 1 ORDER BY name',
-    [focus]
-  )
-}
-
-/**
- * Get all unique focuses from keyword lists
- */
-export async function getKeywordFocuses(): Promise<string[]> {
-  const results = await window.electron.dbQuery<{ focus: string }>(
-    'SELECT DISTINCT focus FROM keyword_lists WHERE focus IS NOT NULL AND is_builtin = 1 ORDER BY focus'
-  )
-  return results.map(r => r.focus)
 }
 
 /**
@@ -546,49 +457,6 @@ export function parseKeywordsFromCSV(
   }
 
   return grouped
-}
-
-/**
- * Export keywords to CSV format
- */
-export function exportKeywordsToCSV(
-  keywords: Record<string, string[]> | string[],
-  includeCategories: boolean = true
-): string {
-  if (Array.isArray(keywords)) {
-    return keywords.join('\n')
-  }
-
-  if (!includeCategories) {
-    return Object.values(keywords).flat().join('\n')
-  }
-
-  const lines: string[] = []
-  for (const [category, terms] of Object.entries(keywords)) {
-    for (const term of terms) {
-      lines.push(`${category},${term}`)
-    }
-  }
-  return lines.join('\n')
-}
-
-/**
- * Get framework metadata
- */
-export function getFrameworkInfo(framework: string): FrameworkData | null {
-  return FRAMEWORKS[framework] || null
-}
-
-/**
- * Get all available frameworks
- */
-export function getAvailableFrameworks(): Array<{ id: string; name: string; description: string; keywordCount: number }> {
-  return Object.entries(FRAMEWORKS).map(([id, data]) => ({
-    id,
-    name: data.name,
-    description: data.description,
-    keywordCount: data.total_keywords,
-  }))
 }
 
 /**

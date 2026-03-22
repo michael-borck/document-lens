@@ -15,7 +15,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import {
-  getProjectProfiles,
   getActiveProfile,
   type ParsedAnalysisProfile,
 } from '@/services/profiles'

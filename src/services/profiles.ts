@@ -147,21 +147,6 @@ export async function setActiveProfile(
 }
 
 /**
- * Unset active profile (clear all active profiles for project)
- */
-export async function clearActiveProfile(projectId: string): Promise<void> {
-  try {
-    await window.electron.dbRun(
-      'UPDATE analysis_profiles SET is_active = FALSE WHERE project_id = ?',
-      [projectId]
-    )
-  } catch (error) {
-    console.error('Error clearing active profile:', error)
-    throw error
-  }
-}
-
-/**
  * Update a profile
  */
 export async function updateProfile(
@@ -207,53 +192,6 @@ export async function updateProfile(
 }
 
 /**
- * Delete a profile
- */
-export async function deleteProfile(profileId: string): Promise<void> {
-  try {
-    await window.electron.dbRun(
-      'DELETE FROM analysis_profiles WHERE id = ?',
-      [profileId]
-    )
-  } catch (error) {
-    console.error('Error deleting profile:', error)
-    throw error
-  }
-}
-
-/**
- * Duplicate a profile with a new name
- */
-export async function duplicateProfile(
-  profileId: string,
-  newName: string
-): Promise<string> {
-  try {
-    const profiles = await window.electron.dbQuery<AnalysisProfile>(
-      'SELECT * FROM analysis_profiles WHERE id = ?',
-      [profileId]
-    )
-
-    if (profiles.length === 0) {
-      throw new Error('Profile not found')
-    }
-
-    const profile = profiles[0]
-    const config = JSON.parse(profile.config) as ProfileConfig
-
-    return await createAnalysisProfile(
-      profile.project_id,
-      newName,
-      profile.description,
-      config
-    )
-  } catch (error) {
-    console.error('Error duplicating profile:', error)
-    throw error
-  }
-}
-
-/**
  * Parse a profile with JSON config
  */
 export function parseProfile(profile: AnalysisProfile): ParsedAnalysisProfile {
@@ -285,15 +223,6 @@ export function getEnabledKeywords(config: ProfileConfig): string[] {
 }
 
 /**
- * Get all enabled frameworks from a profile
- */
-export function getEnabledFrameworks(config: ProfileConfig): string[] {
-  return Object.entries(config.keywords)
-    .filter(([_, data]) => data.enabled)
-    .map(([framework]) => framework)
-}
-
-/**
  * Create default profile template
  */
 export function createDefaultProfileConfig(): ProfileConfig {
@@ -314,29 +243,7 @@ export function createDefaultProfileConfig(): ProfileConfig {
   }
 }
 
-/**
- * Merge two profile configs (useful for creating composite profiles)
- */
-export function mergeProfileConfigs(
-  baseConfig: ProfileConfig,
-  overrideConfig: Partial<ProfileConfig>
-): ProfileConfig {
-  return {
-    keywords: {
-      ...baseConfig.keywords,
-      ...(overrideConfig.keywords || {})
-    },
-    domains: overrideConfig.domains || baseConfig.domains,
-    analysis_types: {
-      ...baseConfig.analysis_types,
-      ...(overrideConfig.analysis_types || {})
-    },
-    comparison: {
-      ...baseConfig.comparison,
-      ...(overrideConfig.comparison || {})
-    }
-  }
-}
+
 
 /**
  * Get or create the single profile for a project.

@@ -74,18 +74,3 @@ export function getFocus(id: string): Focus | undefined {
   return FOCUSES.find(f => f.id === id)
 }
 
-export function getFocusFrameworks(focusId: string): string[] {
-  // Map focus IDs to their framework IDs
-  // Each focus includes specific frameworks plus a general domain keyword list
-  const focusFrameworks: Record<string, string[]> = {
-    'sustainability': ['sustainability-general', 'tcfd', 'gri', 'sdgs', 'sasb', 'sdgs-wedding-cake', 'sdgs-wedding-cake-counter'],
-    'cybersecurity': ['cybersecurity-general', 'nist-csf', 'iso-27001', 'cis-controls', 'mitre-attack'],
-    'finance': ['finance-general', 'financial-ratios', 'sec-regulations', 'basel-iii', 'risk-metrics'],
-    'healthcare': ['healthcare-general', 'clinical-trials', 'fda-regulations', 'hipaa', 'medical-terminology'],
-    'legal': ['legal-general', 'contract-terms', 'regulatory-language', 'legal-clauses', 'compliance-keywords'],
-    'academic': ['academic-general', 'research-methods', 'statistical-terms', 'literature-review', 'citation-analysis'],
-    'project-management': ['project-management-general', 'agile-scrum', 'pmbok', 'risk-management-pm', 'resource-planning'],
-    'general': []
-  }
-  return focusFrameworks[focusId] || []
-}
