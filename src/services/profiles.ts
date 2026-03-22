@@ -30,6 +30,7 @@ export interface ProfileConfig {
     listName: string
     selectedKeywords: string[]
     quickSearch: string
+    viewByTier?: string  // 'keywords' or a tier name like 'Pillar'
   }
 }
 

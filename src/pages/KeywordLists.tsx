@@ -46,6 +46,10 @@ export function KeywordLists() {
   const [excelTierNames, setExcelTierNames] = useState<string[]>([])
   const [excelFilename, setExcelFilename] = useState('')
 
+  // Convert to taxonomy
+  const [showConvert, setShowConvert] = useState<KeywordList | null>(null)
+  const [convertTierName, setConvertTierName] = useState('Category')
+
   // New list form
   const [newListName, setNewListName] = useState('')
   const [newListDescription, setNewListDescription] = useState('')
@@ -292,6 +296,36 @@ export function KeywordLists() {
     }
   }
 
+  const handleConvertToTaxonomy = async () => {
+    if (!showConvert || !convertTierName.trim()) return
+
+    try {
+      const parsed = parseKeywords(showConvert)
+      const keywords = parsed.keywords
+      if (Array.isArray(keywords)) return // Can't convert simple lists
+
+      // Wrap the grouped keywords into a hierarchical structure
+      const hierarchicalData = {
+        tiers: [convertTierName.trim()],
+        tree: keywords as HierarchyNode,
+      }
+
+      // Create a new hierarchical list (duplicate, not modify original)
+      await createKeywordList(
+        `${showConvert.name} (Taxonomy)`,
+        `Converted from "${showConvert.name}" with tier "${convertTierName.trim()}"`,
+        'hierarchical',
+        hierarchicalData
+      )
+
+      setShowConvert(null)
+      setConvertTierName('Category')
+      loadLists()
+    } catch (error) {
+      console.error('Failed to convert to taxonomy:', error)
+    }
+  }
+
   const builtinLists = lists.filter(l => l.is_builtin)
   const customLists = lists.filter(l => !l.is_builtin)
 
@@ -489,6 +523,13 @@ export function KeywordLists() {
               const original = lists.find(l => l.id === selectedList.id)
               if (original) handleDeleteList(original)
             }}
+            onConvertToTaxonomy={() => {
+              const original = lists.find(l => l.id === selectedList.id)
+              if (original) {
+                setConvertTierName('Category')
+                setShowConvert(original)
+              }
+            }}
           />
         ) : (
           <div className="flex items-center justify-center h-full text-muted-foreground">
@@ -582,6 +623,40 @@ export function KeywordLists() {
             </Button>
             <Button onClick={handleEditList} disabled={!editName.trim() || !editKeywords.trim()}>
               Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Convert to Taxonomy Dialog */}
+      <Dialog open={!!showConvert} onOpenChange={() => setShowConvert(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Convert to Taxonomy</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              This creates a new hierarchical keyword list from "{showConvert?.name}".
+              The existing categories become groups under a named tier.
+            </p>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">What do you call these groupings?</label>
+              <Input
+                value={convertTierName}
+                onChange={(e) => setConvertTierName(e.target.value)}
+                placeholder="e.g., Category, Pillar, Domain, Theme"
+              />
+              <p className="text-xs text-muted-foreground">
+                This names the tier level (e.g., if your groups are SDGs, the tier might be "Goal")
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowConvert(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleConvertToTaxonomy} disabled={!convertTierName.trim()}>
+              Create Taxonomy
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -78,7 +78,7 @@ export function KeywordSearch() {
       const profile = await getOrCreateProjectProfile(projectId)
       setProfileId(profile.id)
       if (profile.config.lastSearch) {
-        const { listName, selectedKeywords: saved, quickSearch: savedQuick } = profile.config.lastSearch
+        const { listName, selectedKeywords: saved, quickSearch: savedQuick, viewByTier } = profile.config.lastSearch
         if (saved.length > 0) {
           setSelectedKeywords(saved)
           setSelectedListName(listName)
@@ -86,13 +86,16 @@ export function KeywordSearch() {
         if (savedQuick) {
           setQuickSearch(savedQuick)
         }
+        if (viewByTier) {
+          setViewBy(viewByTier)
+        }
       }
     } catch (error) {
       console.error('Failed to load saved search state:', error)
     }
   }
 
-  const saveSearchState = async (keywords: string[], listName: string, quick: string = quickSearch) => {
+  const saveSearchState = async (keywords: string[], listName: string, quick: string = quickSearch, tierView: string = viewBy) => {
     if (!projectId || !profileId) return
     try {
       const profile = await getOrCreateProjectProfile(projectId)
@@ -103,11 +106,20 @@ export function KeywordSearch() {
           listName,
           selectedKeywords: keywords,
           quickSearch: quick,
+          viewByTier: tierView,
         }
       }
       await updateProfile(profileId, { config: updatedConfig })
     } catch (error) {
       console.error('Failed to save search state:', error)
+    }
+  }
+
+  // Save viewBy when it changes
+  const handleViewByChange = (newViewBy: string) => {
+    setViewBy(newViewBy)
+    if (selectedKeywords.length > 0) {
+      saveSearchState(selectedKeywords, selectedListName, quickSearch, newViewBy)
     }
   }
 
@@ -394,7 +406,7 @@ export function KeywordSearch() {
                         key={tier}
                         variant={viewBy === tier ? 'default' : 'outline'}
                         size="sm"
-                        onClick={() => setViewBy(tier)}
+                        onClick={() => handleViewByChange(tier)}
                       >
                         {tier}
                       </Button>
@@ -402,7 +414,7 @@ export function KeywordSearch() {
                     <Button
                       variant={viewBy === 'keywords' ? 'default' : 'outline'}
                       size="sm"
-                      onClick={() => setViewBy('keywords')}
+                      onClick={() => handleViewByChange('keywords')}
                     >
                       Keywords
                     </Button>

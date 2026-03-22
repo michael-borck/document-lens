@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Copy, Trash2, ChevronDown, ChevronRight, Check, Search, Pencil } from 'lucide-react'
+import { Copy, Trash2, ChevronDown, ChevronRight, Check, Search, Pencil, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -7,7 +7,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import {
   getKeywordsByCategory,
   flattenKeywords,
+  updateKeywordList,
   type ParsedKeywordList,
+  type HierarchyNode,
 } from '@/services/keywords'
 import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
 
@@ -16,6 +18,7 @@ interface KeywordListViewerProps {
   onDuplicate: () => void
   onDelete: () => void
   onEdit?: () => void
+  onConvertToTaxonomy?: () => void
   selectionMode?: boolean
   selectedKeywords?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
@@ -26,6 +29,7 @@ export function KeywordListViewer({
   onDuplicate,
   onDelete,
   onEdit,
+  onConvertToTaxonomy,
   selectionMode = false,
   selectedKeywords: externalSelection,
   onSelectionChange,
@@ -156,6 +160,12 @@ export function KeywordListViewer({
               Edit
             </Button>
           )}
+          {onConvertToTaxonomy && !list.hierarchical && isGrouped && (
+            <Button variant="outline" size="sm" onClick={onConvertToTaxonomy}>
+              <Layers className="h-4 w-4 mr-2" />
+              Convert to Taxonomy
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onDuplicate}>
             <Copy className="h-4 w-4 mr-2" />
             Duplicate
@@ -176,6 +186,23 @@ export function KeywordListViewer({
           selectionMode={selectionMode}
           selectedKeywords={selectedKeywords}
           onSelectionChange={setSelectedKeywords}
+          editable={!list.is_builtin}
+          onTierRename={!list.is_builtin ? async (tierIndex, newName) => {
+            if (!list.hierarchical) return
+            const updatedTiers = [...list.hierarchical.tiers]
+            updatedTiers[tierIndex] = newName
+            const updatedKeywords = {
+              tiers: updatedTiers,
+              tree: list.hierarchical.tree,
+            }
+            try {
+              await updateKeywordList(list.id, {
+                keywords: updatedKeywords as unknown as Record<string, string[]>,
+              })
+            } catch (error) {
+              console.error('Failed to rename tier:', error)
+            }
+          } : undefined}
         />
       ) : (
       <>

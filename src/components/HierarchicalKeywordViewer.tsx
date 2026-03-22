@@ -23,6 +23,10 @@ interface HierarchicalKeywordViewerProps {
   selectionMode?: boolean
   selectedKeywords?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
+  /** Allow editing tier names */
+  editable?: boolean
+  /** Called when a tier name is changed */
+  onTierRename?: (tierIndex: number, newName: string) => void
 }
 
 export function HierarchicalKeywordViewer({
@@ -30,6 +34,8 @@ export function HierarchicalKeywordViewer({
   selectionMode = false,
   selectedKeywords: externalSelection,
   onSelectionChange,
+  editable = false,
+  onTierRename,
 }: HierarchicalKeywordViewerProps) {
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(new Set())
   const [searchQuery, setSearchQuery] = useState('')
@@ -253,10 +259,18 @@ export function HierarchicalKeywordViewer({
       <div className="flex items-center gap-2 mb-4 text-sm text-muted-foreground">
         <span>Taxonomy tiers:</span>
         {hierarchical.tiers.map((tier, i) => (
-          <span key={tier}>
-            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs">
-              {tier}
-            </span>
+          <span key={i} className="flex items-center">
+            {editable && onTierRename ? (
+              <Input
+                value={tier}
+                onChange={(e) => onTierRename(i, e.target.value)}
+                className="h-6 w-24 text-xs px-2 bg-primary/10 text-primary border-primary/20"
+              />
+            ) : (
+              <span className="px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs">
+                {tier}
+              </span>
+            )}
             {i < hierarchical.tiers.length - 1 && <span className="mx-1">&rarr;</span>}
           </span>
         ))}
