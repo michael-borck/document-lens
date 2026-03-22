@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react'
-import { Copy, Trash2, ChevronDown, ChevronRight, Check, Search } from 'lucide-react'
+import { Copy, Trash2, ChevronDown, ChevronRight, Check, Search, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -9,11 +9,13 @@ import {
   flattenKeywords,
   type ParsedKeywordList,
 } from '@/services/keywords'
+import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
 
 interface KeywordListViewerProps {
   list: ParsedKeywordList
   onDuplicate: () => void
   onDelete: () => void
+  onEdit?: () => void
   selectionMode?: boolean
   selectedKeywords?: Set<string>
   onSelectionChange?: (selected: Set<string>) => void
@@ -23,6 +25,7 @@ export function KeywordListViewer({
   list,
   onDuplicate,
   onDelete,
+  onEdit,
   selectionMode = false,
   selectedKeywords: externalSelection,
   onSelectionChange,
@@ -147,6 +150,12 @@ export function KeywordListViewer({
           </div>
         </div>
         <div className="flex gap-2">
+          {!list.is_builtin && onEdit && (
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={onDuplicate}>
             <Copy className="h-4 w-4 mr-2" />
             Duplicate
@@ -160,6 +169,16 @@ export function KeywordListViewer({
         </div>
       </div>
 
+      {/* Hierarchical view */}
+      {list.hierarchical ? (
+        <HierarchicalKeywordViewer
+          hierarchical={list.hierarchical}
+          selectionMode={selectionMode}
+          selectedKeywords={selectedKeywords}
+          onSelectionChange={setSelectedKeywords}
+        />
+      ) : (
+      <>
       {/* Search and Quick Actions */}
       <div className="flex items-center gap-4 mb-4">
         <div className="relative flex-1 max-w-sm">
@@ -294,6 +313,8 @@ export function KeywordListViewer({
           )}
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   )
 }

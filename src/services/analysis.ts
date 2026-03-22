@@ -7,6 +7,13 @@
 import { v4 as uuidv4 } from 'uuid'
 import { api } from './api'
 import type { DocumentRecord } from './documents'
+import {
+  type HierarchicalKeywords,
+  type HierarchyNode,
+  flattenHierarchy,
+  aggregateAtTier,
+  getKeywordPath,
+} from './keywords'
 
 export interface AnalysisProgress {
   total: number
@@ -409,4 +416,133 @@ export async function getKeywordSearchResults(
     results: JSON.parse(row.results),
     created_at: row.created_at,
   }))
+}
+
+/**
+ * Tier-level aggregation for a single category
+ */
+export interface TierCategoryAggregation {
+  matchCount: number       // total keyword matches in this category
+  keywordCount: number     // how many unique keywords matched
+  totalKeywords: number    // how many keywords exist in this category
+  coverage: number         // keywordCount / totalKeywords
+}
+
+/**
+ * Aggregation at a single tier level across all documents
+ */
+export type TierAggregation = Record<string, TierCategoryAggregation>
+
+/**
+ * Per-document tier aggregation
+ */
+export interface DocumentTierAggregation {
+  documentId: string
+  documentName: string
+  companyName: string | null
+  reportYear: number | null
+  tiers: Record<string, TierAggregation>  // tierName → category aggregations
+}
+
+/**
+ * Complete hierarchical search result
+ */
+export interface HierarchicalSearchResult {
+  baseResults: BatchKeywordSearchResult
+  hierarchy: HierarchicalKeywords
+  /** Aggregation across all documents, per tier */
+  overallTiers: Record<string, TierAggregation>
+  /** Per-document tier aggregations */
+  documentTiers: DocumentTierAggregation[]
+}
+
+/**
+ * Build tier-level aggregations from flat keyword search results and a hierarchy.
+ * This is a pure post-processing step — no additional searching needed.
+ */
+export function buildHierarchicalAggregations(
+  baseResults: BatchKeywordSearchResult,
+  hierarchy: HierarchicalKeywords
+): HierarchicalSearchResult {
+  const { tiers, tree } = hierarchy
+
+  // Build overall tier aggregations (across all documents)
+  const overallTiers: Record<string, TierAggregation> = {}
+  for (let depth = 0; depth < tiers.length; depth++) {
+    const tierName = tiers[depth]
+    const categoryKeywords = aggregateAtTier(tree, depth)
+    const agg: TierAggregation = {}
+
+    for (const [category, keywords] of Object.entries(categoryKeywords)) {
+      const totalKeywords = keywords.length
+      let matchCount = 0
+      let keywordCount = 0
+
+      for (const kw of keywords) {
+        const count = baseResults.summary.keywordCounts[kw] || 0
+        if (count > 0) {
+          matchCount += count
+          keywordCount++
+        }
+      }
+
+      agg[category] = {
+        matchCount,
+        keywordCount,
+        totalKeywords,
+        coverage: totalKeywords > 0 ? keywordCount / totalKeywords : 0,
+      }
+    }
+
+    overallTiers[tierName] = agg
+  }
+
+  // Build per-document tier aggregations
+  const documentTiers: DocumentTierAggregation[] = baseResults.documents.map(doc => {
+    const docTiers: Record<string, TierAggregation> = {}
+
+    for (let depth = 0; depth < tiers.length; depth++) {
+      const tierName = tiers[depth]
+      const categoryKeywords = aggregateAtTier(tree, depth)
+      const agg: TierAggregation = {}
+
+      for (const [category, keywords] of Object.entries(categoryKeywords)) {
+        const totalKeywords = keywords.length
+        let matchCount = 0
+        let keywordCount = 0
+
+        for (const kw of keywords) {
+          const match = doc.matches[kw]
+          if (match && match.count > 0) {
+            matchCount += match.count
+            keywordCount++
+          }
+        }
+
+        agg[category] = {
+          matchCount,
+          keywordCount,
+          totalKeywords,
+          coverage: totalKeywords > 0 ? keywordCount / totalKeywords : 0,
+        }
+      }
+
+      docTiers[tierName] = agg
+    }
+
+    return {
+      documentId: doc.documentId,
+      documentName: doc.documentName,
+      companyName: doc.companyName,
+      reportYear: doc.reportYear,
+      tiers: docTiers,
+    }
+  })
+
+  return {
+    baseResults,
+    hierarchy,
+    overallTiers,
+    documentTiers,
+  }
 }

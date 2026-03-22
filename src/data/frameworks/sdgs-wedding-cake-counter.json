@@ -1,0 +1,119 @@
+{
+  "name": "SDGs Wedding Cake - Counter-Indicators",
+  "framework": "sdgs-wedding-cake-counter",
+  "version": "1.0",
+  "description": "Counter-indicator keywords that suggest non-alignment with SDGs. These terms may indicate prioritisation of commercial or institutional goals over sustainability commitments. Designed for use alongside the SDGs Wedding Cake Model.",
+  "source": "University sustainability research, beta tester keyword analysis",
+  "list_type": "hierarchical",
+  "total_keywords": 62,
+  "keywords": {
+    "tiers": ["Pillar", "Goal"],
+    "tree": {
+      "Environmental": {
+        "SDG 6 - Clean Water and Sanitation": [
+          "water extraction",
+          "infrastructure cost recovery",
+          "water commodification"
+        ],
+        "SDG 13 - Climate Action": [
+          "carbon offset reliance",
+          "climate neutrality by outsourcing",
+          "emissions trading"
+        ],
+        "SDG 14 - Life Below Water": [
+          "marine resource exploitation",
+          "coastal development",
+          "blue economy"
+        ],
+        "SDG 15 - Life on Land": [
+          "land acquisition",
+          "biodiversity offsetting",
+          "forestry partnerships"
+        ]
+      },
+      "Social": {
+        "SDG 1 - No Poverty": [
+          "revenue maximisation",
+          "fee-paying priority",
+          "market segmentation",
+          "premium service tiers",
+          "competitive advantage"
+        ],
+        "SDG 2 - Zero Hunger": [
+          "commercial agriculture",
+          "export-oriented food research",
+          "agribusiness partnerships"
+        ],
+        "SDG 3 - Good Health and Well-being": [
+          "health commercialisation",
+          "private health partnerships",
+          "cost containment in health services",
+          "health outsourcing"
+        ],
+        "SDG 4 - Quality Education": [
+          "elite education",
+          "prestige rankings",
+          "competitive admissions",
+          "international student revenue",
+          "brand positioning"
+        ],
+        "SDG 5 - Gender Equality": [
+          "gender-neutral policy",
+          "merit-only hiring",
+          "gender-blind reporting"
+        ],
+        "SDG 7 - Affordable and Clean Energy": [
+          "fossil fuel partnerships",
+          "energy cost efficiency",
+          "non-renewable energy investment"
+        ],
+        "SDG 11 - Sustainable Cities and Communities": [
+          "urban expansion",
+          "real estate development",
+          "campus footprint growth",
+          "infrastructure densification"
+        ],
+        "SDG 16 - Peace, Justice and Strong Institutions": [
+          "risk management",
+          "governance efficiency",
+          "strategic silence on human rights"
+        ]
+      },
+      "Economic": {
+        "SDG 8 - Decent Work and Economic Growth": [
+          "casualisation of workforce",
+          "outsourcing",
+          "productivity maximisation",
+          "cost-cutting measures",
+          "short-term contracts"
+        ],
+        "SDG 9 - Industry, Innovation and Infrastructure": [
+          "commercialisation of research",
+          "IP monetisation",
+          "industry-first innovation",
+          "infrastructure expansion"
+        ],
+        "SDG 10 - Reduced Inequalities": [
+          "selective excellence",
+          "targeting high-performing cohorts",
+          "competitive scholarship models",
+          "performance-based funding"
+        ],
+        "SDG 12 - Responsible Consumption and Production": [
+          "procurement efficiency",
+          "cost-driven supply chain",
+          "resource extraction",
+          "waste externalisation"
+        ]
+      },
+      "Governance": {
+        "SDG 17 - Partnerships for the Goals": [
+          "exclusive partnerships",
+          "commercial alliances",
+          "competitive collaboration",
+          "IP protectionism"
+        ]
+      }
+    }
+  }
+}

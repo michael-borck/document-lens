@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Copy, Trash2, FileUp, ChevronRight, Search, ChevronDown } from 'lucide-react'
+import { Plus, Copy, Trash2, FileUp, ChevronRight, Search, ChevronDown, Pencil } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -16,7 +16,9 @@ import {
   deleteKeywordList,
   duplicateKeywordList,
   createKeywordList,
+  updateKeywordList,
   parseKeywordsFromCSV,
+  flattenKeywords,
   type KeywordList,
   type ParsedKeywordList,
 } from '@/services/keywords'
@@ -34,12 +36,18 @@ export function KeywordLists() {
   const [showNewList, setShowNewList] = useState(false)
   const [showDuplicate, setShowDuplicate] = useState<KeywordList | null>(null)
   const [showImport, setShowImport] = useState(false)
-  
+  const [showEdit, setShowEdit] = useState<KeywordList | null>(null)
+
   // New list form
   const [newListName, setNewListName] = useState('')
   const [newListDescription, setNewListDescription] = useState('')
   const [newListKeywords, setNewListKeywords] = useState('')
-  
+
+  // Edit form
+  const [editName, setEditName] = useState('')
+  const [editDescription, setEditDescription] = useState('')
+  const [editKeywords, setEditKeywords] = useState('')
+
   // Duplicate form
   const [duplicateName, setDuplicateName] = useState('')
 
@@ -99,6 +107,76 @@ export function KeywordLists() {
       loadLists()
     } catch (error) {
       console.error('Failed to duplicate list:', error)
+    }
+  }
+
+  const handleOpenEdit = (list: KeywordList) => {
+    const parsed = parseKeywords(list)
+    setEditName(list.name)
+    setEditDescription(list.description || '')
+    const keywords = parsed.keywords
+    if (Array.isArray(keywords)) {
+      setEditKeywords(keywords.join('\n'))
+    } else {
+      // For grouped lists, show as category: keyword lines
+      const lines: string[] = []
+      for (const [category, terms] of Object.entries(keywords)) {
+        for (const term of terms) {
+          lines.push(`${category},${term}`)
+        }
+      }
+      setEditKeywords(lines.join('\n'))
+    }
+    setShowEdit(list)
+  }
+
+  const handleEditList = async () => {
+    if (!showEdit || !editName.trim() || !editKeywords.trim()) return
+
+    try {
+      const lines = editKeywords
+        .split('\n')
+        .map(l => l.trim())
+        .filter(l => l.length > 0)
+
+      // Detect if grouped (has commas)
+      const hasCategories = lines.some(l => l.includes(','))
+      let keywords: Record<string, string[]> | string[]
+
+      if (hasCategories) {
+        const grouped: Record<string, string[]> = {}
+        for (const line of lines) {
+          const commaIdx = line.indexOf(',')
+          if (commaIdx > 0) {
+            const category = line.slice(0, commaIdx).trim()
+            const keyword = line.slice(commaIdx + 1).trim()
+            if (category && keyword) {
+              if (!grouped[category]) grouped[category] = []
+              grouped[category].push(keyword)
+            }
+          }
+        }
+        keywords = grouped
+      } else {
+        keywords = lines
+      }
+
+      await updateKeywordList(showEdit.id, {
+        name: editName.trim(),
+        description: editDescription.trim() || null,
+        keywords,
+      })
+
+      setShowEdit(null)
+      loadLists()
+      // Refresh the selected list if it was the one edited
+      if (selectedList?.id === showEdit.id) {
+        const updated = await getAllKeywordLists()
+        const found = updated.find(l => l.id === showEdit.id)
+        if (found) setSelectedList(parseKeywords(found))
+      }
+    } catch (error) {
+      console.error('Failed to update list:', error)
     }
   }
 
@@ -345,6 +423,10 @@ export function KeywordLists() {
         {selectedList ? (
           <KeywordListViewer
             list={selectedList}
+            onEdit={() => {
+              const original = lists.find(l => l.id === selectedList.id)
+              if (original && !original.is_builtin) handleOpenEdit(original)
+            }}
             onDuplicate={() => {
               const original = lists.find(l => l.id === selectedList.id)
               if (original) {
@@ -403,6 +485,52 @@ export function KeywordLists() {
             </Button>
             <Button onClick={handleCreateList} disabled={!newListName.trim() || !newListKeywords.trim()}>
               Create List
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Dialog */}
+      <Dialog open={!!showEdit} onOpenChange={() => setShowEdit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Keyword List</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name</label>
+              <Input
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="List name"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description (optional)</label>
+              <Input
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Keywords for..."
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Keywords</label>
+              <p className="text-xs text-muted-foreground">
+                One keyword per line. For grouped lists, use format: category,keyword
+              </p>
+              <textarea
+                value={editKeywords}
+                onChange={(e) => setEditKeywords(e.target.value)}
+                className="w-full h-48 px-3 py-2 border rounded-md text-sm resize-none focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEdit(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditList} disabled={!editName.trim() || !editKeywords.trim()}>
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>

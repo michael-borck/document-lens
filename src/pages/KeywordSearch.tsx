@@ -9,9 +9,18 @@ import { KeywordSelector } from '@/components/KeywordSelector'
 import { HelpButton } from '@/components/HelpButton'
 import {
   searchKeywordsLocal,
+  buildHierarchicalAggregations,
   type BatchKeywordSearchResult,
+  type HierarchicalSearchResult,
+  type TierAggregation,
 } from '@/services/analysis'
+import {
+  getKeywordList,
+  parseKeywords,
+  type HierarchicalKeywords,
+} from '@/services/keywords'
 import { exportKeywordResults } from '@/services/export'
+import { getOrCreateProjectProfile, updateProfile, type ProfileConfig } from '@/services/profiles'
 import type { DocumentRecord } from '@/services/documents'
 
 export function KeywordSearch() {
@@ -27,15 +36,22 @@ export function KeywordSearch() {
   const [selectedListName, setSelectedListName] = useState('')
   const [quickSearch, setQuickSearch] = useState('')
   const [results, setResults] = useState<BatchKeywordSearchResult | null>(null)
-  
+  const [hierarchicalResults, setHierarchicalResults] = useState<HierarchicalSearchResult | null>(null)
+  const [activeHierarchy, setActiveHierarchy] = useState<HierarchicalKeywords | null>(null)
+
   // View state
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
   const [sortBy, setSortBy] = useState<'matches' | 'name' | 'year'>('matches')
   const [filterKeyword, setFilterKeyword] = useState('')
+  const [viewBy, setViewBy] = useState<string>('keywords') // 'keywords' or a tier name
+
+  // Profile reference for saving search state
+  const [profileId, setProfileId] = useState<string | null>(null)
 
   useEffect(() => {
     if (projectId) {
       loadDocuments()
+      loadSavedSearch()
     }
   }, [projectId])
 
@@ -56,9 +72,70 @@ export function KeywordSearch() {
     }
   }
 
-  const handleKeywordSelect = (keywords: string[], listName: string) => {
+  const loadSavedSearch = async () => {
+    if (!projectId) return
+    try {
+      const profile = await getOrCreateProjectProfile(projectId)
+      setProfileId(profile.id)
+      if (profile.config.lastSearch) {
+        const { listName, selectedKeywords: saved, quickSearch: savedQuick } = profile.config.lastSearch
+        if (saved.length > 0) {
+          setSelectedKeywords(saved)
+          setSelectedListName(listName)
+        }
+        if (savedQuick) {
+          setQuickSearch(savedQuick)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load saved search state:', error)
+    }
+  }
+
+  const saveSearchState = async (keywords: string[], listName: string, quick: string = quickSearch) => {
+    if (!projectId || !profileId) return
+    try {
+      const profile = await getOrCreateProjectProfile(projectId)
+      const updatedConfig: ProfileConfig = {
+        ...profile.config,
+        lastSearch: {
+          listId: '',
+          listName,
+          selectedKeywords: keywords,
+          quickSearch: quick,
+        }
+      }
+      await updateProfile(profileId, { config: updatedConfig })
+    } catch (error) {
+      console.error('Failed to save search state:', error)
+    }
+  }
+
+  const handleKeywordSelect = async (keywords: string[], listName: string) => {
     setSelectedKeywords(keywords)
     setSelectedListName(listName)
+    saveSearchState(keywords, listName)
+
+    // Check if the selected list is hierarchical
+    try {
+      const allLists = await window.electron.dbQuery<{ id: string; name: string; list_type: string; keywords: string }>(
+        'SELECT id, name, list_type, keywords FROM keyword_lists WHERE name = ?',
+        [listName]
+      )
+      const list = allLists[0]
+      if (list && list.list_type === 'hierarchical') {
+        const raw = JSON.parse(list.keywords)
+        if (raw.tiers && raw.tree) {
+          setActiveHierarchy({ tiers: raw.tiers, tree: raw.tree })
+          setViewBy(raw.tiers[0] || 'keywords') // Default to top tier view
+          return
+        }
+      }
+    } catch (error) {
+      console.error('Failed to check for hierarchical list:', error)
+    }
+    setActiveHierarchy(null)
+    setViewBy('keywords')
   }
 
   const runSearch = async () => {
@@ -86,10 +163,18 @@ export function KeywordSearch() {
       }, 100)
 
       const searchResults = await searchKeywordsLocal(documents, keywords, 150)
-      
+
       clearInterval(progressInterval)
       setSearchProgress(100)
       setResults(searchResults)
+
+      // Build hierarchical aggregations if applicable
+      if (activeHierarchy) {
+        const hierResults = buildHierarchicalAggregations(searchResults, activeHierarchy)
+        setHierarchicalResults(hierResults)
+      } else {
+        setHierarchicalResults(null)
+      }
       
       // Expand first few docs by default
       const topDocs = searchResults.documents.slice(0, 3).map(d => d.documentId)
@@ -297,6 +382,65 @@ export function KeywordSearch() {
             </CardContent>
           </Card>
 
+          {/* Tier-level view toggle (hierarchical only) */}
+          {hierarchicalResults && (
+            <Card className="mb-6">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <span className="text-sm font-medium">View by:</span>
+                  <div className="flex gap-1">
+                    {hierarchicalResults.hierarchy.tiers.map(tier => (
+                      <Button
+                        key={tier}
+                        variant={viewBy === tier ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setViewBy(tier)}
+                      >
+                        {tier}
+                      </Button>
+                    ))}
+                    <Button
+                      variant={viewBy === 'keywords' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setViewBy('keywords')}
+                    >
+                      Keywords
+                    </Button>
+                  </div>
+                </div>
+
+                {viewBy !== 'keywords' && hierarchicalResults.overallTiers[viewBy] && (
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {Object.entries(hierarchicalResults.overallTiers[viewBy]).map(([category, agg]) => (
+                      <div key={category} className="border rounded-lg p-3">
+                        <div className="font-medium text-sm mb-1">{category}</div>
+                        <div className="text-2xl font-bold">{agg.matchCount}</div>
+                        <div className="text-xs text-muted-foreground">
+                          matches
+                        </div>
+                        <div className="mt-2">
+                          <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                            <span>Coverage</span>
+                            <span>{Math.round(agg.coverage * 100)}%</span>
+                          </div>
+                          <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-primary rounded-full transition-all"
+                              style={{ width: `${Math.round(agg.coverage * 100)}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {agg.keywordCount} of {agg.totalKeywords} keywords found
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
           {/* Controls */}
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-2">
@@ -358,9 +502,31 @@ export function KeywordSearch() {
 
                   {isExpanded && hasMatches && (
                     <CardContent className="pt-0 border-t">
+                      {/* Tier-level view for this document */}
+                      {viewBy !== 'keywords' && hierarchicalResults && (() => {
+                        const docTier = hierarchicalResults.documentTiers.find(d => d.documentId === doc.documentId)
+                        const tierAgg = docTier?.tiers[viewBy]
+                        if (!tierAgg) return null
+                        return (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-4">
+                            {Object.entries(tierAgg).map(([category, agg]) => (
+                              <div key={category} className="border rounded p-2 text-center">
+                                <div className="text-xs font-medium truncate">{category}</div>
+                                <div className="text-lg font-bold">{agg.matchCount}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {Math.round(agg.coverage * 100)}% coverage
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )
+                      })()}
+
+                      {/* Keyword-level detail */}
+                      {viewBy === 'keywords' && (
                       <div className="space-y-4 mt-4">
                         {Object.entries(doc.matches)
-                          .filter(([keyword]) => 
+                          .filter(([keyword]) =>
                             !filterKeyword || keyword.toLowerCase().includes(filterKeyword.toLowerCase())
                           )
                           .sort((a, b) => b[1].count - a[1].count)
@@ -390,6 +556,7 @@ export function KeywordSearch() {
                             </div>
                           ))}
                       </div>
+                      )}
                     </CardContent>
                   )}
                 </Card>

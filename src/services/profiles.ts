@@ -25,6 +25,12 @@ export interface ProfileConfig {
     default_metrics: string[]
     default_chart_types: string[]
   }
+  lastSearch?: {
+    listId: string
+    listName: string
+    selectedKeywords: string[]
+    quickSearch: string
+  }
 }
 
 export interface AnalysisProfile {
@@ -291,12 +297,7 @@ export function getEnabledFrameworks(config: ProfileConfig): string[] {
  */
 export function createDefaultProfileConfig(): ProfileConfig {
   return {
-    keywords: {
-      tcfd: { enabled: true, selected: [] },
-      sdgs: { enabled: false, selected: [] },
-      gri: { enabled: false, selected: [] },
-      sasb: { enabled: false, selected: [] }
-    },
+    keywords: {},
     domains: [],
     analysis_types: {
       sentiment: true,

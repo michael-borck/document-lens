@@ -30,7 +30,7 @@ import {
   type ProfileConfig,
   type ParsedAnalysisProfile,
 } from '@/services/profiles'
-import { getAllKeywordLists, type KeywordList } from '@/services/keywords'
+import { getAllKeywordLists, parseKeywords, flattenKeywords, type KeywordList } from '@/services/keywords'
 
 interface ProfileEditorProps {
   open: boolean
@@ -88,7 +88,7 @@ export function ProfileEditor({
     try {
       setLoading(true)
       const lists = await getAllKeywordLists()
-      setKeywordLists(lists.filter((l) => l.is_builtin))
+      setKeywordLists(lists)
     } catch (error) {
       console.error('Failed to load keyword lists:', error)
     } finally {
@@ -217,24 +217,18 @@ export function ProfileEditor({
     })
   }
 
-  const getKeywordsForFramework = (framework: string): string[] => {
-    const list = keywordLists.find(
-      (l) => l.framework?.toLowerCase() === framework.toLowerCase()
-    )
-    if (!list) return []
-
+  const getKeywordsForList = (list: KeywordList): string[] => {
     try {
-      const keywords = JSON.parse(list.keywords)
-      if (Array.isArray(keywords)) {
-        return keywords.map((k) => (typeof k === 'string' ? k : k.term || k.keyword || ''))
-      }
-      if (typeof keywords === 'object') {
-        return Object.values(keywords).flat() as string[]
-      }
-      return []
+      const parsed = parseKeywords(list)
+      return flattenKeywords(parsed.keywords)
     } catch {
       return []
     }
+  }
+
+  // Use list ID as the config key for keyword selections
+  const getConfigKey = (list: KeywordList): string => {
+    return list.framework && list.framework !== 'custom' ? list.framework : list.id
   }
 
   return (
@@ -287,83 +281,174 @@ export function ProfileEditor({
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />
                 </div>
               ) : (
-                ['tcfd', 'sdgs', 'gri', 'sasb'].map((framework) => {
-                  const keywords = getKeywordsForFramework(framework)
-                  const selected = config.keywords[framework]?.selected || []
-                  const enabled = config.keywords[framework]?.enabled ?? false
-                  const expanded = expandedFrameworks.has(framework)
+                <>
+                  {/* Built-in frameworks */}
+                  {keywordLists.filter(l => l.is_builtin).map((list) => {
+                    const configKey = getConfigKey(list)
+                    const keywords = getKeywordsForList(list)
+                    const selected = config.keywords[configKey]?.selected || []
+                    const enabled = config.keywords[configKey]?.enabled ?? false
+                    const expanded = expandedFrameworks.has(configKey)
 
-                  return (
-                    <div key={framework} className="border rounded-lg">
-                      <div className="flex items-center gap-3 p-3 bg-muted/50">
-                        <Checkbox
-                          checked={enabled}
-                          onCheckedChange={(checked) =>
-                            toggleFramework(framework, checked === true)
-                          }
-                        />
-                        <button
-                          className="flex items-center gap-2 flex-1"
-                          onClick={() => toggleExpandFramework(framework)}
-                        >
-                          {expanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
+                    return (
+                      <div key={list.id} className="border rounded-lg">
+                        <div className="flex items-center gap-3 p-3 bg-muted/50">
+                          <Checkbox
+                            checked={enabled}
+                            onCheckedChange={(checked) =>
+                              toggleFramework(configKey, checked === true)
+                            }
+                          />
+                          <button
+                            className="flex items-center gap-2 flex-1 text-left"
+                            onClick={() => toggleExpandFramework(configKey)}
+                          >
+                            {expanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
+                            )}
+                            <span className="font-medium">{list.name}</span>
+                            <span className="text-sm text-muted-foreground">
+                              ({selected.length}/{keywords.length} selected)
+                            </span>
+                          </button>
+                          {enabled && expanded && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => selectAllKeywords(configKey, keywords)}
+                              >
+                                All
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => clearKeywords(configKey)}
+                              >
+                                None
+                              </Button>
+                            </div>
                           )}
-                          <span className="font-medium uppercase">{framework}</span>
-                          <span className="text-sm text-muted-foreground">
-                            ({selected.length}/{keywords.length} selected)
-                          </span>
-                        </button>
+                        </div>
+
                         {enabled && expanded && (
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => selectAllKeywords(framework, keywords)}
-                            >
-                              All
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => clearKeywords(framework)}
-                            >
-                              None
-                            </Button>
+                          <div className="p-3 max-h-48 overflow-y-auto">
+                            <div className="flex flex-wrap gap-2">
+                              {keywords.map((keyword) => (
+                                <label
+                                  key={keyword}
+                                  className={`flex items-center gap-1.5 px-2 py-1 rounded text-sm cursor-pointer transition-colors ${
+                                    selected.includes(keyword)
+                                      ? 'bg-primary/10 text-primary'
+                                      : 'bg-muted hover:bg-muted/80'
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={selected.includes(keyword)}
+                                    onCheckedChange={() =>
+                                      toggleKeyword(configKey, keyword)
+                                    }
+                                    className="h-3 w-3"
+                                  />
+                                  <span>{keyword}</span>
+                                </label>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
+                    )
+                  })}
 
-                      {enabled && expanded && (
-                        <div className="p-3 max-h-48 overflow-y-auto">
-                          <div className="flex flex-wrap gap-2">
-                            {keywords.map((keyword) => (
-                              <label
-                                key={keyword}
-                                className={`flex items-center gap-1.5 px-2 py-1 rounded text-sm cursor-pointer transition-colors ${
-                                  selected.includes(keyword)
-                                    ? 'bg-primary/10 text-primary'
-                                    : 'bg-muted hover:bg-muted/80'
-                                }`}
+                  {/* Custom lists */}
+                  {keywordLists.filter(l => !l.is_builtin).length > 0 && (
+                    <>
+                      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider pt-2">
+                        Custom Lists
+                      </div>
+                      {keywordLists.filter(l => !l.is_builtin).map((list) => {
+                        const configKey = getConfigKey(list)
+                        const keywords = getKeywordsForList(list)
+                        const selected = config.keywords[configKey]?.selected || []
+                        const enabled = config.keywords[configKey]?.enabled ?? false
+                        const expanded = expandedFrameworks.has(configKey)
+
+                        return (
+                          <div key={list.id} className="border rounded-lg">
+                            <div className="flex items-center gap-3 p-3 bg-muted/50">
+                              <Checkbox
+                                checked={enabled}
+                                onCheckedChange={(checked) =>
+                                  toggleFramework(configKey, checked === true)
+                                }
+                              />
+                              <button
+                                className="flex items-center gap-2 flex-1 text-left"
+                                onClick={() => toggleExpandFramework(configKey)}
                               >
-                                <Checkbox
-                                  checked={selected.includes(keyword)}
-                                  onCheckedChange={() =>
-                                    toggleKeyword(framework, keyword)
-                                  }
-                                  className="h-3 w-3"
-                                />
-                                <span>{keyword}</span>
-                              </label>
-                            ))}
+                                {expanded ? (
+                                  <ChevronDown className="h-4 w-4" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4" />
+                                )}
+                                <span className="font-medium">{list.name}</span>
+                                <span className="text-sm text-muted-foreground">
+                                  ({selected.length}/{keywords.length} selected)
+                                </span>
+                              </button>
+                              {enabled && expanded && (
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => selectAllKeywords(configKey, keywords)}
+                                  >
+                                    All
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => clearKeywords(configKey)}
+                                  >
+                                    None
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+
+                            {enabled && expanded && (
+                              <div className="p-3 max-h-48 overflow-y-auto">
+                                <div className="flex flex-wrap gap-2">
+                                  {keywords.map((keyword) => (
+                                    <label
+                                      key={keyword}
+                                      className={`flex items-center gap-1.5 px-2 py-1 rounded text-sm cursor-pointer transition-colors ${
+                                        selected.includes(keyword)
+                                          ? 'bg-primary/10 text-primary'
+                                          : 'bg-muted hover:bg-muted/80'
+                                      }`}
+                                    >
+                                      <Checkbox
+                                        checked={selected.includes(keyword)}
+                                        onCheckedChange={() =>
+                                          toggleKeyword(configKey, keyword)
+                                        }
+                                        className="h-3 w-3"
+                                      />
+                                      <span>{keyword}</span>
+                                    </label>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })
+                        )
+                      })}
+                    </>
+                  )}
+                </>
               )}
             </TabsContent>
 

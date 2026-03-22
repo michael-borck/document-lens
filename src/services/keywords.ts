@@ -48,6 +48,10 @@ import pmbokData from '@/data/frameworks/pmbok.json'
 import riskManagementPmData from '@/data/frameworks/risk-management-pm.json'
 import resourcePlanningData from '@/data/frameworks/resource-planning.json'
 
+// Hierarchical frameworks
+import sdgsWeddingCakeData from '@/data/frameworks/sdgs-wedding-cake.json'
+import sdgsWeddingCakeCounterData from '@/data/frameworks/sdgs-wedding-cake-counter.json'
+
 // General domain keyword lists (non-framework-specific)
 import sustainabilityGeneralData from '@/data/frameworks/sustainability-general.json'
 import cybersecurityGeneralData from '@/data/frameworks/cybersecurity-general.json'
@@ -63,9 +67,12 @@ export interface FrameworkData {
   version: string
   description: string
   source: string
-  list_type: 'simple' | 'grouped' | 'weighted'
+  list_type: 'simple' | 'grouped' | 'weighted' | 'hierarchical'
   total_keywords: number
   keywords: Record<string, string[]> | string[] | Array<{ term: string; weight: number }>
+  // Hierarchical fields (only when list_type === 'hierarchical')
+  tiers?: string[]
+  tree?: HierarchyNode
 }
 
 export interface KeywordList {
@@ -84,6 +91,124 @@ export interface KeywordList {
 export interface ParsedKeywordList extends Omit<KeywordList, 'keywords'> {
   keywords: Record<string, string[]> | string[]
   totalCount: number
+  // Hierarchical data (only when list_type === 'hierarchical')
+  hierarchical?: HierarchicalKeywords
+}
+
+/**
+ * Recursive tree node: either nested categories or leaf keyword arrays.
+ * Supports arbitrary depth.
+ */
+export interface HierarchyNode {
+  [category: string]: HierarchyNode | string[]
+}
+
+/**
+ * Parsed hierarchical keyword structure with named tiers.
+ */
+export interface HierarchicalKeywords {
+  tiers: string[]        // Named levels, e.g. ["Pillar", "Goal"]
+  tree: HierarchyNode    // The nested tree structure
+}
+
+/**
+ * Check if a value is a leaf node (string array) vs nested node
+ */
+function isLeafNode(value: HierarchyNode | string[]): value is string[] {
+  return Array.isArray(value)
+}
+
+/**
+ * Flatten a hierarchy tree into a single array of all keywords
+ */
+export function flattenHierarchy(node: HierarchyNode): string[] {
+  const result: string[] = []
+  for (const value of Object.values(node)) {
+    if (isLeafNode(value)) {
+      result.push(...value)
+    } else {
+      result.push(...flattenHierarchy(value))
+    }
+  }
+  return result
+}
+
+/**
+ * Get a subtree at a given path (e.g., ["Environmental", "SDG 6"])
+ */
+export function getNodeAtPath(tree: HierarchyNode, path: string[]): HierarchyNode | string[] | null {
+  let current: HierarchyNode | string[] = tree
+  for (const segment of path) {
+    if (isLeafNode(current)) return null
+    const next: HierarchyNode | string[] | undefined = current[segment]
+    if (next === undefined) return null
+    current = next
+  }
+  return current
+}
+
+/**
+ * Aggregate keywords by category at a specific tier depth.
+ * depth=0 returns top-level categories, depth=1 returns second-level, etc.
+ * Returns a map of category name → flat keyword array beneath it.
+ */
+export function aggregateAtTier(tree: HierarchyNode, depth: number): Record<string, string[]> {
+  if (depth === 0) {
+    const result: Record<string, string[]> = {}
+    for (const [key, value] of Object.entries(tree)) {
+      result[key] = isLeafNode(value) ? value : flattenHierarchy(value)
+    }
+    return result
+  }
+
+  // Go one level deeper
+  const result: Record<string, string[]> = {}
+  for (const value of Object.values(tree)) {
+    if (!isLeafNode(value)) {
+      const sub = aggregateAtTier(value, depth - 1)
+      Object.assign(result, sub)
+    }
+  }
+  return result
+}
+
+/**
+ * Get the ancestry path for a keyword in the tree.
+ * Returns e.g. ["Environmental", "SDG 13 - Climate Action"] for "carbon neutrality"
+ */
+export function getKeywordPath(tree: HierarchyNode, keyword: string): string[] | null {
+  for (const [key, value] of Object.entries(tree)) {
+    if (isLeafNode(value)) {
+      if (value.includes(keyword)) return [key]
+    } else {
+      const subPath = getKeywordPath(value, keyword)
+      if (subPath) return [key, ...subPath]
+    }
+  }
+  return null
+}
+
+/**
+ * Get the depth of a hierarchy tree (number of nesting levels before leaf arrays)
+ */
+export function getHierarchyDepth(node: HierarchyNode): number {
+  const firstValue = Object.values(node)[0]
+  if (!firstValue || isLeafNode(firstValue)) return 1
+  return 1 + getHierarchyDepth(firstValue)
+}
+
+/**
+ * Get all category names at a specific tier depth
+ */
+export function getCategoriesAtTier(tree: HierarchyNode, depth: number): string[] {
+  if (depth === 0) return Object.keys(tree)
+  const categories: string[] = []
+  for (const value of Object.values(tree)) {
+    if (!isLeafNode(value)) {
+      categories.push(...getCategoriesAtTier(value, depth - 1))
+    }
+  }
+  return categories
 }
 
 // Framework data map
@@ -123,6 +248,9 @@ const FRAMEWORKS: Record<string, FrameworkData> = {
   'pmbok': pmbokData as FrameworkData,
   'risk-management-pm': riskManagementPmData as FrameworkData,
   'resource-planning': resourcePlanningData as FrameworkData,
+  // Hierarchical frameworks
+  'sdgs-wedding-cake': sdgsWeddingCakeData as unknown as FrameworkData,
+  'sdgs-wedding-cake-counter': sdgsWeddingCakeCounterData as unknown as FrameworkData,
   // General domain keywords (non-framework-specific)
   'sustainability-general': sustainabilityGeneralData as FrameworkData,
   'cybersecurity-general': cybersecurityGeneralData as FrameworkData,
@@ -240,18 +368,38 @@ export async function getKeywordFocuses(): Promise<string[]> {
  * Parse keywords from JSON string
  */
 export function parseKeywords(list: KeywordList): ParsedKeywordList {
-  const keywords = JSON.parse(list.keywords)
-  let totalCount = 0
-  
-  if (Array.isArray(keywords)) {
-    totalCount = keywords.length
-  } else if (typeof keywords === 'object') {
-    totalCount = Object.values(keywords).flat().length
+  const raw = JSON.parse(list.keywords)
+
+  // Handle hierarchical type
+  if (list.list_type === 'hierarchical' && raw.tree && raw.tiers) {
+    const hierarchical: HierarchicalKeywords = {
+      tiers: raw.tiers,
+      tree: raw.tree,
+    }
+    // Flatten the tree to produce the standard keywords format (grouped at the deepest tier)
+    const deepestTier = raw.tiers.length - 1
+    const grouped = aggregateAtTier(raw.tree, deepestTier)
+    const totalCount = Object.values(grouped).flat().length
+
+    return {
+      ...list,
+      keywords: grouped,
+      totalCount,
+      hierarchical,
+    }
   }
-  
+
+  // Standard types
+  let totalCount = 0
+  if (Array.isArray(raw)) {
+    totalCount = raw.length
+  } else if (typeof raw === 'object') {
+    totalCount = Object.values(raw).flat().length
+  }
+
   return {
     ...list,
-    keywords,
+    keywords: raw,
     totalCount,
   }
 }
@@ -282,8 +430,8 @@ export function getKeywordsByCategory(keywords: Record<string, string[]> | strin
 export async function createKeywordList(
   name: string,
   description: string | null,
-  listType: 'simple' | 'grouped',
-  keywords: Record<string, string[]> | string[]
+  listType: 'simple' | 'grouped' | 'hierarchical',
+  keywords: Record<string, string[]> | string[] | { tiers: string[]; tree: HierarchyNode }
 ): Promise<string> {
   const id = uuidv4()
   await window.electron.dbRun(

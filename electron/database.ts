@@ -259,7 +259,7 @@ interface FrameworkData {
   description: string
   focus: string
   list_type: string
-  keywords: Record<string, string[]>
+  keywords: Record<string, unknown>
 }
 
 const FRAMEWORK_KEYWORDS: FrameworkData[] = [
@@ -329,6 +329,80 @@ const FRAMEWORK_KEYWORDS: FrameworkData[] = [
       "Human Capital": ["labor practices", "fair labor", "employee health", "employee safety", "workplace safety", "occupational health", "employee engagement", "employee satisfaction", "diversity and inclusion", "workforce diversity", "gender diversity", "ethnic diversity", "equal opportunity", "employee development", "training", "talent management", "talent retention", "compensation and benefits", "fair compensation", "benefits", "collective bargaining", "labor relations", "union relations", "labor disputes", "workforce management"],
       "Business Model and Innovation": ["product lifecycle", "lifecycle management", "lifecycle assessment", "product design", "design for environment", "packaging lifecycle", "sustainable packaging", "product end-of-life", "materials sourcing", "raw materials", "sustainable materials", "supply chain management", "supply chain standards", "supplier code of conduct", "responsible sourcing", "conflict minerals", "physical supply chain", "supply chain resilience", "business model resilience", "climate adaptation", "resource scarcity", "critical materials", "materials efficiency", "product innovation", "sustainable innovation"],
       "Leadership and Governance": ["business ethics", "ethical conduct", "code of conduct", "competitive behavior", "anti-competitive practices", "antitrust", "regulatory compliance", "legal compliance", "regulatory capture", "critical incident", "crisis management", "risk management", "enterprise risk", "systemic risk management", "governance", "corporate governance", "board oversight", "board independence", "executive compensation", "incentive alignment", "lobbying", "political contributions", "political spending", "corruption", "bribery", "anti-corruption", "management of legal environment", "policy influence"]
+    }
+  },
+  {
+    id: 'sdgs-wedding-cake',
+    name: 'SDGs Wedding Cake Model',
+    description: 'The UN Sustainable Development Goals organized by the Stockholm Resilience Centre\'s Wedding Cake model, grouping goals into Environmental (Biosphere), Social (Society), Economic (Economy), and Governance pillars.',
+    focus: 'sustainability',
+    list_type: 'hierarchical',
+    keywords: {
+      tiers: ["Pillar", "Goal"],
+      tree: {
+        "Environmental": {
+          "SDG 6 - Clean Water and Sanitation": ["clean water", "water access", "sanitation", "water quality", "water efficiency", "wastewater", "water treatment", "water scarcity", "water management", "water stewardship", "water recycling", "freshwater", "water conservation", "drinking water", "hygiene", "open defecation", "water-related ecosystems", "water harvesting", "transboundary water", "water pollution", "aquifer", "groundwater"],
+          "SDG 13 - Climate Action": ["climate change", "climate action", "carbon emissions", "greenhouse gas", "ghg", "global warming", "climate adaptation", "climate mitigation", "climate resilience", "carbon reduction", "emission reduction", "paris agreement", "climate risk", "extreme weather", "sea level rise", "decarbonization", "net zero", "carbon neutral", "climate strategy", "climate finance", "climate education", "climate policy", "nationally determined contributions", "ndc", "climate hazards", "climate disasters", "low-carbon", "climate-related", "temperature rise", "cop", "unfccc"],
+          "SDG 14 - Life Below Water": ["ocean", "oceans", "marine", "marine conservation", "ocean acidification", "sustainable fisheries", "marine pollution", "coral reef", "coral bleaching", "coastal ecosystems", "marine biodiversity", "overfishing", "illegal fishing", "plastic pollution", "ocean health", "marine resources", "fish stocks", "aquaculture", "marine protected areas", "blue economy", "ocean governance", "marine debris", "sea"],
+          "SDG 15 - Life on Land": ["biodiversity", "deforestation", "forest", "forests", "land degradation", "ecosystem", "ecosystems", "conservation", "habitat", "habitats", "endangered species", "reforestation", "afforestation", "sustainable forestry", "sustainable forest management", "land use", "soil degradation", "protected areas", "wildlife", "invasive species", "desertification", "drought", "terrestrial ecosystems", "mountain ecosystems", "wetlands", "biodiversity loss", "poaching", "wildlife trafficking", "genetic resources", "species extinction"]
+        },
+        "Social": {
+          "SDG 1 - No Poverty": ["poverty", "poverty eradication", "extreme poverty", "poverty line", "social protection", "economic resources", "basic services", "financial inclusion", "microfinance", "vulnerable", "income equality", "wealth distribution", "quality of life", "developing countries", "disadvantaged", "poor and vulnerable", "resources", "social protection systems"],
+          "SDG 2 - Zero Hunger": ["hunger", "food security", "malnutrition", "sustainable agriculture", "agricultural productivity", "food production", "crop diversity", "genetic diversity", "resilient agriculture", "small-scale food producers", "rural infrastructure", "food gap", "food reserves", "nutrition", "nutritious", "undernourished", "stunting", "wasting", "trade restrictions"],
+          "SDG 3 - Good Health and Well-being": ["health", "wellbeing", "well-being", "mortality", "life expectancy", "universal health coverage", "mental health", "occupational health", "workplace safety", "disease prevention", "health services", "employee health", "maternal mortality", "child mortality", "neonatal mortality", "communicable diseases", "non-communicable diseases", "road traffic accidents", "substance abuse", "reproductive health", "vaccines", "health workforce", "air pollution health", "water contamination"],
+          "SDG 4 - Quality Education": ["education", "training", "skills development", "lifelong learning", "vocational training", "literacy", "equal education", "inclusive education", "scholarships", "teacher training", "workforce development", "early childhood development", "primary education", "secondary education", "technical education", "numeracy", "gender equality education", "education for sustainable development", "school enrollment"],
+          "SDG 5 - Gender Equality": ["gender equality", "women empowerment", "empower women", "equal opportunities", "discrimination", "women in leadership", "gender parity", "equal pay", "workplace equality", "diversity", "inclusion", "women's rights", "female representation", "violence against women", "gender-based violence", "female genital mutilation", "forced marriage", "unpaid care work", "reproductive rights", "sexual harassment", "women in management"],
+          "SDG 7 - Affordable and Clean Energy": ["renewable energy", "clean energy", "energy efficiency", "solar energy", "solar power", "wind energy", "wind power", "sustainable energy", "energy access", "modern energy", "green energy", "low carbon energy", "energy transition", "fossil fuel", "hydroelectric", "hydropower", "geothermal", "biofuel", "bioenergy", "energy infrastructure", "clean fuel", "energy research", "battery storage", "energy intensity", "electricity access"],
+          "SDG 11 - Sustainable Cities and Communities": ["sustainable cities", "urban development", "affordable housing", "public transport", "public transportation", "urban planning", "resilient cities", "air quality", "green spaces", "public spaces", "waste management", "sustainable urbanization", "smart cities", "cultural heritage", "natural heritage", "disaster resilience", "slums", "informal settlements", "urban sprawl", "sustainable buildings", "green buildings", "urban air pollution", "municipal waste"],
+          "SDG 16 - Peace Justice and Strong Institutions": ["governance", "transparency", "accountability", "anti-corruption", "corruption", "bribery", "rule of law", "human rights", "ethical business", "whistleblower", "compliance", "fair business practices", "justice", "inclusive institutions", "effective institutions", "accountable institutions", "violence reduction", "abuse", "exploitation", "trafficking", "organized crime", "illicit financial flows", "arms trafficking", "torture", "access to justice", "legal identity", "fundamental freedoms", "public access to information"]
+        },
+        "Economic": {
+          "SDG 8 - Decent Work and Economic Growth": ["economic growth", "decent work", "employment", "job creation", "labor rights", "labour rights", "safe work", "productive employment", "youth employment", "forced labor", "forced labour", "child labor", "child labour", "modern slavery", "living wage", "fair wages", "working conditions", "sustainable economic growth", "gdp growth", "economic productivity", "resource efficiency", "full employment", "equal pay for equal work", "migrant workers", "workers rights", "unemployment"],
+          "SDG 9 - Industry Innovation and Infrastructure": ["innovation", "infrastructure", "industrialization", "sustainable infrastructure", "research and development", "r&d", "technology", "manufacturing", "resilient infrastructure", "industrial processes", "clean technologies", "digitalization", "internet access", "broadband", "information technology", "small-scale industries", "value addition", "industrial diversification", "technology transfer", "scientific research"],
+          "SDG 10 - Reduced Inequalities": ["inequality", "inequalities", "equal opportunity", "social inclusion", "discrimination", "income inequality", "social protection", "migration", "migrants", "inclusion", "accessibility", "marginalized groups", "vulnerable populations", "fiscal policy", "wage policy", "developing countries representation", "remittances", "safe migration", "orderly migration", "income growth", "reduce disparities"],
+          "SDG 12 - Responsible Consumption and Production": ["sustainable consumption", "sustainable production", "resource efficiency", "circular economy", "waste reduction", "recycling", "sustainable sourcing", "product lifecycle", "sustainable procurement", "food waste", "food loss", "chemical management", "sustainable packaging", "eco-design", "extended producer responsibility", "sustainable practices", "sustainability reporting", "sustainable tourism", "fossil fuel subsidies", "material footprint", "domestic material consumption", "hazardous chemicals", "waste generation", "reuse", "reduce"]
+        },
+        "Governance": {
+          "SDG 17 - Partnerships for the Goals": ["partnership", "partnerships", "collaboration", "stakeholder engagement", "public-private partnership", "multi-stakeholder", "knowledge sharing", "capacity building", "technology transfer", "international cooperation", "development assistance", "oda", "foreign direct investment", "fdi", "debt sustainability", "trade", "global partnership", "south-south cooperation", "north-south cooperation", "policy coherence", "data monitoring", "statistical capacity"]
+        }
+      }
+    }
+  },
+  {
+    id: 'sdgs-wedding-cake-counter',
+    name: 'SDGs Wedding Cake - Counter-Indicators',
+    description: 'Counter-indicator keywords that suggest non-alignment with SDGs. These terms may indicate prioritisation of commercial or institutional goals over sustainability commitments. Designed for use alongside the SDGs Wedding Cake Model.',
+    focus: 'sustainability',
+    list_type: 'hierarchical',
+    keywords: {
+      tiers: ["Pillar", "Goal"],
+      tree: {
+        "Environmental": {
+          "SDG 6 - Clean Water and Sanitation": ["water extraction", "infrastructure cost recovery", "water commodification"],
+          "SDG 13 - Climate Action": ["carbon offset reliance", "climate neutrality by outsourcing", "emissions trading"],
+          "SDG 14 - Life Below Water": ["marine resource exploitation", "coastal development", "blue economy"],
+          "SDG 15 - Life on Land": ["land acquisition", "biodiversity offsetting", "forestry partnerships"]
+        },
+        "Social": {
+          "SDG 1 - No Poverty": ["revenue maximisation", "fee-paying priority", "market segmentation", "premium service tiers", "competitive advantage"],
+          "SDG 2 - Zero Hunger": ["commercial agriculture", "export-oriented food research", "agribusiness partnerships"],
+          "SDG 3 - Good Health and Well-being": ["health commercialisation", "private health partnerships", "cost containment in health services", "health outsourcing"],
+          "SDG 4 - Quality Education": ["elite education", "prestige rankings", "competitive admissions", "international student revenue", "brand positioning"],
+          "SDG 5 - Gender Equality": ["gender-neutral policy", "merit-only hiring", "gender-blind reporting"],
+          "SDG 7 - Affordable and Clean Energy": ["fossil fuel partnerships", "energy cost efficiency", "non-renewable energy investment"],
+          "SDG 11 - Sustainable Cities and Communities": ["urban expansion", "real estate development", "campus footprint growth", "infrastructure densification"],
+          "SDG 16 - Peace, Justice and Strong Institutions": ["risk management", "governance efficiency", "strategic silence on human rights"]
+        },
+        "Economic": {
+          "SDG 8 - Decent Work and Economic Growth": ["casualisation of workforce", "outsourcing", "productivity maximisation", "cost-cutting measures", "short-term contracts"],
+          "SDG 9 - Industry, Innovation and Infrastructure": ["commercialisation of research", "IP monetisation", "industry-first innovation", "infrastructure expansion"],
+          "SDG 10 - Reduced Inequalities": ["selective excellence", "targeting high-performing cohorts", "competitive scholarship models", "performance-based funding"],
+          "SDG 12 - Responsible Consumption and Production": ["procurement efficiency", "cost-driven supply chain", "resource extraction", "waste externalisation"]
+        },
+        "Governance": {
+          "SDG 17 - Partnerships for the Goals": ["exclusive partnerships", "commercial alliances", "competitive collaboration", "IP protectionism"]
+        }
+      }
     }
   },
 

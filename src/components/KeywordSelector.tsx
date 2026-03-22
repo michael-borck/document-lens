@@ -23,7 +23,9 @@ import {
   getKeywordsByCategory,
   flattenKeywords,
   type KeywordList,
+  type ParsedKeywordList,
 } from '@/services/keywords'
+import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
 
 interface KeywordSelectorProps {
   open: boolean
@@ -182,87 +184,102 @@ export function KeywordSelector({ open, onClose, onSelect }: KeywordSelectorProp
               </Select>
             </div>
             
-            <div className="flex-1 relative">
-              <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Filter keywords..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8"
-              />
-            </div>
+            {!selectedList?.hierarchical && (
+              <div className="flex-1 relative">
+                <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Filter keywords..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-8"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Quick Select Buttons */}
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-sm font-medium">Quick select:</span>
-            <Button variant="outline" size="sm" onClick={selectAll}>All</Button>
-            <Button variant="outline" size="sm" onClick={() => selectTopN(10)}>Top 10</Button>
-            <Button variant="outline" size="sm" onClick={() => selectTopN(20)}>Top 20</Button>
-            <Button variant="outline" size="sm" onClick={selectNone}>None</Button>
-            <div className="flex-1" />
-            <span className="text-sm text-muted-foreground">
-              {selectedKeywords.size} of {allKeywords.length} selected
-            </span>
-          </div>
+          {/* Quick Select Buttons (hidden for hierarchical - it has its own controls) */}
+          {!selectedList?.hierarchical && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-sm font-medium">Quick select:</span>
+              <Button variant="outline" size="sm" onClick={selectAll}>All</Button>
+              <Button variant="outline" size="sm" onClick={() => selectTopN(10)}>Top 10</Button>
+              <Button variant="outline" size="sm" onClick={() => selectTopN(20)}>Top 20</Button>
+              <Button variant="outline" size="sm" onClick={selectNone}>None</Button>
+              <div className="flex-1" />
+              <span className="text-sm text-muted-foreground">
+                {selectedKeywords.size} of {allKeywords.length} selected
+              </span>
+            </div>
+          )}
 
           {/* Keywords */}
-          <div className="flex-1 overflow-y-auto border rounded-md">
-            {Object.entries(filteredCategories).map(([category, keywords]) => {
-              const isExpanded = expandedCategories.has(category) || !!searchQuery
-              const categorySelected = keywords.filter(k => selectedKeywords.has(k)).length
-              const allCategorySelected = categorySelected === keywords.length
-              
-              return (
-                <div key={category} className="border-b last:border-b-0">
-                  {isGrouped && (
-                    <button
-                      onClick={() => toggleCategory(category)}
-                      className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
-                    >
-                      <div className="flex items-center gap-2">
-                        <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${!isExpanded ? '-rotate-90' : ''}`} />
-                        <span className="font-medium">{category}</span>
-                        <span className="text-muted-foreground">({keywords.length})</span>
-                      </div>
-                      <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                        <span className="text-xs text-muted-foreground">
-                          {categorySelected}/{keywords.length}
-                        </span>
-                        <Checkbox
-                          checked={allCategorySelected}
-                          onCheckedChange={() => selectAllInCategory(category)}
-                        />
-                      </div>
-                    </button>
-                  )}
-                  
-                  {isExpanded && (
-                    <div className={`px-4 pb-3 ${isGrouped ? 'pt-1' : 'pt-3'}`}>
-                      <div className="flex flex-wrap gap-1.5">
-                        {keywords.map(keyword => {
-                          const isSelected = selectedKeywords.has(keyword)
-                          return (
-                            <button
-                              key={keyword}
-                              onClick={() => toggleKeyword(keyword)}
-                              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-colors ${
-                                isSelected
-                                  ? 'bg-primary text-primary-foreground'
-                                  : 'bg-muted hover:bg-muted/80'
-                              }`}
-                            >
-                              {isSelected && <Check className="h-3 w-3" />}
-                              {keyword}
-                            </button>
-                          )
-                        })}
-                      </div>
+          <div className="flex-1 overflow-y-auto">
+            {selectedList?.hierarchical ? (
+              <HierarchicalKeywordViewer
+                hierarchical={selectedList.hierarchical}
+                selectionMode
+                selectedKeywords={selectedKeywords}
+                onSelectionChange={setSelectedKeywords}
+              />
+            ) : (
+              <div className="border rounded-md">
+                {Object.entries(filteredCategories).map(([category, keywords]) => {
+                  const isExpanded = expandedCategories.has(category) || !!searchQuery
+                  const categorySelected = keywords.filter(k => selectedKeywords.has(k)).length
+                  const allCategorySelected = categorySelected === keywords.length
+
+                  return (
+                    <div key={category} className="border-b last:border-b-0">
+                      {isGrouped && (
+                        <button
+                          onClick={() => toggleCategory(category)}
+                          className="w-full flex items-center justify-between px-4 py-2 hover:bg-muted/50 transition-colors text-sm"
+                        >
+                          <div className="flex items-center gap-2">
+                            <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${!isExpanded ? '-rotate-90' : ''}`} />
+                            <span className="font-medium">{category}</span>
+                            <span className="text-muted-foreground">({keywords.length})</span>
+                          </div>
+                          <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-xs text-muted-foreground">
+                              {categorySelected}/{keywords.length}
+                            </span>
+                            <Checkbox
+                              checked={allCategorySelected}
+                              onCheckedChange={() => selectAllInCategory(category)}
+                            />
+                          </div>
+                        </button>
+                      )}
+
+                      {isExpanded && (
+                        <div className={`px-4 pb-3 ${isGrouped ? 'pt-1' : 'pt-3'}`}>
+                          <div className="flex flex-wrap gap-1.5">
+                            {keywords.map(keyword => {
+                              const isSelected = selectedKeywords.has(keyword)
+                              return (
+                                <button
+                                  key={keyword}
+                                  onClick={() => toggleKeyword(keyword)}
+                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs transition-colors ${
+                                    isSelected
+                                      ? 'bg-primary text-primary-foreground'
+                                      : 'bg-muted hover:bg-muted/80'
+                                  }`}
+                                >
+                                  {isSelected && <Check className="h-3 w-3" />}
+                                  {keyword}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              )
-            })}
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
