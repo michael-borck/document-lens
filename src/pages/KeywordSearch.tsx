@@ -102,11 +102,21 @@ export function KeywordSearch() {
   const saveSearchState = async (keywords: string[], listName: string, quick: string = quickSearch, tierView: string = viewBy) => {
     if (!projectId || !profileId) return
     try {
+      // Look up list ID by name for robust reference
+      let listId = ''
+      try {
+        const lists = await window.electron.dbQuery<{ id: string }>(
+          'SELECT id FROM keyword_lists WHERE name = ? LIMIT 1',
+          [listName]
+        )
+        if (lists[0]) listId = lists[0].id
+      } catch { /* ignore */ }
+
       const profile = await getOrCreateProjectProfile(projectId)
       const updatedConfig: ProfileConfig = {
         ...profile.config,
         lastSearch: {
-          listId: '',
+          listId,
           listName,
           selectedKeywords: keywords,
           quickSearch: quick,

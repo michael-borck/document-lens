@@ -36,6 +36,7 @@ import {
 import { api } from '@/services/api'
 import { BACKEND_URL } from '@/config/backend'
 import { FOCUSES, DEFAULT_FOCUS } from '@/data/focuses'
+import { restoreDefaultKeywordLists } from '@/services/keywords'
 
 interface Country {
   code: string
@@ -666,6 +667,27 @@ export function Settings() {
               <div className="text-2xl font-bold">{stats.analyses}</div>
               <div className="text-xs text-muted-foreground">Analyses</div>
             </div>
+          </div>
+
+          {/* Restore default keyword lists */}
+          <div>
+            <Button
+              variant="outline"
+              onClick={async () => {
+                const restored = await restoreDefaultKeywordLists()
+                if (restored > 0) {
+                  alert(`Restored ${restored} default keyword list${restored !== 1 ? 's' : ''}.`)
+                } else {
+                  alert('All default keyword lists are already present.')
+                }
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Restore Default Keyword Lists
+            </Button>
+            <p className="text-xs text-muted-foreground mt-2">
+              Re-creates any missing built-in keyword frameworks without affecting your custom lists.
+            </p>
           </div>
 
           {/* Clear data */}

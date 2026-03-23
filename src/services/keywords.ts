@@ -257,6 +257,40 @@ export async function seedFrameworkKeywords(): Promise<void> {
 }
 
 /**
+ * Restore any missing built-in keyword lists.
+ * Checks each framework against the database and re-seeds any that are missing.
+ * Returns count of restored lists.
+ */
+export async function restoreDefaultKeywordLists(): Promise<number> {
+  let restored = 0
+
+  // Get existing built-in framework IDs
+  const existing = await window.electron.dbQuery<{ framework: string }>(
+    'SELECT framework FROM keyword_lists WHERE is_builtin = 1'
+  )
+  const existingIds = new Set(existing.map(r => r.framework))
+
+  for (const [key, data] of Object.entries(FRAMEWORKS)) {
+    if (!existingIds.has(key)) {
+      try {
+        const id = uuidv4()
+        await window.electron.dbRun(
+          `INSERT INTO keyword_lists (id, name, description, framework, list_type, keywords, is_builtin)
+           VALUES (?, ?, ?, ?, ?, ?, 1)`,
+          [id, data.name, data.description, key, data.list_type, JSON.stringify(data.keywords)]
+        )
+        console.log(`Restored built-in keyword list: ${data.name}`)
+        restored++
+      } catch (error) {
+        console.error(`Failed to restore ${key}:`, error)
+      }
+    }
+  }
+
+  return restored
+}
+
+/**
  * Get all keyword lists
  */
 export async function getAllKeywordLists(): Promise<KeywordList[]> {
@@ -339,6 +373,18 @@ export function getKeywordsByCategory(keywords: Record<string, string[]> | strin
 /**
  * Create a new custom keyword list
  */
+/**
+ * Check if a keyword list name already exists
+ */
+export async function checkKeywordListNameExists(name: string): Promise<{ exists: boolean; isBuiltin: boolean }> {
+  const results = await window.electron.dbQuery<{ is_builtin: number }>(
+    'SELECT is_builtin FROM keyword_lists WHERE name = ? LIMIT 1',
+    [name]
+  )
+  if (results.length === 0) return { exists: false, isBuiltin: false }
+  return { exists: true, isBuiltin: results[0].is_builtin === 1 }
+}
+
 export async function createKeywordList(
   name: string,
   description: string | null,
@@ -394,6 +440,11 @@ export async function updateKeywordList(
  * Delete a custom keyword list
  */
 export async function deleteKeywordList(id: string): Promise<void> {
+  // Clean up cached keyword results referencing this list
+  await window.electron.dbRun(
+    'DELETE FROM keyword_results WHERE keyword_list_id = ?',
+    [id]
+  )
   await window.electron.dbRun(
     'DELETE FROM keyword_lists WHERE id = ? AND is_builtin = 0',
     [id]

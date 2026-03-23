@@ -20,6 +20,7 @@ import {
   parseKeywordsFromCSV,
   parseKeywordsFromExcel,
   flattenKeywords,
+  checkKeywordListNameExists,
   type KeywordList,
   type ParsedKeywordList,
   type ExcelImportPreview,
@@ -196,6 +197,16 @@ export function KeywordLists() {
     if (!newListName.trim() || !newListKeywords.trim()) return
 
     try {
+      // Check for name conflict
+      const { exists, isBuiltin } = await checkKeywordListNameExists(newListName.trim())
+      if (exists) {
+        const msg = isBuiltin
+          ? `A built-in list named "${newListName.trim()}" already exists. Your custom list will appear separately under "Custom Lists".`
+          : `A custom list named "${newListName.trim()}" already exists. Create anyway?`
+        if (!isBuiltin && !confirm(msg)) return
+        if (isBuiltin) alert(msg)
+      }
+
       // Parse keywords (one per line)
       const keywords = newListKeywords
         .split('\n')
@@ -271,6 +282,12 @@ export function KeywordLists() {
     if (!excelPreview || !excelImportName.trim()) return
 
     try {
+      // Check for name conflict
+      const { exists } = await checkKeywordListNameExists(excelImportName.trim())
+      if (exists) {
+        if (!confirm(`A list named "${excelImportName.trim()}" already exists. Import anyway?`)) return
+      }
+
       let keywords = excelPreview.keywords
       let listType = excelPreview.listType
 
