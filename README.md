@@ -11,11 +11,13 @@ A cross-platform Electron desktop application for batch PDF analysis, designed f
 Document Lens Desktop enables researchers to:
 - **Batch import** PDF documents (annual reports, research papers, contracts, etc.)
 - **Choose a research focus** with pre-loaded keyword frameworks for your domain
-- **Analyze** documents using pre-built keyword lists or custom keywords
-- **Search** across documents for keywords and n-grams
-- **Compare** coverage across multiple frameworks
-- **Visualize** trends over time with word clouds, heatmaps, and trend charts
-- **Export** findings in CSV, Excel, and JSON formats
+- **Analyze** documents using pre-built keyword lists, custom keywords, or hierarchical taxonomies
+- **Search** across documents for keywords with tier-level aggregation (e.g., by SDG pillar)
+- **Discover** terminology patterns with n-gram analysis (bigrams and trigrams)
+- **Compare** coverage across frameworks and documents
+- **Visualize** trends with word clouds, heatmaps, treemaps, and trend charts
+- **Export** findings in CSV, Excel, JSON, and shareable `.lens` bundle formats
+- **Collaborate** by sharing project bundles that include documents, keywords, and analysis
 
 ## Target Users
 
@@ -26,49 +28,82 @@ Document Lens Desktop enables researchers to:
 
 ## Features
 
-### Core Features
-- Project-based organization with document library (documents can belong to multiple projects)
-- **Research Focuses** for domain-specific analysis:
-  - Sustainability (TCFD, GRI, SDGs, SASB)
-  - Cybersecurity (NIST CSF, ISO 27001, CIS Controls, MITRE ATT&CK)
-  - Finance (SEC, GAAP, Basel III, Financial Ratios)
-  - Healthcare (FDA, HIPAA, Clinical Trials, Medical Terminology)
-  - Legal (Contract Terms, Regulatory Language, Compliance)
-  - Academic (Research Methods, Statistical Terms, Literature Review)
-  - Project Management (Agile, PMBOK, Risk Management)
-  - General (custom keywords only)
-- Drag-and-drop PDF import with auto-metadata detection
-- Pre-built keyword frameworks with hundreds of domain-specific terms
-- Custom keyword list creation with CSV import support
-- Cross-document keyword search with context highlighting
-- Quick Filter for ad-hoc document subset analysis
-- Individual document statistics (word count, readability scores, top keywords)
-- N-gram analysis (bigrams and trigrams)
-- Cross-framework comparison with radar charts
+### Analysis Workflow
+
+The app guides users through four levels of analysis:
+
+1. **Import & Analyze** - Import PDFs, run document-level analysis (readability, writing quality, word frequency)
+2. **Keyword Search** - Search for framework terms across documents with tier-level aggregation
+3. **N-gram Discovery** - Find frequently occurring 2-3 word phrases to discover terminology patterns
+4. **Visualize & Compare** - Generate charts comparing keyword usage, trends, and document coverage
+
+### Keyword Frameworks
+
+32+ pre-built keyword frameworks across 8 research domains:
+
+| Domain | Frameworks |
+|--------|-----------|
+| Sustainability | TCFD, GRI, SDGs, SASB, SDGs Wedding Cake Model |
+| Cybersecurity | NIST CSF, ISO 27001, CIS Controls, MITRE ATT&CK |
+| Finance | SEC, GAAP, Basel III, Financial Ratios |
+| Healthcare | FDA, HIPAA, Clinical Trials, Medical Terminology |
+| Legal | Contract Terms, Regulatory Language, Compliance |
+| Academic | Research Methods, Statistical Terms, Literature Review |
+| Project Management | Agile, PMBOK, Risk Management |
+| General | Custom keywords only |
+
+### Hierarchical Taxonomies
+
+Keyword lists can be organized into multi-level taxonomies with named tiers. For example, the SDGs Wedding Cake Model organizes 397 keywords into:
+
+- **Pillar** (Environmental, Social, Economic, Governance) > **Goal** (SDG 1-17) > **Keywords**
+
+Analysis results can be viewed at any tier level, with coverage percentages and match counts per category. Users can create their own taxonomies by importing Excel files or converting existing grouped lists.
 
 ### Visualizations
+
 - Word clouds
 - Keyword frequency bar charts
 - Keywords x Documents heatmaps
 - Year-over-year trend lines
 - Framework comparison radar charts
+- Grouped document comparison charts
+- Taxonomy treemaps (hierarchical match distribution)
+- Taxonomy stacked bar charts (per-document tier breakdown)
+
+All charts exportable as images.
+
+### Collaboration
+
+Projects can be shared as `.lens` bundle files (ZIP format) containing:
+- Documents with extracted text and metadata
+- Analysis results (readability, writing quality, word analysis)
+- Keyword configurations and custom keyword lists
+- PDF files (optional, for full replication)
+
+Recipients import bundles to replicate the sender's complete analysis setup. Intelligent deduplication prevents reimporting identical documents.
 
 ### Data Management
-- Local SQLite database for offline access to cached analysis
+
+- Project-based organization with shared document library
+- Local SQLite database for offline access
+- Drag-and-drop PDF import with auto-metadata detection
+- Custom keyword list creation, editing, and Excel/CSV import
 - Export to CSV, Excel, JSON, and full project ZIP bundles
+- Restore default keyword lists from Settings
 
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Framework | Electron 28+ |
+| Framework | Electron 33+ |
 | Frontend | React 18 + TypeScript |
 | UI Components | Shadcn/ui + Tailwind CSS |
 | State Management | Zustand |
 | Database | SQLite (better-sqlite3) |
 | Charts | Recharts |
 | Word Cloud | visx |
-| Build | electron-builder |
+| Build | Vite + electron-builder |
 | Auto-update | electron-updater |
 
 ## Development
@@ -110,8 +145,8 @@ Build outputs are placed in the `release/` directory.
 2. Commit changes
 3. Create and push a git tag:
    ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
+   git tag v0.11.0
+   git push origin v0.11.0
    ```
 4. GitHub Actions will automatically build and create a release
 
@@ -125,26 +160,22 @@ document-lens-desktop/
 │   ├── backend-manager.ts
 │   └── database.ts
 ├── src/               # Renderer process (React)
-│   ├── components/
-│   ├── pages/
-│   ├── stores/
-│   ├── services/
-│   └── data/frameworks/
+│   ├── components/    # UI components + charts
+│   ├── pages/         # Route pages
+│   ├── stores/        # Zustand state management
+│   ├── services/      # Business logic
+│   └── data/          # Keyword frameworks (JSON)
 ├── resources/         # App icons
 └── build/            # Build configuration
 ```
 
 ## Backend
 
-This application connects to the [document-lens](https://github.com/michaelborck-education/document-lens) API backend for text extraction and analysis.
+This application connects to the [document-lens](https://github.com/michaelborck-education/document-lens) API backend for PDF text extraction and analysis.
 
 - **Development**: Run the backend locally (`uvicorn app.main:app`)
-- **Distribution**: The GitHub Actions CI/CD workflow automatically builds and bundles the backend executable using PyInstaller for each platform (Windows, macOS, Linux)
+- **Distribution**: GitHub Actions CI/CD automatically builds and bundles the backend executable using PyInstaller for each platform
 
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Contributing
-
-Contributions are welcome! Please read the implementation plan in `IMPLEMENTATION_PLAN.md` for details on the development roadmap.
