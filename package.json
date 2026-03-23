@@ -1,6 +1,6 @@
 {
   "name": "document-lens-desktop",
-  "version": "0.11.1",
+  "version": "0.11.2",
   "description": "Cross-platform Electron desktop app for batch PDF analysis. Analyze documents using domain-specific keyword frameworks for Sustainability, Cybersecurity, Finance, Healthcare, Legal, Academic, and Project Management.",
   "main": "dist-electron/main.js",
   "author": "Michael Borck",
