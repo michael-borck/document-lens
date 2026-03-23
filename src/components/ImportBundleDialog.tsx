@@ -273,7 +273,7 @@ export function ImportBundleDialog({
                         <div className="flex items-center gap-2">
                           <Settings2 className="h-4 w-4 text-muted-foreground" />
                           <span className="font-medium">
-                            {preview.profiles.length} Analysis Profiles
+                            {preview.profiles.length} Project Settings & Keywords
                           </span>
                         </div>
                         <div className="text-xs text-muted-foreground mt-1">

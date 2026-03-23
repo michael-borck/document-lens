@@ -237,11 +237,11 @@ export function ProfileEditor({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Settings2 className="h-5 w-5" />
-            Research Profile Settings
+            Project Settings
           </DialogTitle>
           <DialogDescription>
-            Configure your research lens - keyword selections, domains, and analysis preferences.
-            These settings persist across sessions.
+            Configure domains and analysis preferences for this project.
+            Use the Keywords panel on the dashboard to manage keyword selections.
           </DialogDescription>
         </DialogHeader>
 
@@ -267,15 +267,14 @@ export function ProfileEditor({
           </div>
 
           {/* Tabs for different sections */}
-          <Tabs defaultValue="keywords" className="w-full">
+          <Tabs defaultValue="domains" className="w-full">
             <TabsList className="w-full">
-              <TabsTrigger value="keywords" className="flex-1">Keywords</TabsTrigger>
               <TabsTrigger value="domains" className="flex-1">Domains</TabsTrigger>
               <TabsTrigger value="analysis" className="flex-1">Analysis</TabsTrigger>
             </TabsList>
 
             {/* Keywords Tab */}
-            <TabsContent value="keywords" className="mt-4 space-y-4">
+            <TabsContent value="_removed_keywords" className="mt-4 space-y-4">
               {loading ? (
                 <div className="text-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin mx-auto" />

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, FolderOpen, Trash2, Copy, Loader2, Leaf, Shield, TrendingUp, Heart, Scale, GraduationCap, ClipboardList, FileText, Search } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Copy, Loader2, Leaf, Shield, TrendingUp, Heart, Scale, GraduationCap, ClipboardList, FileText, Search, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -16,6 +16,8 @@ function getDefaultFocus(): string {
 }
 import { cn } from '@/lib/utils'
 import { duplicateProject } from '@/services/projects'
+import { getActiveProfile, getEnabledKeywords } from '@/services/profiles'
+import { ProfileEditor } from '@/components/ProfileEditor'
 
 interface Project {
   id: string
@@ -25,6 +27,8 @@ interface Project {
   created_at: string
   updated_at: string
   document_count?: number
+  analyzed_count?: number
+  failed_count?: number
 }
 
 // Map focus icon names to components
@@ -43,6 +47,18 @@ function getFocusIcon(focus: Focus) {
   return focusIcons[focus.icon] || FileText
 }
 
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 30) return `${days}d ago`
+  return new Date(dateStr).toLocaleDateString()
+}
+
 export function ProjectList() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,6 +67,8 @@ export function ProjectList() {
   const [newProjectDescription, setNewProjectDescription] = useState('')
   const [newProjectFocus, setNewProjectFocus] = useState(getDefaultFocus)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
+  const [keywordCounts, setKeywordCounts] = useState<Record<string, number>>({})
+  const [settingsProjectId, setSettingsProjectId] = useState<string | null>(null)
 
   useEffect(() => {
     loadProjects()
@@ -63,13 +81,28 @@ export function ProjectList() {
       const result = await window.electron.dbQuery<Project>(`
         SELECT
           p.id, p.name, p.description, p.focus, p.created_at, p.updated_at,
-          COUNT(pd.document_id) as document_count
+          COUNT(pd.document_id) as document_count,
+          SUM(CASE WHEN d.analysis_status = 'completed' THEN 1 ELSE 0 END) as analyzed_count,
+          SUM(CASE WHEN d.analysis_status = 'failed' THEN 1 ELSE 0 END) as failed_count
         FROM projects p
         LEFT JOIN project_documents pd ON pd.project_id = p.id
+        LEFT JOIN documents d ON d.id = pd.document_id
         GROUP BY p.id
         ORDER BY p.updated_at DESC
       `)
       setProjects(result)
+
+      // Load keyword counts lazily
+      const counts: Record<string, number> = {}
+      for (const p of result) {
+        try {
+          const profile = await getActiveProfile(p.id)
+          if (profile) {
+            counts[p.id] = getEnabledKeywords(profile.config).length
+          }
+        } catch { /* ignore */ }
+      }
+      setKeywordCounts(counts)
     } catch (error) {
       console.error('Failed to load projects:', error)
     } finally {
@@ -276,6 +309,20 @@ export function ProjectList() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          title="Project Settings"
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setSettingsProjectId(project.id)
+                          }}
+                        >
+                          <Settings2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          title="Duplicate"
                           onClick={(e) => handleDuplicateProject(project, e)}
                           disabled={duplicatingId === project.id}
                         >
@@ -289,6 +336,7 @@ export function ProjectList() {
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
+                          title="Delete"
                           onClick={(e) => deleteProject(project.id, e)}
                         >
                           <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
@@ -301,13 +349,37 @@ export function ProjectList() {
                       </CardDescription>
                     )}
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className={cn('text-xs px-2 py-0.5 rounded-full bg-muted flex items-center gap-1', focus.color)}>
-                        <Search className="h-3 w-3" />
-                        {focus.name}
-                      </span>
-                      <span>{project.document_count || 0} documents</span>
+                  <CardContent className="space-y-2">
+                    {/* Analysis progress bar */}
+                    {(project.document_count || 0) > 0 && (
+                      <div>
+                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                          <span>{project.analyzed_count || 0}/{project.document_count || 0} analyzed</span>
+                          {(project.failed_count || 0) > 0 && (
+                            <span className="text-destructive">{project.failed_count} failed</span>
+                          )}
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-primary rounded-full transition-all"
+                            style={{ width: `${Math.round(((project.analyzed_count || 0) / (project.document_count || 1)) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                    {/* Stats row */}
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-3">
+                        <span className={cn('px-2 py-0.5 rounded-full bg-muted flex items-center gap-1', focus.color)}>
+                          <Search className="h-3 w-3" />
+                          {focus.name}
+                        </span>
+                        <span>{project.document_count || 0} docs</span>
+                        {keywordCounts[project.id] > 0 && (
+                          <span>{keywordCounts[project.id]} keywords</span>
+                        )}
+                      </div>
+                      <span>{relativeTime(project.updated_at)}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -315,6 +387,20 @@ export function ProjectList() {
             )
           })}
         </div>
+      )}
+
+      {/* Project Settings Dialog (opened from gear icon) */}
+      {settingsProjectId && (
+        <ProfileEditor
+          open={!!settingsProjectId}
+          onClose={() => setSettingsProjectId(null)}
+          projectId={settingsProjectId}
+          projectName={projects.find(p => p.id === settingsProjectId)?.name}
+          onSaved={() => {
+            setSettingsProjectId(null)
+            loadProjects()
+          }}
+        />
       )}
     </div>
   )

@@ -13,6 +13,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { useProjectStore } from '@/stores/projectStore'
 import { ProfileEditor } from '@/components/ProfileEditor'
+import { KeywordPicker } from '@/components/KeywordPicker'
 
 const ANALYSIS_STEPS = [
   { id: 'dashboard', label: 'Documents', path: '' },
@@ -41,6 +42,7 @@ export function ProjectContextBar() {
   const location = useLocation()
   const { project, profile, resolvedKeywords, profileLoading } = useProjectStore()
   const [showProfileEditor, setShowProfileEditor] = useState(false)
+  const [showKeywordPicker, setShowKeywordPicker] = useState(false)
 
   const pageName = getPageName(location.pathname)
   const currentStep = getCurrentStep(location.pathname)
@@ -98,38 +100,31 @@ export function ProjectContextBar() {
             })}
           </div>
 
-          {/* Profile strip */}
+          {/* Keywords + Settings strip */}
           <div className="flex items-center gap-2">
-            {profileLoading ? (
-              <span className="text-xs text-muted-foreground">Loading profile...</span>
-            ) : profile ? (
-              <>
-                <span className="text-xs text-muted-foreground">
-                  {resolvedKeywords.length > 0
-                    ? `${resolvedKeywords.length} keywords active`
-                    : 'No keywords configured'}
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={() => setShowProfileEditor(true)}
-                >
-                  <Settings2 className="h-3 w-3 mr-1" />
-                  Profile
-                </Button>
-              </>
-            ) : (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-xs"
-                onClick={() => setShowProfileEditor(true)}
-              >
-                <Settings2 className="h-3 w-3 mr-1" />
-                Setup Profile
-              </Button>
-            )}
+            <span className="text-xs text-muted-foreground">
+              {profileLoading ? 'Loading...' :
+                resolvedKeywords.length > 0
+                  ? `${resolvedKeywords.length} keywords`
+                  : 'No keywords'}
+            </span>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowKeywordPicker(true)}
+            >
+              Keywords
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setShowProfileEditor(true)}
+            >
+              <Settings2 className="h-3 w-3 mr-1" />
+              Settings
+            </Button>
           </div>
         </div>
       </div>
@@ -146,6 +141,12 @@ export function ProjectContextBar() {
           }}
         />
       )}
+
+      {/* Keyword Picker */}
+      <KeywordPicker
+        open={showKeywordPicker}
+        onClose={() => setShowKeywordPicker(false)}
+      />
     </>
   )
 }

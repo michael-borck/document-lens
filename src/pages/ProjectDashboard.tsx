@@ -16,6 +16,8 @@ import { ImportProgressDialog } from '@/components/ImportProgressDialog'
 import { ExportOptionsModal } from '@/components/ExportOptionsModal'
 import { ProfileSelector } from '@/components/ProfileSelector'
 import { ProfileEditor } from '@/components/ProfileEditor'
+import { KeywordPicker } from '@/components/KeywordPicker'
+import { useProjectStore } from '@/stores/projectStore'
 import { ImportBundleDialog } from '@/components/ImportBundleDialog'
 import { AddFromLibraryDialog } from '@/components/AddFromLibraryDialog'
 import { DocumentAnalysisPanel } from '@/components/DocumentAnalysisPanel'
@@ -67,6 +69,8 @@ export function ProjectDashboard() {
   const [editingDocument, setEditingDocument] = useState<DocumentRecord | null>(null)
   const [showExportModal, setShowExportModal] = useState(false)
   const [showProfileEditor, setShowProfileEditor] = useState(false)
+  const [showKeywordPicker, setShowKeywordPicker] = useState(false)
+  const { resolvedKeywords, profile: storeProfile, loadProject: loadStoreProject } = useProjectStore()
   const [showImportBundle, setShowImportBundle] = useState(false)
   const [showAddFromLibrary, setShowAddFromLibrary] = useState(false)
   const [statsDocument, setStatsDocument] = useState<DocumentRecord | null>(null)
@@ -76,6 +80,7 @@ export function ProjectDashboard() {
     if (projectId) {
       loadProject()
       loadDocuments()
+      loadStoreProject(projectId)
     }
   }, [projectId])
 
@@ -419,6 +424,50 @@ export function ProjectDashboard() {
         </Card>
       </div>
 
+      {/* Keywords Configuration Card */}
+      <Card className="mb-6">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base">Keywords</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setShowKeywordPicker(true)}>
+              {resolvedKeywords.length > 0 ? 'Edit' : 'Select Keywords'}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {resolvedKeywords.length > 0 ? (
+            <div>
+              <div className="flex flex-wrap gap-2 mb-3">
+                {/* Show enabled lists from profile config */}
+                {storeProfile && Object.entries(storeProfile.config.keywords)
+                  .filter(([_, v]) => v.enabled && v.selected.length > 0)
+                  .map(([key, val]) => (
+                    <span key={key} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 text-primary rounded-full text-xs">
+                      <span className="font-medium">{key}</span>
+                      <span className="opacity-70">{val.selected.length}</span>
+                    </span>
+                  ))
+                }
+              </div>
+              <div className="text-sm text-muted-foreground">
+                {resolvedKeywords.length} keywords active
+              </div>
+            </div>
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              No keywords configured yet.{' '}
+              <button
+                onClick={() => setShowKeywordPicker(true)}
+                className="text-primary hover:underline"
+              >
+                Select keyword lists
+              </button>
+              {' '}to start analyzing your documents.
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Analysis Workflow Guide */}
       {!localStorage.getItem('hideWorkflowGuide') && (
         <Card className="mb-6 border-primary/20 bg-primary/5">
@@ -720,12 +769,19 @@ export function ProjectDashboard() {
         documentCount={documents.length}
       />
 
+      {/* Keyword Picker */}
+      <KeywordPicker
+        open={showKeywordPicker}
+        onClose={() => setShowKeywordPicker(false)}
+      />
+
       {/* Profile Editor Modal */}
       <ProfileEditor
         open={showProfileEditor}
         onClose={() => setShowProfileEditor(false)}
         projectId={projectId!}
         projectName={project?.name}
+        onSaved={() => loadStoreProject(projectId!)}
       />
 
       {/* Import Bundle Dialog */}
