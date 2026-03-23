@@ -36,12 +36,17 @@ Fast lookup for common tasks.
 3. Select **View Stats**
 4. See word count, readability, top keywords
 
-### Edit Project Profile
-1. Click **Profile** button in project header
+### Edit Project Keywords
+1. Click **Keywords** in the context bar (or click **Select Keywords** on the dashboard)
 2. Enable/disable keyword frameworks
 3. Select specific keywords within each framework
 4. Add custom keywords
 5. Changes auto-save
+
+### Edit Project Settings
+1. Click **Settings** in the context bar
+2. Configure domains and analysis preferences
+3. Changes auto-save
 
 ### Run Keyword Search
 1. **Keyword Search** page
@@ -64,7 +69,7 @@ Fast lookup for common tasks.
 2. Select .lens file
 3. Preview shows what will import
 4. **Import**
-5. Project & profiles now available
+5. Project & keywords/settings now available
 
 ### View Visualizations
 1. **Visualizations** page
@@ -188,9 +193,14 @@ Yes! **Export → Bundle** (+ options) → Share the .lens file → They **Impor
 Current version only works with PDFs that have extractable text.
 Workaround: Use OCR tool first to create searchable PDF.
 
-### Q: How do profiles work?
+### Q: How do Keywords and Settings work?
 
-Each project has one profile that stores your keyword selections. Use **Duplicate Project** if you want to analyze the same documents with different keyword configurations.
+Each project has two configuration areas:
+
+- **Keywords**: Toggle keyword lists on/off and select individual keywords. Accessible from the dashboard card (click **Select Keywords**) and the context bar (click **Keywords**).
+- **Settings**: Configure domains and analysis preferences. Accessible from the context bar (click **Settings**).
+
+Use **Duplicate Project** if you want to analyze the same documents with different keyword configurations.
 
 ### Q: Can I change a project's focus after creating it?
 
@@ -268,7 +278,9 @@ Yes! Copy the database file to new computer, or Export .lens + Import.
 | Focus | Research domain focus | Sustainability, Cybersecurity, Finance |
 | Document Library | Central PDF repository | All your imported PDFs |
 | Quick Filter | Temporary document filter | Analyze 3 of 20 documents |
-| Profile | Project's keyword configuration | Enabled frameworks and keywords |
+| Keywords | Your project's active keyword list configuration. Select which frameworks and individual keywords to use for analysis. | Enabled frameworks and keywords |
+| Taxonomy | A hierarchical keyword structure with named tiers. Enables analysis at different levels (e.g., by SDG Pillar, then Goal, then individual keywords). | SDGs Wedding Cake |
+| Context Bar | The navigation bar at the top of every project page showing breadcrumbs, analysis steps, and quick access to Keywords and Settings. | Project header navigation |
 | Framework | Pre-built keyword list | TCFD, NIST CSF, PMBOK |
 | Domain | Subject area within framework | Governance, Strategy, Risk |
 | Bundle | .lens ZIP file | "climate-survey-v2.lens" |
@@ -288,6 +300,7 @@ Yes! Copy the database file to new computer, or Export .lens + Import.
 | Find common phrases | N-gram Analysis | With optional Quick Filter |
 | Visualize patterns | Visualizations | With optional Quick Filter |
 | Share with colleagues | Export Bundle | .lens file |
+| Organize keywords into categories | Hierarchical Taxonomies | When you need multi-level analysis (e.g., SDG Pillars > Goals > Keywords) |
 
 ---
 
@@ -307,7 +320,10 @@ Use "View Stats" to identify unusual documents (very long, very short, difficult
 - **Backup**: Export with everything
 - **Share settings**: Export Profiles only
 
-### Tip 5: Pilot Approach
+### Tip 5: Hierarchical Taxonomies
+Use hierarchical taxonomies (like SDGs Wedding Cake) for tier-level analysis — see coverage by pillar before drilling into individual keywords.
+
+### Tip 6: Pilot Approach
 Before analyzing 500 documents:
 1. Use Quick Filter to test with 10 docs
 2. Verify results make sense

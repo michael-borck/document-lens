@@ -61,22 +61,23 @@ export function WelcomeDialog() {
             Welcome to Document Lens
           </DialogTitle>
           <DialogDescription>
-            Batch analysis of PDFs using TCFD, GRI, SDGs, and SASB frameworks
+            Analyze document collections using keyword frameworks across multiple research domains
           </DialogDescription>
         </DialogHeader>
 
         <div className="py-4 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Document Lens helps sustainability researchers analyze corporate reports at scale.
+            Document Lens helps researchers analyze document collections at scale using
+            pre-built keyword frameworks, hierarchical taxonomies, and n-gram discovery.
           </p>
 
           <div className="bg-muted p-3 rounded-lg text-sm space-y-2">
             <p className="font-medium">Getting started:</p>
             <ul className="text-xs text-muted-foreground space-y-1 ml-2">
-              <li>✓ Create or import a project</li>
-              <li>✓ Import PDF documents</li>
-              <li>✓ Search keywords or run analysis</li>
-              <li>✓ Compare collections and export findings</li>
+              <li>1. Create a project and choose a research focus</li>
+              <li>2. Import PDF documents</li>
+              <li>3. Select keywords from built-in frameworks or import your own</li>
+              <li>4. Search, discover patterns, visualize, and export findings</li>
             </ul>
           </div>
         </div>

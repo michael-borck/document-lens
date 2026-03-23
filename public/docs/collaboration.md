@@ -18,13 +18,19 @@ A .lens bundle (ZIP file) contains:
 project-bundle.lens
 ├── manifest.json              # Version, project info, what's included
 ├── project.json               # Project configuration
-├── profiles/                  # Analysis profiles
+├── profiles/                  # Analysis profiles (keyword config + project settings)
 │   └── [profile-id].json      # Keywords, domains, preferences
+├── keyword-lists/             # Custom keyword lists
+│   └── [list-id].json         # Hierarchical taxonomies, custom lists
 ├── documents/                 # Document metadata
 │   └── [doc-id].json          # Metadata, hash, optional: text, analysis
 └── pdfs/                      # OPTIONAL - original PDF files
     └── [filename].pdf
 ```
+
+**Custom keyword lists**: Any custom or imported keyword lists (including hierarchical taxonomies) referenced by your keyword configuration are automatically bundled. Recipients get the exact same keyword setup.
+
+> **Note on profiles:** Profiles contain your keyword configuration (which keyword lists are enabled and which keywords selected) and project settings (domains, analysis preferences). The term "profiles" is used in the bundle data format and database storage.
 
 ---
 
@@ -61,9 +67,10 @@ File size: Typically 5-50 MB
 File size: Can be 500 MB+
 ```
 
-**Share settings only**:
+**Share settings only** (settings and keywords only: keyword configuration + custom keyword lists):
 ```
 ☑ Profiles
+☑ Custom Keyword Lists
 ☐ Analysis Results
 ☐ Extracted Text
 ☐ PDF Files
@@ -122,6 +129,8 @@ Import flow:
 1. Check: Does document hash exist in your library?
    - YES: Link to existing document (skip import)
    - NO: Continue...
+
+Custom keyword lists are also deduplicated by name — if the recipient already has a keyword list with the same name, the existing one is reused rather than creating a duplicate.
 
 2. Check: Is PDF included in bundle?
    - YES: Import PDF + metadata

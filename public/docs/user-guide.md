@@ -71,15 +71,37 @@ A desktop application for batch PDF analysis using domain-specific keyword frame
 - Analyze only documents from 2023
 - Focus on documents that mention certain topics
 
-### Project Profile
-**What**: Each project has one profile that stores your keyword framework selections.
+### Keywords
+**What**: Each project has a keyword configuration that determines which keyword lists and individual keywords are active for analysis.
 
-**Why**: Your keyword configuration is saved and persists across sessions.
+**Why**: Keywords are the foundation of your analysis. Select from built-in frameworks or import your own.
 
 **Key Points**:
-- Click **Profile** button in project header to edit
-- Enable/disable frameworks and select specific keywords
+- Click **Keywords** in the project context bar or the Keywords card on the dashboard
+- Toggle entire keyword lists on/off and select individual keywords
 - Use **Duplicate Project** to analyze the same documents with different keyword configurations
+
+### Project Settings
+**What**: Per-project configuration for domains and analysis preferences.
+
+**Why**: Customize domain mapping labels, analysis types (sentiment, readability, etc.), and comparison settings.
+
+**Key Points**:
+- Click **Settings** in the project context bar
+- Configure custom domains (e.g., Governance, Strategy, Risk Management)
+- Toggle analysis types on/off
+
+### Hierarchical Taxonomies
+**What**: Keyword lists organized into multiple named tiers (e.g., Pillar > Goal > Keywords).
+
+**Why**: Analyze at different levels of detail. See coverage by broad category (e.g., "Environmental") or drill down to specific goals.
+
+**Key Points**:
+- The SDGs Wedding Cake Model is a built-in example (4 Pillars > 17 Goals > 397 Keywords)
+- Import your own from Excel — tiers are auto-detected from column structure
+- Convert any grouped keyword list to a taxonomy
+- Search results show aggregated match counts at each tier level
+- Treemap and stacked bar visualizations for hierarchical data
 
 ---
 
@@ -98,6 +120,8 @@ For ESG reporting, climate disclosures, and corporate sustainability analysis.
 | **GRI** | Global Reporting Initiative Standards | Economic, Environmental, Social indicators |
 | **SDGs** | UN Sustainable Development Goals | All 17 goals with specific indicators |
 | **SASB** | Sustainability Accounting Standards | Industry-specific sustainability metrics |
+| **SDGs Wedding Cake** | Goals organized by Environmental, Social, Economic, Governance pillars | Hierarchical taxonomy with tier-level analysis |
+| **Counter-Indicators** | Terms suggesting non-alignment with SDGs | Paired with Wedding Cake for balanced analysis |
 
 #### Cybersecurity
 For security audits, compliance assessments, and threat analysis.
@@ -382,19 +406,26 @@ Documents must be analyzed before stats are available:
 
 ---
 
-## Project Profile
+## Keywords & Project Settings
 
-Each project has one profile that stores your keyword configuration. The profile persists across sessions and can be used in Visualizations.
+Each project has a keyword configuration that determines which keyword lists and keywords are active. Project Settings control domains and analysis preferences. Both persist across sessions.
 
-### Editing Your Profile
+### Editing Your Keyword Configuration
 
-1. Click the **Profile** button in the project header
-2. Enable/disable keyword frameworks using the toggles
-3. Within each framework, select specific keywords to include
+1. Click **Keywords** in the context bar
+2. Enable/disable keyword lists using the toggles
+3. Within each list, select specific keywords to include
 4. Add custom keywords if needed
 5. Changes are saved automatically
 
-### Using Profile Keywords in Visualizations
+### Project Settings
+
+1. Click **Settings** in the context bar
+2. Configure custom domains (e.g., Governance, Strategy, Risk Management)
+3. Toggle analysis types on/off (sentiment, readability, etc.)
+4. Changes are saved automatically
+
+### Using Keywords in Visualizations
 
 1. Go to **Visualizations** page
 2. Click **"Use Profile Keywords"** button
@@ -407,8 +438,8 @@ If you want to analyze the same documents with different keyword configurations:
 1. Click **"..."** menu in project header
 2. Select **Duplicate Project**
 3. Enter a new name
-4. The new project has the same documents and a copy of the profile
-5. Edit the new project's profile with different keywords
+4. The new project has the same documents and a copy of the keyword configuration
+5. Edit the new project's keyword configuration with different keywords
 
 This lets you compare different analysis approaches on the same document set.
 
@@ -419,7 +450,7 @@ This lets you compare different analysis approaches on the same document set.
 ### Basic Search
 
 1. Go to **Keyword Search**
-2. Select keywords to search for (or use your profile's saved keywords)
+2. Select keywords to search for (or use your saved keyword configuration)
 3. Modify keyword selection if needed:
    - Check/uncheck keywords to include/exclude
 4. Click **"Search"**
@@ -459,6 +490,14 @@ Results show most common phrases, helping identify:
 - Emerging terminology
 - How language differs between documents
 
+#### Tier-Level Analysis
+When using a hierarchical keyword list (like SDGs Wedding Cake), results can be viewed at different tier levels using the **View by** toggle:
+- **Pillar level**: Summary cards showing match counts and coverage per pillar
+- **Goal level**: Per-goal breakdowns grouped under their parent pillar
+- **Keywords level**: Individual keyword matches with context (default view)
+
+Each tier level shows coverage percentage — how many keywords in that category were found at least once.
+
 ---
 
 ## Visualizations
@@ -472,6 +511,11 @@ Results show most common phrases, helping identify:
 **Keywords x Documents Heatmap**
 - Grid showing which keywords appear in which documents
 - Use: Identify patterns across your corpus
+
+#### Taxonomy Charts
+Available when using hierarchical keyword lists:
+- **Treemap**: Rectangles sized by match count, showing tier-level distribution at a glance
+- **Stacked Bar**: Per-document breakdown by tier categories, comparing how different documents cover each pillar/category
 
 ### Using Quick Filter with Visualizations
 
@@ -508,9 +552,10 @@ Best for: Sharing with colleagues, reproducibility
 
 Contents:
 - Project configuration
-- Profiles configuration
+- Keyword configuration
 - Document metadata
 - Analysis results
+- **Custom keyword lists**: Any custom or imported keyword lists referenced by your keyword configuration are automatically included, so recipients get the exact same analysis setup
 - (Optional) Extracted text
 - (Optional) Original PDFs
 
@@ -518,13 +563,13 @@ Contents:
 
 ## Collaboration
 
-### Share Projects & Profiles
+### Share Projects & Keywords
 
 #### Step 1: Export Bundle
 ```
 Project Dashboard → Export Project
 → Select options:
-  ☑ Profiles: Include your analysis profiles
+  ☑ Keywords: Include your keyword configuration
   ☐ Analysis Results: Include cached analysis
   ☐ Extracted Text: Include PDF text
   ☐ PDF Files: Include original PDFs (larger file)
@@ -544,7 +589,7 @@ Their Document Lens App
 → Select your .lens file
 → Preview shows what will import
 → Click "Import"
-→ Project & profiles now in their app
+→ Project & keywords now in their app
 ```
 
 ### Privacy & Offline
@@ -639,7 +684,7 @@ Once downloaded, you control when to restart:
 ### Performance
 - Large projects (1000+ documents) may be slower
 - Use Quick Filter to subset documents during analysis
-- Disable unused domains in profiles to speed up analysis
+- Disable unused domains in project settings to speed up analysis
 
 ### Quality
 - Start with small dataset to test your workflow
@@ -647,7 +692,7 @@ Once downloaded, you control when to restart:
 - Document your methodology for reproducibility
 
 ### Collaboration
-- Always export with profiles included
+- Always export with keyword configuration included
 - Use metadata (company, year, country) consistently
 - Version your bundles (v1, v2) when sharing updates
 
@@ -660,18 +705,18 @@ Once downloaded, you control when to restart:
 
 **Possible causes**:
 1. Keywords not actually in documents (manually review)
-2. Profile has wrong keywords selected
+2. Keyword configuration has wrong keywords selected
 
 **Solution**:
 1. View original PDF to verify content
-2. Edit profile to include relevant keywords
+2. Edit your keyword configuration to include relevant keywords
 
 ### Slow Performance
 **Problem**: Analysis taking too long
 
 **Solution**:
 1. Reduce document count with Quick Filter
-2. Disable unused domains in profile
+2. Disable unused domains in project settings
 3. Run analysis in smaller batches
 
 ### Document Stats Not Available
@@ -692,23 +737,16 @@ Once downloaded, you control when to restart:
 | **Research Focus** | Domain focus (Sustainability, Cybersecurity, Finance, etc.) that determines available frameworks |
 | **Document Library** | Central repository of all imported PDFs |
 | **Quick Filter** | Temporary filter to analyze subset of documents |
-| **Profile** | Project's keyword configuration (enabled frameworks and keywords) |
+| **Keyword Configuration** | Project's active keyword lists and selected keywords |
 | **Framework** | Pre-built keyword list for a research domain (e.g., TCFD, NIST CSF, PMBOK) |
 | **Domain** | Subject area within a framework (e.g., Governance, Strategy, Risk, Metrics) |
 | **Bundle** | .lens ZIP file for sharing projects with colleagues |
 | **N-gram** | Common phrase (2-gram: "climate risk", 3-gram: "net zero target") |
 | **Auto-update** | Automatic download and installation of new app versions |
-
----
-
-## Keyboard Shortcuts
-
-| Shortcut | Action |
-|----------|--------|
-| `Cmd/Ctrl + N` | New Project |
-| `Cmd/Ctrl + O` | Open Project |
-| `Cmd/Ctrl + E` | Export |
-| `Cmd/Ctrl + /` | Open Help |
+| **Taxonomy** | A hierarchical keyword structure with named tiers (e.g., Pillar > Goal > Keywords). Enables tier-level analysis. |
+| **Tier** | A named level within a taxonomy (e.g., "Pillar" or "Goal"). Each tier groups the level below it. |
+| **Counter-Indicators** | Keywords suggesting non-alignment with a framework. Used alongside positive keyword lists for balanced analysis. |
+| **Keyword Picker** | The dialog for selecting which keyword lists and keywords are active for your project. |
 
 ---
 
