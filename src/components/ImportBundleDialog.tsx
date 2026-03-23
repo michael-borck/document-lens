@@ -279,6 +279,12 @@ export function ImportBundleDialog({
                         <div className="text-xs text-muted-foreground mt-1">
                           {preview.profiles.map(p => p.name).join(', ')}
                         </div>
+                        {preview.keywordLists.length > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Includes {preview.keywordLists.length} custom keyword list{preview.keywordLists.length !== 1 ? 's' : ''}:
+                            {' '}{preview.keywordLists.map(kl => kl.name).join(', ')}
+                          </div>
+                        )}
                       </div>
                     </label>
                   )}

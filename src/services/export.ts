@@ -14,7 +14,8 @@ import type { AnalysisProfile, ProfileConfig } from './profiles'
 import type {
   BundleManifest,
   BundleDocumentData,
-  BundleProfileData
+  BundleProfileData,
+  BundleKeywordListData,
 } from './import'
 
 // ============================================================================
@@ -750,6 +751,62 @@ export async function exportLensBundle(
       }
 
       profsFolder?.file(`${prof.id}.json`, JSON.stringify(profData, null, 2))
+    }
+  }
+
+  // Export custom keyword lists referenced by profiles
+  if (options.includeProfiles) {
+    // Collect all keyword list IDs referenced in profile configs
+    const referencedListIds = new Set<string>()
+    const profiles = await window.electron.dbQuery<AnalysisProfile>(
+      'SELECT config FROM analysis_profiles WHERE project_id = ?',
+      [projectId]
+    )
+
+    for (const prof of profiles) {
+      try {
+        const config = JSON.parse(prof.config) as ProfileConfig
+        if (config.keywords) {
+          for (const key of Object.keys(config.keywords)) {
+            // Custom lists are referenced by UUID, built-in by framework name
+            // UUIDs contain hyphens and are 36 chars
+            if (key.length > 20 && key.includes('-')) {
+              referencedListIds.add(key)
+            }
+          }
+        }
+      } catch {
+        // Skip invalid config
+      }
+    }
+
+    if (referencedListIds.size > 0) {
+      const klFolder = zip.folder('keyword_lists')
+
+      for (const listId of referencedListIds) {
+        const lists = await window.electron.dbQuery<{
+          id: string; name: string; description: string | null;
+          framework: string | null; focus: string | null;
+          list_type: string; keywords: string
+        }>(
+          'SELECT id, name, description, framework, focus, list_type, keywords FROM keyword_lists WHERE id = ? AND is_builtin = 0',
+          [listId]
+        )
+
+        if (lists.length > 0) {
+          const list = lists[0]
+          const klData: BundleKeywordListData = {
+            id: list.id,
+            name: list.name,
+            description: list.description,
+            framework: list.framework,
+            focus: list.focus,
+            list_type: list.list_type,
+            keywords: list.keywords,
+          }
+          klFolder?.file(`${list.id}.json`, JSON.stringify(klData, null, 2))
+        }
+      }
     }
   }
 

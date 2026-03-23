@@ -65,6 +65,16 @@ export interface BundleProfileData {
   created_at: string
 }
 
+export interface BundleKeywordListData {
+  id: string
+  name: string
+  description: string | null
+  framework: string | null
+  focus: string | null
+  list_type: string
+  keywords: string  // JSON string
+}
+
 export interface ImportProgress {
   phase: 'reading' | 'analyzing' | 'importing' | 'complete'
   current: number
@@ -92,6 +102,7 @@ export interface ImportPreview {
     }>
   }
   profiles: BundleProfileData[]
+  keywordLists: BundleKeywordListData[]
   estimatedSize: number
 }
 
@@ -239,6 +250,17 @@ export async function previewBundle(
     }
   }
 
+  // Read keyword lists
+  const keywordLists: BundleKeywordListData[] = []
+  const keywordListsFolder = zip.folder('keyword_lists')
+  if (keywordListsFolder) {
+    const klFiles = keywordListsFolder.filter((_, file) => file.name.endsWith('.json'))
+    for (const klFile of klFiles) {
+      const klText = await klFile.async('text')
+      keywordLists.push(JSON.parse(klText))
+    }
+  }
+
   // Estimate bundle size from file
   const stats = await window.electron.getFileStats(bundlePath)
 
@@ -252,6 +274,7 @@ export async function previewBundle(
       items: documents
     },
     profiles,
+    keywordLists,
     estimatedSize: stats.size
   }
 }
@@ -356,6 +379,29 @@ export async function importBundle(
       }
     }
 
+    // Import keyword lists (before profiles, so we can remap references)
+    const keywordListIdMap = new Map<string, string>()
+
+    if (options.importProfiles) {
+      const keywordListsFolder = zip.folder('keyword_lists')
+      if (keywordListsFolder) {
+        const klFiles = keywordListsFolder.filter((_, file) => file.name.endsWith('.json'))
+
+        for (const klFile of klFiles) {
+          try {
+            const klText = await klFile.async('text')
+            const klData = JSON.parse(klText) as BundleKeywordListData
+
+            const newId = await importKeywordList(klData)
+            keywordListIdMap.set(klData.id, newId)
+          } catch (error) {
+            const message = error instanceof Error ? error.message : 'Unknown error'
+            errors.push(`Keyword list import failed: ${message}`)
+          }
+        }
+      }
+    }
+
     // Import profiles
     if (options.importProfiles) {
       const profilesFolder = zip.folder('profiles')
@@ -366,6 +412,16 @@ export async function importBundle(
           try {
             const profText = await profFile.async('text')
             const profData = JSON.parse(profText) as BundleProfileData
+
+            // Remap keyword list references in profile config
+            if (keywordListIdMap.size > 0 && profData.config.keywords) {
+              const remappedKeywords: Record<string, { enabled: boolean; selected: string[] }> = {}
+              for (const [key, value] of Object.entries(profData.config.keywords)) {
+                const newKey = keywordListIdMap.get(key) || key
+                remappedKeywords[newKey] = value
+              }
+              profData.config.keywords = remappedKeywords
+            }
 
             await importProfile(targetProjectId, profData)
             profilesImported++
@@ -517,6 +573,43 @@ async function importDocument(
       )
     }
   }
+
+  return newId
+}
+
+/**
+ * Import a custom keyword list from bundle data.
+ * Skips if a list with the same name already exists.
+ */
+async function importKeywordList(
+  klData: BundleKeywordListData
+): Promise<string> {
+  // Check if a list with the same name already exists
+  const existing = await window.electron.dbQuery<{ id: string }>(
+    'SELECT id FROM keyword_lists WHERE name = ? AND is_builtin = 0',
+    [klData.name]
+  )
+
+  if (existing.length > 0) {
+    // Reuse existing list — return its ID for remapping
+    return existing[0].id
+  }
+
+  const newId = uuidv4()
+
+  await window.electron.dbRun(
+    `INSERT INTO keyword_lists (id, name, description, framework, focus, list_type, keywords, is_builtin)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0)`,
+    [
+      newId,
+      klData.name,
+      klData.description,
+      klData.framework || 'custom',
+      klData.focus,
+      klData.list_type,
+      klData.keywords,
+    ]
+  )
 
   return newId
 }
