@@ -3,6 +3,7 @@ DocumentLens FastAPI Service
 Multi-Modal Document Analysis Microservice
 """
 
+import os
 from typing import Any
 
 from fastapi import FastAPI
@@ -37,14 +38,39 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-)
+# CORS middleware.
+#
+# Two profiles:
+#   - desktop mode (DOCUMENT_LENS_MODE=desktop): embedded in the document-lens
+#     Electron app. The backend only listens on 127.0.0.1, reachable only by
+#     the user's own processes, so we use a permissive regex to allow the
+#     Vite dev server (any localhost port), the packaged renderer's
+#     file:// origin, and the null-origin fallback some Chromium versions
+#     emit for file://. Credentials are off — no auth between renderer and
+#     local backend.
+#   - web mode (default): strict allowlist from ALLOWED_ORIGINS, credentials
+#     enabled. Used by docker-compose, web deployments, and shared hosting.
+if os.getenv("DOCUMENT_LENS_MODE") == "desktop":
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origin_regex=(
+            r"^(https?://localhost(:\d+)?"
+            r"|https?://127\.0\.0\.1(:\d+)?"
+            r"|file://.*"
+            r"|null)$"
+        ),
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+else:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.ALLOWED_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "OPTIONS"],
+        allow_headers=["*"],
+    )
 
 # Include routers - Clean Australian microservice URLs
 app.include_router(health.router, tags=["health"])

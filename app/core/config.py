@@ -14,10 +14,12 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api"
     PROJECT_NAME: str = "DocumentLens"
 
-    # CORS settings - can be set as comma-separated string in .env
+    # CORS settings - can be set as comma-separated string in .env.
+    # Note: ignored entirely when DOCUMENT_LENS_MODE=desktop (see app/main.py),
+    # which swaps in a permissive regex for embedded Electron use.
     ALLOWED_ORIGINS: str | list[str] = Field(
-        default="http://localhost:5173,http://localhost:3000",
-        description="Comma-separated list of allowed origins",
+        default="http://localhost:5173,http://localhost:5174,http://localhost:3000",
+        description="Comma-separated list of allowed origins (web mode only)",
     )
 
     # File processing settings
