@@ -437,24 +437,24 @@ export function DocumentLibrary() {
                         <div className="flex items-center gap-2">
                           {/* Text status */}
                           {doc.status.textAvailable ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600" title="Text extracted">
+                            <span className="flex items-center gap-1 text-xs text-brass" title="Text extracted">
                               <CheckCircle className="h-3 w-3" />
                               Text
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-amber-600" title="No text extracted">
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground" title="No text extracted">
                               <AlertTriangle className="h-3 w-3" />
                               No text
                             </span>
                           )}
                           {/* PDF status */}
                           {doc.status.pdfAvailable ? (
-                            <span className="flex items-center gap-1 text-xs text-green-600" title="PDF available">
+                            <span className="flex items-center gap-1 text-xs text-brass" title="PDF available">
                               <CheckCircle className="h-3 w-3" />
                               PDF
                             </span>
                           ) : (
-                            <span className="flex items-center gap-1 text-xs text-red-600" title="PDF not found">
+                            <span className="flex items-center gap-1 text-xs text-destructive" title="PDF not found">
                               <FileQuestion className="h-3 w-3" />
                               No PDF
                             </span>
@@ -517,7 +517,7 @@ export function DocumentLibrary() {
                                 >
                                   <ExternalLink className="h-4 w-4" />
                                   Open PDF
-                                  {!doc.status.pdfAvailable && <AlertTriangle className="h-3 w-3 text-amber-500" />}
+                                  {!doc.status.pdfAvailable && <AlertTriangle className="h-3 w-3 text-destructive" />}
                                 </button>
                                 <button
                                   className={`flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted ${!doc.status.pdfAvailable ? 'text-muted-foreground' : ''}`}
@@ -532,7 +532,7 @@ export function DocumentLibrary() {
                                 </button>
                                 <hr className="my-1 border-muted" />
                                 <button
-                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-red-600 hover:bg-muted"
+                                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted"
                                   onClick={() => {
                                     handleDeleteDocuments([doc.id])
                                     setContextMenu(null)

@@ -127,16 +127,19 @@ export function Help() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="bg-muted border-b px-8 py-4 sticky top-0 z-10">
-        <div className="flex items-center gap-4 mb-4">
+      {/* Header — masthead */}
+      <div className="bg-card border-b border-border px-8 pt-6 pb-4 sticky top-0 z-10">
+        <div className="flex items-center gap-3 mb-2">
           <Link to="/">
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="-ml-2">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <h1 className="text-2xl font-bold">Help & Documentation</h1>
+          <div className="label-masthead">The Reading Room · Appendix</div>
         </div>
+        <h1 className="font-display text-3xl font-medium leading-none tracking-tight mb-4">
+          Help &amp; <span className="italic">Documentation</span>
+        </h1>
 
         {/* Search */}
         <div className="flex items-center gap-2 max-w-md relative">
@@ -245,16 +248,16 @@ export function Help() {
                 remarkPlugins={[remarkGfm]}
                 components={{
                   h1: ({ node, ...props }) => (
-                    <h1 className="text-3xl font-bold mt-8 mb-4 first:mt-0" {...props} />
+                    <h1 className="font-display text-4xl font-medium tracking-tight mt-10 mb-4 first:mt-0 pb-2 border-b-2 border-foreground" {...props} />
                   ),
                   h2: ({ node, ...props }) => (
-                    <h2 className="text-2xl font-bold mt-8 mb-3" {...props} />
+                    <h2 className="font-display text-2xl font-medium tracking-tight mt-10 mb-3" {...props} />
                   ),
                   h3: ({ node, ...props }) => (
-                    <h3 className="text-xl font-semibold mt-6 mb-2" {...props} />
+                    <h3 className="font-display text-xl font-medium mt-8 mb-2" {...props} />
                   ),
                   h4: ({ node, ...props }) => (
-                    <h4 className="text-lg font-semibold mt-4 mb-2" {...props} />
+                    <h4 className="font-display text-lg font-medium mt-6 mb-2" {...props} />
                   ),
                   p: ({ node, ...props }) => (
                     <p className="text-muted-foreground leading-relaxed mb-3" {...props} />

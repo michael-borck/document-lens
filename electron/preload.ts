@@ -20,10 +20,21 @@ export interface SaveDialogResult {
   filePath?: string
 }
 
+export type BackendPhase =
+  | 'not-started'
+  | 'starting'
+  | 'ready'
+  | 'unreachable'
+  | 'crashed'
+
 export interface BackendStatus {
+  phase: BackendPhase
   running: boolean
   url: string | null
   pid?: number
+  mode: 'embedded' | 'dev-auto' | 'dev-external'
+  lastError?: string
+  startedAt?: number
 }
 
 export interface DatabaseResult {
@@ -71,6 +82,11 @@ const electronAPI = {
     ipcRenderer.invoke('backend:getStatus'),
   getBackendUrl: (): Promise<string> =>
     ipcRenderer.invoke('backend:getUrl'),
+  onBackendStatusChanged: (callback: (status: BackendStatus) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, status: BackendStatus) => callback(status)
+    ipcRenderer.on('backend:status-changed', handler)
+    return () => ipcRenderer.removeListener('backend:status-changed', handler)
+  },
 
   // Database
   dbQuery: <T = unknown>(sql: string, params?: unknown[]): Promise<T[]> =>

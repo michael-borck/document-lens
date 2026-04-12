@@ -36,6 +36,7 @@ import {
   type AnalysisProgress,
 } from '@/services/analysis'
 import { duplicateProject } from '@/services/projects'
+import { cn } from '@/lib/utils'
 
 interface Project {
   id: string
@@ -332,97 +333,85 @@ export function ProjectDashboard() {
     >
       {/* Drag overlay */}
       {isDragging && (
-        <div className="fixed inset-0 z-50 bg-primary/10 border-4 border-dashed border-primary flex items-center justify-center">
+        <div className="fixed inset-0 z-50 bg-primary/5 border-[3px] border-dashed border-primary flex items-center justify-center backdrop-blur-[1px]">
           <div className="text-center">
-            <Upload className="h-16 w-16 mx-auto text-primary mb-4" />
-            <p className="text-xl font-medium text-primary">Drop PDF files here</p>
+            <Upload className="h-14 w-14 mx-auto text-primary mb-4" strokeWidth={1.25} />
+            <p className="font-display text-3xl font-medium text-primary">Drop PDF files here</p>
+            <p className="label-masthead mt-2">Release to import</p>
           </div>
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/">
-          <Button variant="ghost" size="icon">
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-        </Link>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold">{project.name}</h1>
-          {project.description && (
-            <p className="text-muted-foreground">{project.description}</p>
-          )}
+      {/* Masthead */}
+      <header className="mb-8">
+        <div className="flex items-center gap-3 mb-3">
+          <Link to="/">
+            <Button variant="ghost" size="icon" className="-ml-2">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
+          <div className="label-masthead">The Reading Room · Project</div>
         </div>
-        <ProfileSelector
-          projectId={projectId!}
-          onManageProfiles={() => setShowProfileEditor(true)}
-        />
-        <Button variant="ghost" size="icon" onClick={handleDuplicateProject} disabled={duplicating} title="Duplicate project">
-          {duplicating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Copy className="h-4 w-4" />
-          )}
-        </Button>
-        <Button variant="ghost" size="icon" onClick={handleDeleteProject} title="Delete project">
-          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
-        </Button>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Documents
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{documents.length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Analyzed
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {documents.filter((d) => d.analysis_status === 'completed').length}
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pending
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {documents.filter((d) => d.analysis_status !== 'completed').length}
-            </div>
-            {documents.filter((d) => d.analysis_status === 'failed').length > 0 && (
-              <div className="text-xs text-destructive mt-1">
-                {documents.filter((d) => d.analysis_status === 'failed').length} failed
-              </div>
+        <div className="flex items-end justify-between gap-6 border-b-2 border-foreground pb-4">
+          <div className="flex-1 min-w-0">
+            <h1 className="font-display text-4xl lg:text-5xl font-medium leading-[1.05] tracking-tight text-foreground">
+              {project.name}
+            </h1>
+            {project.description && (
+              <p className="mt-2 font-display italic text-base text-muted-foreground leading-snug max-w-2xl">
+                {project.description}
+              </p>
             )}
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Companies
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {new Set(documents.map((d) => d.company_name).filter(Boolean)).size}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <div className="flex items-center gap-1 shrink-0 pb-1">
+            <ProfileSelector
+              projectId={projectId!}
+              onManageProfiles={() => setShowProfileEditor(true)}
+            />
+            <Button variant="ghost" size="icon" onClick={handleDuplicateProject} disabled={duplicating} title="Duplicate project">
+              {duplicating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={handleDeleteProject} title="Delete project">
+              <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+            </Button>
+          </div>
+        </div>
+      </header>
+
+      {/* Stats strip — editorial figures row */}
+      {(() => {
+        const analyzed = documents.filter((d) => d.analysis_status === 'completed').length
+        const pending = documents.filter((d) => d.analysis_status !== 'completed').length
+        const failed = documents.filter((d) => d.analysis_status === 'failed').length
+        const companies = new Set(documents.map((d) => d.company_name).filter(Boolean)).size
+        const items = [
+          { label: 'Documents', value: documents.length },
+          { label: 'Analyzed', value: analyzed },
+          { label: 'Pending', value: pending, sub: failed > 0 ? `${failed} failed` : undefined },
+          { label: 'Companies', value: companies },
+        ]
+        return (
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-0 mb-8 border border-border bg-card divide-x divide-border">
+            {items.map((item) => (
+              <div key={item.label} className="px-5 py-4">
+                <div className="label-masthead">{item.label}</div>
+                <div className="font-display text-4xl font-medium tabular mt-1 text-foreground leading-none">
+                  {String(item.value).padStart(2, '0')}
+                </div>
+                {item.sub && (
+                  <div className="text-[10px] tabular text-destructive uppercase tracking-wider font-medium mt-1.5">
+                    {item.sub}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )
+      })()}
 
       {/* Keywords Configuration Card */}
       <Card className="mb-6">
@@ -468,63 +457,43 @@ export function ProjectDashboard() {
         </CardContent>
       </Card>
 
-      {/* Analysis Workflow Guide */}
+      {/* Analysis workflow — editorial step list */}
       {!localStorage.getItem('hideWorkflowGuide') && (
-        <Card className="mb-6 border-primary/20 bg-primary/5">
-          <CardContent className="pt-6">
-            <div className="flex items-start justify-between mb-3">
-              <h3 className="font-medium">Analysis Workflow</h3>
-              <button
-                onClick={() => {
-                  localStorage.setItem('hideWorkflowGuide', 'true')
-                  // Force re-render
-                  setDocuments([...documents])
-                }}
-                className="text-xs text-muted-foreground hover:underline"
-              >
-                Dismiss
-              </button>
+        <div className="mb-8 border border-border bg-card p-6">
+          <div className="flex items-start justify-between mb-5">
+            <div>
+              <div className="label-masthead">Method</div>
+              <h3 className="font-display text-xl font-medium mt-1">The Analysis Workflow</h3>
             </div>
-            <div className="grid grid-cols-4 gap-4">
-              <div className="space-y-1">
-                <div className="text-sm font-medium flex items-center gap-2">
-                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">1</span>
-                  Import & Analyze
+            <button
+              onClick={() => {
+                localStorage.setItem('hideWorkflowGuide', 'true')
+                setDocuments([...documents])
+              }}
+              className="label-masthead hover:text-foreground transition-colors"
+            >
+              Dismiss
+            </button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {[
+              { n: '01', title: 'Import & Analyze', desc: 'Import PDFs and run document-level analysis: readability, writing quality, word frequency.', link: null },
+              { n: '02', title: 'Keyword Search', desc: 'Search framework terms across documents. Use taxonomy hierarchies for tier-level analysis.', link: `/project/${projectId}/search` },
+              { n: '03', title: 'N-gram Discovery', desc: 'Find frequently-occurring 2–3 word phrases to surface patterns and terminology.', link: `/project/${projectId}/ngrams` },
+              { n: '04', title: 'Visualize', desc: 'Generate charts comparing keyword usage, trends, and document coverage.', link: `/project/${projectId}/visualize` },
+            ].map((step, i, arr) => (
+              <div key={step.n} className={cn('relative', i < arr.length - 1 && 'md:pr-6 md:border-r md:border-border')}>
+                <div className="font-mono tabular text-primary text-sm mb-2">{step.n}</div>
+                <div className="font-display text-base font-medium mb-1">
+                  {step.link ? (
+                    <Link to={step.link} className="link-editorial">{step.title}</Link>
+                  ) : step.title}
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Import PDFs and run document-level analysis (readability, writing quality, word frequency).
-                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{step.desc}</p>
               </div>
-              <div className="space-y-1">
-                <div className="text-sm font-medium flex items-center gap-2">
-                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">2</span>
-                  <Link to={`/project/${projectId}/search`} className="hover:underline">Keyword Search</Link>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Search for framework terms across documents. Use taxonomy hierarchies for tier-level analysis.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-medium flex items-center gap-2">
-                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">3</span>
-                  <Link to={`/project/${projectId}/ngrams`} className="hover:underline">N-gram Discovery</Link>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Find frequently occurring 2-3 word phrases to discover patterns and terminology.
-                </p>
-              </div>
-              <div className="space-y-1">
-                <div className="text-sm font-medium flex items-center gap-2">
-                  <span className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs">4</span>
-                  <Link to={`/project/${projectId}/visualize`} className="hover:underline">Visualize</Link>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Generate charts comparing keyword usage, trends, and document coverage.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            ))}
+          </div>
+        </div>
       )}
 
       {/* Actions */}
@@ -702,13 +671,13 @@ export function ProjectDashboard() {
             </div>
           ) : documents.length === 0 ? (
             <div
-              className="text-center py-12 border-2 border-dashed rounded-lg cursor-pointer hover:border-primary/50 transition-colors"
+              className="text-center py-16 border border-dashed border-border hover:border-foreground/40 cursor-pointer transition-colors"
               onClick={() => handleImportFiles()}
             >
-              <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-lg font-medium mb-2">No documents yet</h2>
-              <p className="text-muted-foreground mb-4">
-                Drag and drop PDF files here, or use the buttons below
+              <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-4" strokeWidth={1.25} />
+              <h2 className="font-display text-2xl font-medium mb-2">No documents yet</h2>
+              <p className="font-display italic text-muted-foreground mb-5 max-w-sm mx-auto">
+                Drag and drop PDF files here, or use the buttons below to begin.
               </p>
               <div className="flex items-center justify-center gap-2">
                 <Button>

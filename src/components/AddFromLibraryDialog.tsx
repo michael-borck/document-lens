@@ -194,23 +194,23 @@ export function AddFromLibraryDialog({
                       {documentStatuses[doc.id] && (
                         <div className="flex items-center gap-2 mt-1">
                           {documentStatuses[doc.id].textAvailable ? (
-                            <span className="flex items-center gap-0.5 text-[10px] text-green-600">
+                            <span className="flex items-center gap-0.5 text-[10px] text-brass">
                               <CheckCircle className="h-2.5 w-2.5" />
                               Text
                             </span>
                           ) : (
-                            <span className="flex items-center gap-0.5 text-[10px] text-amber-600">
+                            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                               <AlertTriangle className="h-2.5 w-2.5" />
                               No text
                             </span>
                           )}
                           {documentStatuses[doc.id].pdfAvailable ? (
-                            <span className="flex items-center gap-0.5 text-[10px] text-green-600">
+                            <span className="flex items-center gap-0.5 text-[10px] text-brass">
                               <CheckCircle className="h-2.5 w-2.5" />
                               PDF
                             </span>
                           ) : (
-                            <span className="flex items-center gap-0.5 text-[10px] text-red-600">
+                            <span className="flex items-center gap-0.5 text-[10px] text-destructive">
                               <FileQuestion className="h-2.5 w-2.5" />
                               No PDF
                             </span>

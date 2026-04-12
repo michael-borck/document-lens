@@ -43,13 +43,13 @@ export function ImportProgressDialog({ open, progress, results, onClose }: Impor
 
           {progress?.status === 'completed' && (
             <div className="space-y-3">
-              <div className="flex items-center gap-2 text-green-600">
+              <div className="flex items-center gap-2 text-brass">
                 <CheckCircle className="h-5 w-5" />
                 <span className="font-medium">{successCount} file(s) imported successfully</span>
               </div>
               
               {failCount > 0 && (
-                <div className="flex items-center gap-2 text-red-600">
+                <div className="flex items-center gap-2 text-destructive">
                   <XCircle className="h-5 w-5" />
                   <span className="font-medium">{failCount} file(s) failed</span>
                 </div>
@@ -63,14 +63,14 @@ export function ImportProgressDialog({ open, progress, results, onClose }: Impor
                       className="flex items-center gap-2 px-3 py-2 text-sm border-b last:border-b-0"
                     >
                       {result.success ? (
-                        <CheckCircle className="h-4 w-4 text-green-600 shrink-0" />
+                        <CheckCircle className="h-4 w-4 text-brass shrink-0" />
                       ) : (
-                        <XCircle className="h-4 w-4 text-red-600 shrink-0" />
+                        <XCircle className="h-4 w-4 text-destructive shrink-0" />
                       )}
                       <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
                       <span className="truncate flex-1">{result.filename}</span>
                       {result.error && (
-                        <span className="text-xs text-red-600 truncate max-w-[150px]">
+                        <span className="text-xs text-destructive truncate max-w-[150px]">
                           {result.error}
                         </span>
                       )}

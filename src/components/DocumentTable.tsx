@@ -183,10 +183,10 @@ export function DocumentTable({
 
   const getStatusBadge = (status: string) => {
     const styles: Record<string, string> = {
-      completed: 'bg-green-100 text-green-800',
-      analyzing: 'bg-blue-100 text-blue-800',
-      failed: 'bg-red-100 text-red-800',
-      pending: 'bg-gray-100 text-gray-800',
+      completed: 'bg-brass/15 text-brass border border-brass/30',
+      analyzing: 'bg-secondary text-foreground border border-border',
+      failed: 'bg-destructive/10 text-destructive border border-destructive/30',
+      pending: 'bg-muted text-muted-foreground border border-border',
     }
     return styles[status] || styles.pending
   }
@@ -288,18 +288,18 @@ export function DocumentTable({
                 {documentStatuses[doc.id] && (
                   <div className="flex flex-col gap-0.5">
                     {documentStatuses[doc.id].textAvailable ? (
-                      <span className="flex items-center gap-1 text-xs text-green-600" title="Text extracted">
+                      <span className="flex items-center gap-1 text-xs text-brass" title="Text extracted">
                         <CheckCircle className="h-3 w-3" />
                         Text
                       </span>
                     ) : (
-                      <span className="flex items-center gap-1 text-xs text-amber-600" title="No text extracted">
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground" title="No text extracted">
                         <AlertTriangle className="h-3 w-3" />
                         No text
                       </span>
                     )}
                     {documentStatuses[doc.id].pdfAvailable ? (
-                      <span className="flex items-center gap-1 text-xs text-green-600" title="PDF available">
+                      <span className="flex items-center gap-1 text-xs text-brass" title="PDF available">
                         <CheckCircle className="h-3 w-3" />
                         PDF
                       </span>
@@ -372,7 +372,7 @@ export function DocumentTable({
                           <ExternalLink className="h-4 w-4" />
                           Open PDF
                           {documentStatuses[doc.id] && !documentStatuses[doc.id].pdfAvailable && (
-                            <AlertTriangle className="h-3 w-3 text-amber-500" />
+                            <AlertTriangle className="h-3 w-3 text-destructive" />
                           )}
                         </button>
                         <button

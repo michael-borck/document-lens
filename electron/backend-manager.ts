@@ -1,5 +1,6 @@
 import { spawn, ChildProcess } from 'child_process'
 import { app } from 'electron'
+import { EventEmitter } from 'events'
 import path from 'path'
 import fs from 'fs'
 import http from 'http'
@@ -9,146 +10,243 @@ export const BACKEND_PORT = 8765
 export const BACKEND_HOST = '127.0.0.1'
 export const BACKEND_URL = `http://${BACKEND_HOST}:${BACKEND_PORT}`
 
+/**
+ * Phase lifecycle for the backend:
+ *   not-started — no attempt yet (initial / dev without auto-start)
+ *   starting    — spawn issued, waiting for first successful /health
+ *   ready       — /health has returned 200 at least once and is still healthy
+ *   unreachable — periodic health check failing (could be transient)
+ *   crashed     — child process exited unexpectedly (prod) or spawn failed
+ */
+export type BackendPhase =
+  | 'not-started'
+  | 'starting'
+  | 'ready'
+  | 'unreachable'
+  | 'crashed'
+
 export interface BackendStatus {
+  phase: BackendPhase
   running: boolean
   url: string | null
   pid?: number
+  mode: 'embedded' | 'dev-auto' | 'dev-external'
+  lastError?: string
+  startedAt?: number
 }
 
-export class BackendManager {
+export class BackendManager extends EventEmitter {
   private process: ChildProcess | null = null
   private port: number = BACKEND_PORT
   private host: string = BACKEND_HOST
-  private startupTimeout: number = 180000 // 3 minutes - PyInstaller bundles are very slow to start on first launch
+  private startupTimeout: number = 180000
   private healthCheckInterval: NodeJS.Timeout | null = null
+  private phase: BackendPhase = 'not-started'
+  private mode: 'embedded' | 'dev-auto' | 'dev-external' = 'dev-external'
+  private lastError: string | undefined
+  private startedAt: number | undefined
 
-  /**
-   * Get the path to the bundled backend executable
-   */
-  private getBackendPath(): string {
-    if (app.isPackaged) {
-      // In production, the backend is in the resources directory
-      const platform = process.platform
-      const ext = platform === 'win32' ? '.exe' : ''
-      const backendName = `document-lens-api${ext}`
-      
-      // Check in extraResources
-      const resourcesPath = process.resourcesPath
-      console.log('[Backend] resourcesPath:', resourcesPath)
-      console.log('[Backend] Looking for backend executable:', backendName)
-      
-      const backendPath = path.join(resourcesPath, 'backend', backendName)
-      console.log('[Backend] Checking path:', backendPath)
-      console.log('[Backend] Exists:', fs.existsSync(backendPath))
-      
-      // List contents of resources directory for debugging
-      try {
-        const resourceContents = fs.readdirSync(resourcesPath)
-        console.log('[Backend] Resources directory contents:', resourceContents)
-        const backendDir = path.join(resourcesPath, 'backend')
-        if (fs.existsSync(backendDir)) {
-          const backendContents = fs.readdirSync(backendDir)
-          console.log('[Backend] Backend directory contents:', backendContents)
-        } else {
-          console.log('[Backend] Backend directory does not exist!')
-        }
-      } catch (e) {
-        console.log('[Backend] Error listing directories:', e)
+  /** Locate the Python dev backend repo (sibling directory) */
+  private findDevBackendRepo(): string | null {
+    const candidates = [
+      path.resolve(app.getAppPath(), '..', 'document-lens'),
+      path.resolve(process.cwd(), '..', 'document-lens'),
+    ]
+    for (const candidate of candidates) {
+      if (fs.existsSync(path.join(candidate, 'app', 'main.py')) ||
+          fs.existsSync(path.join(candidate, 'pyproject.toml'))) {
+        return candidate
       }
-      
-      if (fs.existsSync(backendPath)) {
-        return backendPath
-      }
-      
-      // Fallback to app.asar.unpacked if using asar
-      const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked', 'backend', backendName)
-      console.log('[Backend] Checking unpacked path:', unpackedPath)
-      if (fs.existsSync(unpackedPath)) {
-        return unpackedPath
-      }
-      
-      throw new Error(`Backend executable not found at: ${backendPath}`)
-    } else {
-      // In development, assume the backend is running externally
-      // Return empty string to indicate external backend
-      return ''
     }
+    return null
+  }
+
+  /** Path to the packaged backend executable (production only) */
+  private getBackendPath(): string {
+    if (!app.isPackaged) return ''
+
+    const platform = process.platform
+    const ext = platform === 'win32' ? '.exe' : ''
+    const backendName = `document-lens-api${ext}`
+    const resourcesPath = process.resourcesPath
+
+    console.log('[Backend] resourcesPath:', resourcesPath)
+    const backendPath = path.join(resourcesPath, 'backend', backendName)
+    if (fs.existsSync(backendPath)) return backendPath
+
+    const unpackedPath = path.join(resourcesPath, 'app.asar.unpacked', 'backend', backendName)
+    if (fs.existsSync(unpackedPath)) return unpackedPath
+
+    throw new Error(`Backend executable not found at: ${backendPath}`)
+  }
+
+  private setPhase(phase: BackendPhase, error?: string): void {
+    if (this.phase === phase && this.lastError === error) return
+    this.phase = phase
+    this.lastError = error
+    console.log(`[Backend] phase → ${phase}${error ? ` (${error})` : ''}`)
+    this.emit('phase-changed', this.getStatus())
   }
 
   /**
-   * Start the backend process
+   * Start the backend.
+   *   Production: spawn the bundled PyInstaller executable.
+   *   Development: try to auto-spawn uvicorn from ../document-lens; else fall
+   *   back to probing an externally-started backend.
    */
   async start(): Promise<void> {
+    this.startedAt = Date.now()
+
+    if (app.isPackaged) {
+      this.mode = 'embedded'
+      return this.startEmbedded()
+    }
+
+    const devRepo = this.findDevBackendRepo()
+    if (devRepo) {
+      this.mode = 'dev-auto'
+      return this.startDevAuto(devRepo)
+    }
+
+    // Fallback: assume someone started the backend themselves
+    this.mode = 'dev-external'
+    console.log(`[Backend] dev mode, no sibling repo found — probing ${BACKEND_URL}`)
+    this.setPhase('starting')
+    this.probeUntilReady().catch(() => {
+      this.setPhase('unreachable', 'No backend detected on ' + BACKEND_URL)
+    })
+    this.startHealthCheck()
+  }
+
+  private async startEmbedded(): Promise<void> {
     const backendPath = this.getBackendPath()
-    
-    if (!backendPath) {
-      // Development mode - backend should be running externally on the same port
-      console.log(`Development mode: assuming backend is running externally at ${BACKEND_URL}`)
-      return
-    }
+    console.log('[Backend] Starting embedded backend from:', backendPath)
 
-    console.log('Starting backend from:', backendPath)
-
-    // Ensure the backend is executable (Unix)
     if (process.platform !== 'win32') {
-      try {
-        fs.chmodSync(backendPath, '755')
-      } catch (error) {
-        console.warn('Could not set executable permission:', error)
-      }
+      try { fs.chmodSync(backendPath, '755') } catch { /* ignore */ }
     }
 
-    // Start the backend process
+    this.setPhase('starting')
     this.process = spawn(backendPath, ['--port', String(this.port), '--host', this.host], {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
       env: {
         ...process.env,
         DOCUMENT_LENS_PORT: String(this.port),
-        DOCUMENT_LENS_HOST: this.host
+        DOCUMENT_LENS_HOST: this.host,
+        DOCUMENT_LENS_MODE: 'desktop'
       }
     })
 
-    // Handle stdout
-    this.process.stdout?.on('data', (data) => {
-      console.log('[Backend]', data.toString().trim())
-    })
+    this.wireChildProcess()
 
-    // Handle stderr
-    this.process.stderr?.on('data', (data) => {
-      console.error('[Backend Error]', data.toString().trim())
-    })
-
-    // Handle process exit
-    this.process.on('exit', (code, signal) => {
-      console.log(`Backend process exited with code ${code}, signal ${signal}`)
-      this.process = null
-    })
-
-    // Handle process error
-    this.process.on('error', (error) => {
-      console.error('Failed to start backend:', error)
-      this.process = null
-    })
-
-    // Wait for the backend to be ready
-    await this.waitForReady()
-
-    // Start health check
-    this.startHealthCheck()
+    try {
+      await this.waitForReady()
+      this.setPhase('ready')
+      this.startHealthCheck()
+    } catch (error) {
+      this.setPhase('crashed', error instanceof Error ? error.message : String(error))
+      throw error
+    }
   }
 
-  /**
-   * Wait for the backend to be ready
-   */
-  private waitForReady(): Promise<void> {
+  private async startDevAuto(repoPath: string): Promise<void> {
+    // First: is something already serving /health on our port? If so, adopt it.
+    try {
+      await this.healthCheck()
+      console.log('[Backend] Dev: existing backend already healthy on :' + this.port + ', adopting')
+      this.mode = 'dev-external'
+      this.setPhase('ready')
+      this.startHealthCheck()
+      return
+    } catch {
+      // Nothing healthy yet — proceed to spawn
+    }
+
+    console.log('[Backend] Dev auto-start from:', repoPath)
+
+    // Prefer the repo's .venv python; fall back to `uv run` or system python3
+    const venvPython = path.join(repoPath, '.venv', 'bin', 'python')
+    const venvPythonWin = path.join(repoPath, '.venv', 'Scripts', 'python.exe')
+
+    let command: string
+    let args: string[]
+
+    if (fs.existsSync(venvPython)) {
+      command = venvPython
+      args = ['-m', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+    } else if (fs.existsSync(venvPythonWin)) {
+      command = venvPythonWin
+      args = ['-m', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+    } else {
+      // Try `uv run` — assumes uv is on PATH
+      command = 'uv'
+      args = ['run', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+    }
+
+    this.setPhase('starting')
+
+    try {
+      this.process = spawn(command, args, {
+        cwd: repoPath,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: false,
+        env: {
+          ...process.env,
+          DOCUMENT_LENS_PORT: String(this.port),
+          DOCUMENT_LENS_HOST: this.host,
+          DOCUMENT_LENS_MODE: 'desktop',
+          PYTHONUNBUFFERED: '1',
+        }
+      })
+    } catch (error) {
+      this.setPhase('crashed', `Failed to spawn: ${error instanceof Error ? error.message : String(error)}`)
+      return
+    }
+
+    this.wireChildProcess()
+
+    try {
+      await this.waitForReady()
+      this.setPhase('ready')
+      this.startHealthCheck()
+    } catch (error) {
+      this.setPhase('crashed', error instanceof Error ? error.message : String(error))
+      // Don't throw — dev mode should keep the UI usable
+    }
+  }
+
+  private wireChildProcess(): void {
+    this.process?.stdout?.on('data', (data) => {
+      console.log('[Backend]', data.toString().trim())
+    })
+    this.process?.stderr?.on('data', (data) => {
+      console.error('[Backend Error]', data.toString().trim())
+    })
+    this.process?.on('exit', (code, signal) => {
+      console.log(`[Backend] exited code=${code} signal=${signal}`)
+      const wasRunning = this.phase === 'ready' || this.phase === 'starting'
+      this.process = null
+      if (wasRunning) {
+        this.setPhase('crashed', `Process exited (code ${code ?? 'null'})`)
+      }
+    })
+    this.process?.on('error', (error) => {
+      console.error('[Backend] spawn error:', error)
+      this.process = null
+      this.setPhase('crashed', error.message)
+    })
+  }
+
+  /** Probe /health until it responds 200 or timeout elapses */
+  private probeUntilReady(): Promise<void> {
     return new Promise((resolve, reject) => {
       const startTime = Date.now()
-      
       const check = () => {
         this.healthCheck()
           .then(() => {
-            console.log('Backend is ready')
+            console.log('[Backend] ready')
+            this.setPhase('ready')
             resolve()
           })
           .catch(() => {
@@ -156,19 +254,17 @@ export class BackendManager {
               reject(new Error('Backend startup timeout'))
               return
             }
-            // Retry in 500ms
             setTimeout(check, 500)
           })
       }
-      
-      // Start checking after a short delay
-      setTimeout(check, 1000)
+      setTimeout(check, 500)
     })
   }
 
-  /**
-   * Health check - ping the backend
-   */
+  private waitForReady(): Promise<void> {
+    return this.probeUntilReady()
+  }
+
   private healthCheck(): Promise<boolean> {
     return new Promise((resolve, reject) => {
       const req = http.request({
@@ -184,49 +280,42 @@ export class BackendManager {
           reject(new Error(`Health check failed with status ${res.statusCode}`))
         }
       })
-
-      req.on('error', (error) => {
-        reject(error)
-      })
-
+      req.on('error', (error) => reject(error))
       req.on('timeout', () => {
         req.destroy()
         reject(new Error('Health check timeout'))
       })
-
       req.end()
     })
   }
 
-  /**
-   * Start periodic health checks
-   */
   private startHealthCheck(): void {
+    if (this.healthCheckInterval) clearInterval(this.healthCheckInterval)
     this.healthCheckInterval = setInterval(async () => {
       try {
         await this.healthCheck()
+        if (this.phase !== 'ready') this.setPhase('ready')
       } catch (error) {
-        console.warn('Backend health check failed:', error)
-        // Optionally restart the backend here
+        // Only downgrade if we previously thought we were ready
+        if (this.phase === 'ready') {
+          this.setPhase('unreachable', error instanceof Error ? error.message : String(error))
+        }
       }
-    }, 30000) // Check every 30 seconds
+    }, 5000)
   }
 
-  /**
-   * Stop the backend process
-   */
   async stop(): Promise<void> {
-    // Stop health checks
     if (this.healthCheckInterval) {
       clearInterval(this.healthCheckInterval)
       this.healthCheckInterval = null
     }
 
     if (!this.process) {
+      this.setPhase('not-started')
       return
     }
 
-    console.log('Stopping backend...')
+    console.log('[Backend] stopping...')
 
     return new Promise((resolve) => {
       if (!this.process) {
@@ -234,51 +323,43 @@ export class BackendManager {
         return
       }
 
-      // Set up exit handler
       this.process.once('exit', () => {
         this.process = null
-        console.log('Backend stopped')
+        console.log('[Backend] stopped')
         resolve()
       })
 
-      // Try graceful shutdown first
       if (process.platform === 'win32') {
         this.process.kill()
       } else {
         this.process.kill('SIGTERM')
       }
 
-      // Force kill after timeout
       setTimeout(() => {
         if (this.process) {
-          console.log('Force killing backend...')
+          console.log('[Backend] force killing')
           this.process.kill('SIGKILL')
         }
       }, 5000)
     })
   }
 
-  /**
-   * Get the backend URL
-   */
   getUrl(): string {
     return `http://${this.host}:${this.port}`
   }
 
-  /**
-   * Get the backend status
-   */
   getStatus(): BackendStatus {
     return {
-      running: this.process !== null || !app.isPackaged, // In dev, assume running
+      phase: this.phase,
+      running: this.phase === 'ready',
       url: this.getUrl(),
-      pid: this.process?.pid
+      pid: this.process?.pid,
+      mode: this.mode,
+      lastError: this.lastError,
+      startedAt: this.startedAt,
     }
   }
 
-  /**
-   * Check if the backend is running (external or embedded)
-   */
   async isRunning(): Promise<boolean> {
     try {
       await this.healthCheck()

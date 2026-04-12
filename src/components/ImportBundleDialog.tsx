@@ -232,28 +232,28 @@ export function ImportBundleDialog({
                         </div>
                         <div className="flex flex-wrap gap-2">
                           {preview.manifest.contents.includes_text && (
-                            <span className="inline-flex items-center gap-1 text-green-600">
+                            <span className="inline-flex items-center gap-1 text-brass">
                               <CheckCircle2 className="h-3 w-3" /> Text included
                             </span>
                           )}
                           {preview.manifest.contents.includes_analysis && (
-                            <span className="inline-flex items-center gap-1 text-green-600">
+                            <span className="inline-flex items-center gap-1 text-brass">
                               <CheckCircle2 className="h-3 w-3" /> Analysis included
                             </span>
                           )}
                           {preview.manifest.contents.includes_pdfs && (
-                            <span className="inline-flex items-center gap-1 text-green-600">
+                            <span className="inline-flex items-center gap-1 text-brass">
                               <CheckCircle2 className="h-3 w-3" /> PDFs included
                             </span>
                           )}
                           {!preview.manifest.contents.includes_pdfs && preview.manifest.contents.includes_text && (
-                            <span className="inline-flex items-center gap-1 text-amber-600">
+                            <span className="inline-flex items-center gap-1 text-destructive">
                               <AlertTriangle className="h-3 w-3" /> PDFs not included
                             </span>
                           )}
                         </div>
                         {preview.documents.textOnly > 0 && (
-                          <div className="text-amber-600">
+                          <div className="text-destructive">
                             {preview.documents.textOnly} document{preview.documents.textOnly !== 1 ? 's' : ''} have text only (no PDF)
                           </div>
                         )}
@@ -293,7 +293,7 @@ export function ImportBundleDialog({
 
               {/* Deduplication Option */}
               {preview.documents.duplicates > 0 && (
-                <div className="bg-yellow-500/10 rounded-lg p-3">
+                <div className="bg-brass/10 border border-brass/30 p-3">
                   <label className="flex items-start gap-2 cursor-pointer">
                     <Checkbox
                       checked={skipDuplicates}
@@ -301,7 +301,7 @@ export function ImportBundleDialog({
                       className="mt-0.5"
                     />
                     <div>
-                      <div className="text-sm font-medium text-yellow-600 dark:text-yellow-500">
+                      <div className="text-sm font-medium text-brass">
                         Skip {preview.documents.duplicates} duplicate document
                         {preview.documents.duplicates !== 1 ? 's' : ''}
                       </div>
@@ -369,7 +369,7 @@ export function ImportBundleDialog({
             <div className="space-y-4 py-4">
               <div className="flex flex-col items-center gap-2">
                 {result.success ? (
-                  <CheckCircle2 className="h-12 w-12 text-green-500" />
+                  <CheckCircle2 className="h-12 w-12 text-brass" />
                 ) : (
                   <XCircle className="h-12 w-12 text-destructive" />
                 )}

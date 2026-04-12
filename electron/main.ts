@@ -147,15 +147,20 @@ app.whenReady().then(async () => {
   // Initialize backend manager
   backendManager = new BackendManager()
 
-  // Try to start backend (in production). If it fails, the app still works
-  // for local features (keyword search, visualizations, export)
-  if (app.isPackaged) {
-    try {
-      await backendManager.start()
-    } catch (error) {
-      console.warn('Could not start embedded backend:', error)
-      console.log('App will run in offline mode - local features still available')
-    }
+  // Forward phase changes to the renderer
+  backendManager.on('phase-changed', (status) => {
+    mainWindow?.webContents.send('backend:status-changed', status)
+  })
+
+  // Start backend. In production we spawn the bundled PyInstaller executable.
+  // In dev we auto-spawn uvicorn from ../document-lens if present, otherwise
+  // probe for an externally-started backend. Failures are non-fatal — local
+  // features (keyword search, visualizations, export) still work.
+  try {
+    await backendManager.start()
+  } catch (error) {
+    console.warn('Could not start backend:', error)
+    console.log('App will run in offline mode - local features still available')
   }
 
   // Setup auto-updater (only runs in production)

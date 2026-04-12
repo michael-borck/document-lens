@@ -131,9 +131,9 @@ export function DocumentAnalysisPanel({
   }
 
   const getReadabilityColor = (score: number): string => {
-    if (score >= 70) return 'text-green-600'
-    if (score >= 50) return 'text-yellow-600'
-    return 'text-red-600'
+    if (score >= 70) return 'text-brass'
+    if (score >= 50) return 'text-muted-foreground'
+    return 'text-primary'
   }
 
   if (!document) return null
@@ -346,9 +346,9 @@ export function DocumentAnalysisPanel({
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Status</span>
                   <span className={
-                    document.analysis_status === 'completed' ? 'text-green-600' :
+                    document.analysis_status === 'completed' ? 'text-brass' :
                     document.analysis_status === 'failed' ? 'text-red-600' :
-                    'text-yellow-600'
+                    'text-muted-foreground'
                   }>
                     {document.analysis_status}
                   </span>

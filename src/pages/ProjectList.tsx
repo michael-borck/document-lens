@@ -6,7 +6,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/com
 import { Input } from '@/components/ui/input'
 import { FOCUSES, DEFAULT_FOCUS, type Focus } from '@/data/focuses'
 
-// Get default focus from user settings or fallback to system default
 function getDefaultFocus(): string {
   const setting = localStorage.getItem('defaultFocus')
   if (setting && FOCUSES.some(f => f.id === setting)) {
@@ -31,16 +30,8 @@ interface Project {
   failed_count?: number
 }
 
-// Map focus icon names to components
 const focusIcons: Record<string, React.ComponentType<{ className?: string }>> = {
-  Leaf,
-  Shield,
-  TrendingUp,
-  Heart,
-  Scale,
-  GraduationCap,
-  ClipboardList,
-  FileText
+  Leaf, Shield, TrendingUp, Heart, Scale, GraduationCap, ClipboardList, FileText
 }
 
 function getFocusIcon(focus: Focus) {
@@ -56,7 +47,11 @@ function relativeTime(dateStr: string): string {
   if (hours < 24) return `${hours}h ago`
   const days = Math.floor(hours / 24)
   if (days < 30) return `${days}d ago`
-  return new Date(dateStr).toLocaleDateString()
+  return new Date(dateStr).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function issueDate(): string {
+  return new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).toUpperCase()
 }
 
 export function ProjectList() {
@@ -77,7 +72,6 @@ export function ProjectList() {
   const loadProjects = async () => {
     try {
       setLoading(true)
-      // Load projects with document count (using junction table)
       const result = await window.electron.dbQuery<Project>(`
         SELECT
           p.id, p.name, p.description, p.focus, p.created_at, p.updated_at,
@@ -92,7 +86,6 @@ export function ProjectList() {
       `)
       setProjects(result)
 
-      // Load keyword counts lazily
       const counts: Record<string, number> = {}
       for (const p of result) {
         try {
@@ -170,12 +163,14 @@ export function ProjectList() {
 
   if (loading) {
     return (
-      <div className="p-8">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-48" />
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="p-10 max-w-6xl mx-auto">
+        <div className="animate-pulse space-y-6">
+          <div className="h-4 bg-muted rounded w-40" />
+          <div className="h-16 bg-muted rounded w-80" />
+          <div className="h-px bg-border" />
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-32 bg-muted rounded" />
+              <div key={i} className="h-48 bg-muted rounded-sm" />
             ))}
           </div>
         </div>
@@ -183,132 +178,181 @@ export function ProjectList() {
     )
   }
 
+  const totalDocs = projects.reduce((sum, p) => sum + (p.document_count || 0), 0)
+  const totalAnalyzed = projects.reduce((sum, p) => sum + (p.analyzed_count || 0), 0)
+
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Projects</h1>
-        <Button onClick={() => setShowNewProject(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Project
-        </Button>
-      </div>
+    <div className="min-h-full">
+      {/* Masthead */}
+      <header className="px-10 pt-10 pb-6 max-w-6xl mx-auto">
+        <div className="flex items-baseline justify-between mb-4">
+          <div className="label-masthead">Vol. I · The Reading Room</div>
+          <div className="label-masthead tabular">{issueDate()}</div>
+        </div>
 
-      {/* New Project Form */}
-      {showNewProject && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle>Create New Project</CardTitle>
-            <CardDescription>
-              Create a new project to organize your documents
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium">Project Name</label>
-                <Input
-                  value={newProjectName}
-                  onChange={(e) => setNewProjectName(e.target.value)}
-                  placeholder="e.g., Annual Report Analysis 2024"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Description (optional)</label>
-                <Input
-                  value={newProjectDescription}
-                  onChange={(e) => setNewProjectDescription(e.target.value)}
-                  placeholder="Brief description of this project"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 flex items-center gap-2">
-                  <Search className="h-4 w-4" />
-                  Research Focus
-                </label>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Choose a focus to get pre-loaded keyword frameworks for your research domain
-                </p>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {FOCUSES.map((focus) => {
-                    const Icon = getFocusIcon(focus)
-                    const isSelected = newProjectFocus === focus.id
-                    return (
-                      <button
-                        key={focus.id}
-                        onClick={() => setNewProjectFocus(focus.id)}
-                        className={cn(
-                          'flex flex-col items-center gap-2 p-3 rounded-lg border text-sm transition-colors',
-                          isSelected
-                            ? 'border-primary bg-primary/10 text-primary'
-                            : 'border-border hover:border-primary/50 hover:bg-muted'
-                        )}
-                      >
-                        <Icon className={cn('h-5 w-5', isSelected ? focus.color : 'text-muted-foreground')} />
-                        <span className="font-medium text-center text-xs">{focus.name}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-                {newProjectFocus && (
-                  <p className="text-xs text-muted-foreground mt-2">
-                    {FOCUSES.find(f => f.id === newProjectFocus)?.description}
-                  </p>
-                )}
-              </div>
-              <div className="flex gap-2">
-                <Button onClick={createProject} disabled={!newProjectName.trim()}>
-                  Create Project
-                </Button>
-                <Button variant="outline" onClick={() => {
-                  setShowNewProject(false)
-                  setNewProjectName('')
-                  setNewProjectDescription('')
-                  setNewProjectFocus(getDefaultFocus())
-                }}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Projects Grid */}
-      {projects.length === 0 ? (
-        <Card className="text-center py-12">
-          <CardContent>
-            <FolderOpen className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <h2 className="text-lg font-medium mb-2">No projects yet</h2>
-            <p className="text-muted-foreground mb-4">
-              Create your first project to start analyzing documents
+        <div className="flex items-end justify-between gap-8 border-b-2 border-foreground pb-5">
+          <div>
+            <h1 className="font-display text-6xl font-medium leading-[0.95] tracking-tight text-foreground">
+              Projects
+            </h1>
+            <p className="mt-3 font-display italic text-lg text-muted-foreground max-w-xl leading-snug">
+              Corpora of annual reports, arranged for close reading and quantitative inquiry.
             </p>
-            <Button onClick={() => setShowNewProject(true)}>
+          </div>
+          <Button onClick={() => setShowNewProject(true)} size="lg" className="shrink-0 mb-1">
+            <Plus className="h-4 w-4 mr-2" />
+            New Project
+          </Button>
+        </div>
+
+        {/* Stats strip — small-caps with tabular figures */}
+        {projects.length > 0 && (
+          <div className="flex items-center gap-8 pt-4 text-sm">
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono tabular text-xl text-foreground">{String(projects.length).padStart(2, '0')}</span>
+              <span className="label-masthead">Projects</span>
+            </div>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono tabular text-xl text-foreground">{String(totalDocs).padStart(2, '0')}</span>
+              <span className="label-masthead">Documents</span>
+            </div>
+            <div className="w-px h-5 bg-border" />
+            <div className="flex items-baseline gap-2">
+              <span className="font-mono tabular text-xl text-foreground">{String(totalAnalyzed).padStart(2, '0')}</span>
+              <span className="label-masthead">Analyzed</span>
+            </div>
+          </div>
+        )}
+      </header>
+
+      <div className="px-10 pb-16 max-w-6xl mx-auto">
+        {/* New Project Form */}
+        {showNewProject && (
+          <Card className="mb-10 animate-fade-rise">
+            <CardHeader>
+              <div className="label-masthead">New Entry</div>
+              <CardTitle>Create a Project</CardTitle>
+              <CardDescription>
+                A project is a collection of documents analyzed under one research focus.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-5">
+                <div>
+                  <label className="label-masthead block mb-2">Project Name</label>
+                  <Input
+                    value={newProjectName}
+                    onChange={(e) => setNewProjectName(e.target.value)}
+                    placeholder="e.g., Annual Report Analysis 2024"
+                  />
+                </div>
+                <div>
+                  <label className="label-masthead block mb-2">Description</label>
+                  <Input
+                    value={newProjectDescription}
+                    onChange={(e) => setNewProjectDescription(e.target.value)}
+                    placeholder="Optional subtitle or research question"
+                  />
+                </div>
+                <div>
+                  <label className="label-masthead block mb-2">Research Focus</label>
+                  <p className="text-xs text-muted-foreground mb-3 italic font-display">
+                    Choose a focus to pre-load a curated keyword framework.
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                    {FOCUSES.map((focus) => {
+                      const Icon = getFocusIcon(focus)
+                      const isSelected = newProjectFocus === focus.id
+                      return (
+                        <button
+                          key={focus.id}
+                          onClick={() => setNewProjectFocus(focus.id)}
+                          className={cn(
+                            'relative flex flex-col items-center gap-2 p-4 border text-sm transition-all',
+                            isSelected
+                              ? 'border-primary bg-primary/5 text-foreground'
+                              : 'border-border hover:border-foreground/40 bg-card'
+                          )}
+                        >
+                          {isSelected && (
+                            <span className="absolute top-0 left-0 right-0 h-0.5 bg-primary" />
+                          )}
+                          <Icon className={cn('h-5 w-5', isSelected ? 'text-primary' : 'text-muted-foreground')} />
+                          <span className="font-medium text-center text-xs">{focus.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {newProjectFocus && (
+                    <p className="text-xs text-muted-foreground mt-3 italic font-display">
+                      {FOCUSES.find(f => f.id === newProjectFocus)?.description}
+                    </p>
+                  )}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <Button onClick={createProject} disabled={!newProjectName.trim()}>
+                    Create Project
+                  </Button>
+                  <Button variant="outline" onClick={() => {
+                    setShowNewProject(false)
+                    setNewProjectName('')
+                    setNewProjectDescription('')
+                    setNewProjectFocus(getDefaultFocus())
+                  }}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Projects */}
+        {projects.length === 0 ? (
+          <div className="text-center py-24 border border-border bg-card animate-fade-rise">
+            <FolderOpen className="h-10 w-10 mx-auto text-muted-foreground mb-5" strokeWidth={1.25} />
+            <h2 className="font-display text-3xl font-medium mb-3">No projects yet</h2>
+            <p className="font-display italic text-muted-foreground mb-6 max-w-sm mx-auto">
+              Begin your first reading. A project gathers the documents and the framework by which they are to be examined.
+            </p>
+            <Button onClick={() => setShowNewProject(true)} size="lg">
               <Plus className="h-4 w-4 mr-2" />
-              Create Project
+              Create First Project
             </Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {projects.map((project) => {
-            const focus = FOCUSES.find(f => f.id === project.focus) || FOCUSES.find(f => f.id === 'general')!
-            const FocusIcon = getFocusIcon(focus)
-            return (
-              <Link key={project.id} to={`/project/${project.id}`}>
-                <Card className="hover:border-primary/50 transition-colors cursor-pointer h-full">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-start justify-between">
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {projects.map((project, idx) => {
+              const focus = FOCUSES.find(f => f.id === project.focus) || FOCUSES.find(f => f.id === 'general')!
+              const FocusIcon = getFocusIcon(focus)
+              const progress = project.document_count
+                ? Math.round(((project.analyzed_count || 0) / project.document_count) * 100)
+                : 0
+              const hasFailures = (project.failed_count || 0) > 0
+
+              return (
+                <Link
+                  key={project.id}
+                  to={`/project/${project.id}`}
+                  className="animate-fade-rise"
+                  style={{ animationDelay: `${Math.min(idx * 60, 360)}ms` }}
+                >
+                  <article className="group relative h-full bg-card border border-border hover:border-foreground/40 transition-all p-6 flex flex-col">
+                    {/* Top rule on hover */}
+                    <span className="absolute top-0 left-0 right-0 h-px bg-primary scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-300" />
+
+                    {/* Focus tag — small-caps header */}
+                    <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center gap-2">
-                        <FocusIcon className={cn('h-5 w-5', focus.color)} />
-                        <CardTitle className="text-lg">{project.name}</CardTitle>
+                        <FocusIcon className={cn('h-3.5 w-3.5', focus.color)} />
+                        <span className="label-masthead">{focus.name}</span>
                       </div>
-                      <div className="flex items-center -mr-2 -mt-2">
+                      <div className="flex items-center -mr-2 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           title="Project Settings"
                           onClick={(e) => {
                             e.preventDefault()
@@ -316,80 +360,99 @@ export function ProjectList() {
                             setSettingsProjectId(project.id)
                           }}
                         >
-                          <Settings2 className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                          <Settings2 className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           title="Duplicate"
                           onClick={(e) => handleDuplicateProject(project, e)}
                           disabled={duplicatingId === project.id}
                         >
                           {duplicatingId === project.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : (
-                            <Copy className="h-4 w-4 text-muted-foreground hover:text-foreground" />
+                            <Copy className="h-3.5 w-3.5 text-muted-foreground hover:text-foreground" />
                           )}
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8"
+                          className="h-7 w-7"
                           title="Delete"
                           onClick={(e) => deleteProject(project.id, e)}
                         >
-                          <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                          <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />
                         </Button>
                       </div>
                     </div>
+
+                    {/* Title — Fraunces */}
+                    <h2 className="font-display text-2xl font-medium leading-[1.15] text-foreground mb-2 line-clamp-2 tracking-tight group-hover:text-primary transition-colors">
+                      {project.name}
+                    </h2>
+
                     {project.description && (
-                      <CardDescription className="line-clamp-2">
+                      <p className="text-sm leading-relaxed text-muted-foreground line-clamp-2 mb-5 font-display italic">
                         {project.description}
-                      </CardDescription>
+                      </p>
                     )}
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    {/* Analysis progress bar */}
-                    {(project.document_count || 0) > 0 && (
-                      <div>
-                        <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                          <span>{project.analyzed_count || 0}/{project.document_count || 0} analyzed</span>
-                          {(project.failed_count || 0) > 0 && (
-                            <span className="text-destructive">{project.failed_count} failed</span>
+
+                    <div className="mt-auto space-y-4">
+                      {/* Progress — only if docs */}
+                      {(project.document_count || 0) > 0 && (
+                        <div>
+                          <div className="flex items-baseline justify-between mb-1.5">
+                            <span className="label-masthead">Progress</span>
+                            <span className="font-mono tabular text-xs text-foreground">
+                              {project.analyzed_count || 0}<span className="text-muted-foreground">/</span>{project.document_count || 0}
+                            </span>
+                          </div>
+                          <div className="h-[2px] bg-border overflow-hidden">
+                            <div
+                              className="h-full bg-primary transition-all duration-500"
+                              style={{ width: `${progress}%` }}
+                            />
+                          </div>
+                          {hasFailures && (
+                            <div className="flex items-center gap-1.5 mt-2">
+                              <span className="h-1.5 w-1.5 rounded-full bg-destructive" />
+                              <span className="text-[10px] tabular text-destructive uppercase tracking-wider font-medium">
+                                {project.failed_count} failed
+                              </span>
+                            </div>
                           )}
                         </div>
-                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full transition-all"
-                            style={{ width: `${Math.round(((project.analyzed_count || 0) / (project.document_count || 1)) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                    {/* Stats row */}
-                    <div className="flex items-center justify-between text-xs text-muted-foreground">
-                      <div className="flex items-center gap-3">
-                        <span className={cn('px-2 py-0.5 rounded-full bg-muted flex items-center gap-1', focus.color)}>
-                          <Search className="h-3 w-3" />
-                          {focus.name}
-                        </span>
-                        <span>{project.document_count || 0} docs</span>
-                        {keywordCounts[project.id] > 0 && (
-                          <span>{keywordCounts[project.id]} keywords</span>
-                        )}
-                      </div>
-                      <span>{relativeTime(project.updated_at)}</span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </Link>
-            )
-          })}
-        </div>
-      )}
+                      )}
 
-      {/* Project Settings Dialog (opened from gear icon) */}
+                      {/* Footer metadata rule */}
+                      <div className="pt-3 border-t border-border/70 flex items-center justify-between text-xs">
+                        <div className="flex items-center gap-3 text-muted-foreground">
+                          <span className="tabular">
+                            <span className="font-mono text-foreground">{project.document_count || 0}</span> docs
+                          </span>
+                          {keywordCounts[project.id] > 0 && (
+                            <>
+                              <span className="text-border">·</span>
+                              <span className="tabular">
+                                <span className="font-mono text-foreground">{keywordCounts[project.id]}</span> keywords
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        <span className="label-masthead !text-[10px]">{relativeTime(project.updated_at)}</span>
+                      </div>
+                    </div>
+                  </article>
+                </Link>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Project Settings Dialog */}
       {settingsProjectId && (
         <ProfileEditor
           open={!!settingsProjectId}

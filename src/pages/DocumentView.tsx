@@ -231,20 +231,20 @@ export function DocumentView() {
     // Highlight search term
     if (textSearch) {
       const regex = new RegExp(`(${textSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-      text = text.replace(regex, '<mark class="bg-yellow-200">$1</mark>')
+      text = text.replace(regex, '<mark class="bg-brass/25 text-foreground px-0.5">$1</mark>')
     }
 
     return text
   }, [currentPageData, textSearch])
 
   const getReadabilityLabel = (score: number) => {
-    if (score >= 90) return { label: 'Very Easy', color: 'text-green-600' }
-    if (score >= 80) return { label: 'Easy', color: 'text-green-500' }
+    if (score >= 90) return { label: 'Very Easy', color: 'text-brass' }
+    if (score >= 80) return { label: 'Easy', color: 'text-brass' }
     if (score >= 70) return { label: 'Fairly Easy', color: 'text-lime-500' }
-    if (score >= 60) return { label: 'Standard', color: 'text-yellow-500' }
+    if (score >= 60) return { label: 'Standard', color: 'text-muted-foreground' }
     if (score >= 50) return { label: 'Fairly Difficult', color: 'text-orange-500' }
-    if (score >= 30) return { label: 'Difficult', color: 'text-red-500' }
-    return { label: 'Very Difficult', color: 'text-red-600' }
+    if (score >= 30) return { label: 'Difficult', color: 'text-primary' }
+    return { label: 'Very Difficult', color: 'text-primary' }
   }
 
   if (loading) {
@@ -550,7 +550,7 @@ export function DocumentView() {
                             {wordAnalysis.bigrams.slice(0, 15).map((bigram, i) => (
                               <span
                                 key={i}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-blue-100 dark:bg-blue-900 rounded text-sm"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-secondary border border-border text-sm font-mono"
                               >
                                 {bigram.phrase}
                                 <span className="text-xs text-muted-foreground">({bigram.count})</span>
@@ -567,7 +567,7 @@ export function DocumentView() {
                             {wordAnalysis.trigrams.slice(0, 10).map((trigram, i) => (
                               <span
                                 key={i}
-                                className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 dark:bg-green-900 rounded text-sm"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-brass/10 border border-brass/40 text-sm font-mono"
                               >
                                 {trigram.phrase}
                                 <span className="text-xs text-muted-foreground">({trigram.count})</span>
@@ -655,7 +655,7 @@ export function DocumentView() {
                                 dangerouslySetInnerHTML={{
                                   __html: context.replace(
                                     new RegExp(`(${keyword})`, 'gi'),
-                                    '<mark class="bg-yellow-200 px-0.5 rounded">$1</mark>'
+                                    '<mark class="bg-brass/25 text-foreground px-0.5">$1</mark>'
                                   ),
                                 }}
                               />
@@ -716,9 +716,9 @@ export function DocumentView() {
           <div className="pt-3 border-t">
             <div className="text-muted-foreground">Analysis Status</div>
             <div className={`font-medium ${
-              document.analysis_status === 'completed' ? 'text-green-600' :
-              document.analysis_status === 'failed' ? 'text-red-600' :
-              'text-yellow-600'
+              document.analysis_status === 'completed' ? 'text-brass' :
+              document.analysis_status === 'failed' ? 'text-destructive' :
+              'text-muted-foreground'
             }`}>
               {document.analysis_status}
             </div>

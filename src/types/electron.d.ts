@@ -17,10 +17,21 @@ export interface SaveDialogResult {
   filePath?: string
 }
 
+export type BackendPhase =
+  | 'not-started'
+  | 'starting'
+  | 'ready'
+  | 'unreachable'
+  | 'crashed'
+
 export interface BackendStatus {
+  phase: BackendPhase
   running: boolean
   url: string | null
   pid?: number
+  mode: 'embedded' | 'dev-auto' | 'dev-external'
+  lastError?: string
+  startedAt?: number
 }
 
 export interface DatabaseResult {
@@ -65,6 +76,7 @@ export interface ElectronAPI {
   // Backend
   getBackendStatus: () => Promise<BackendStatus>
   getBackendUrl: () => Promise<string>
+  onBackendStatusChanged: (callback: (status: BackendStatus) => void) => () => void
 
   // Database
   dbQuery: <T = unknown>(sql: string, params?: unknown[]) => Promise<T[]>

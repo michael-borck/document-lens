@@ -87,7 +87,7 @@ export function UpdateNotification() {
         {/* Icon */}
         <div className="mt-0.5">
           {state === 'downloaded' ? (
-            <CheckCircle className="h-4 w-4 text-green-600" />
+            <CheckCircle className="h-4 w-4 text-brass" />
           ) : state === 'downloading' ? (
             <Download className="h-4 w-4 text-primary animate-pulse" />
           ) : (

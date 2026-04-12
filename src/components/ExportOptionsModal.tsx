@@ -354,7 +354,7 @@ export function ExportOptionsModal({
                   </p>
                 )}
                 {bundleIncludePdfs && bundleEstimate && bundleEstimate.size > 100 * 1024 * 1024 && (
-                  <p className="text-yellow-600 dark:text-yellow-500">
+                  <p className="text-brass">
                     Warning: Large bundle. Consider exporting without PDFs for faster transfer.
                   </p>
                 )}

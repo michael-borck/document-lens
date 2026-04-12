@@ -259,7 +259,7 @@ export function KeywordSearch() {
     return parts.map((part, i) => {
       const isMatch = keywords.some(k => part.toLowerCase() === k.toLowerCase())
       return isMatch ? (
-        <mark key={i} className="bg-yellow-200 px-0.5 rounded">{part}</mark>
+        <mark key={i} className="bg-brass/25 text-foreground px-0.5">{part}</mark>
       ) : (
         <span key={i}>{part}</span>
       )

@@ -183,7 +183,7 @@ export function NgramAnalysis() {
     return parts.map((part, i) => {
       const isMatch = part.toLowerCase() === phrase.toLowerCase()
       return isMatch ? (
-        <mark key={i} className="bg-yellow-200 px-0.5 rounded">
+        <mark key={i} className="bg-brass/25 text-foreground px-0.5">
           {part}
         </mark>
       ) : (

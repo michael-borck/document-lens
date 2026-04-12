@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { BookOpen, Lightbulb, Play } from 'lucide-react'
+import { BookOpen, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -11,26 +11,19 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog'
 
-/**
- * Welcome dialog shown on startup unless user has disabled it
- * Controlled by 'showWelcomeDialog' in localStorage
- */
 export function WelcomeDialog() {
   const navigate = useNavigate()
   const [open, setOpen] = useState(false)
   const [dontShowAgain, setDontShowAgain] = useState(false)
 
   useEffect(() => {
-    // Check if user has disabled welcome dialog
     const showWelcome = localStorage.getItem('showWelcomeDialog')
-    // Show dialog unless explicitly set to 'false'
     if (showWelcome !== 'false') {
       setOpen(true)
     }
   }, [])
 
   const handleClose = () => {
-    // Save preference if "Don't show again" is checked
     if (dontShowAgain) {
       localStorage.setItem('showWelcomeDialog', 'false')
     }
@@ -39,7 +32,6 @@ export function WelcomeDialog() {
 
   const handleStartTour = () => {
     handleClose()
-    // Navigate to first workflow example
     navigate('/')
   }
 
@@ -48,85 +40,72 @@ export function WelcomeDialog() {
     navigate('/help/user-guide')
   }
 
-  const handleSkip = () => {
-    handleClose()
-  }
-
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-yellow-500" />
-            Welcome to Document Lens
+          <div className="label-masthead">No. 001 · Preface</div>
+          <DialogTitle className="text-3xl mt-2">
+            Welcome to <span className="italic text-primary">Document Lens</span>
           </DialogTitle>
-          <DialogDescription>
-            Analyze document collections using keyword frameworks across multiple research domains
+          <DialogDescription className="mt-2">
+            A reading instrument for the systematic analysis of document collections.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Document Lens helps researchers analyze document collections at scale using
-            pre-built keyword frameworks, hierarchical taxonomies, and n-gram discovery.
+        {/* Top rule */}
+        <div className="border-t border-border -mx-1" />
+
+        <div className="space-y-5">
+          <p className="text-sm leading-relaxed text-foreground/80">
+            Document Lens helps researchers examine document corpora at scale —
+            annual reports, policy papers, scholarly articles — through curated
+            keyword frameworks, hierarchical taxonomies, and n-gram discovery.
           </p>
 
-          <div className="bg-muted p-3 rounded-lg text-sm space-y-2">
-            <p className="font-medium">Getting started:</p>
-            <ul className="text-xs text-muted-foreground space-y-1 ml-2">
-              <li>1. Create a project and choose a research focus</li>
-              <li>2. Import PDF documents</li>
-              <li>3. Select keywords from built-in frameworks or import your own</li>
-              <li>4. Search, discover patterns, visualize, and export findings</li>
-            </ul>
+          <div>
+            <div className="label-masthead mb-3">Getting Started</div>
+            <ol className="space-y-2.5 text-sm">
+              {[
+                'Create a project and choose a research focus',
+                'Import PDF documents into your library',
+                'Select keywords from built-in frameworks or import your own',
+                'Search, discover patterns, visualize, and export findings',
+              ].map((step, i) => (
+                <li key={i} className="flex gap-3">
+                  <span className="font-mono tabular text-xs text-primary font-medium pt-0.5 w-4 shrink-0">
+                    {String(i + 1).padStart(2, '0')}
+                  </span>
+                  <span className="text-foreground/80 leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ol>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <Button
-            onClick={handleReadDocs}
-            className="w-full"
-            variant="default"
-          >
+        <div className="space-y-2 pt-2">
+          <Button onClick={handleReadDocs} className="w-full" size="lg">
             <BookOpen className="h-4 w-4 mr-2" />
-            Read Documentation
+            Read the User Manual
           </Button>
 
-          <Button
-            onClick={handleStartTour}
-            className="w-full"
-            variant="outline"
-          >
-            <Play className="h-4 w-4 mr-2" />
+          <Button onClick={handleStartTour} variant="outline" className="w-full">
+            <Play className="h-3.5 w-3.5 mr-2" />
             Start Exploring
           </Button>
-
-          <button
-            onClick={handleSkip}
-            className="w-full text-xs text-muted-foreground hover:underline py-2"
-          >
-            Skip for now
-          </button>
         </div>
 
-        <div className="flex items-center gap-2 pt-2 border-t">
-          <Checkbox
-            id="dontShowAgain"
-            checked={dontShowAgain}
-            onCheckedChange={(checked) => setDontShowAgain(checked === true)}
-          />
-          <label
-            htmlFor="dontShowAgain"
-            className="text-xs text-muted-foreground cursor-pointer"
-          >
-            Don't show this again
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <label htmlFor="dontShowAgain" className="flex items-center gap-2 cursor-pointer">
+            <Checkbox
+              id="dontShowAgain"
+              checked={dontShowAgain}
+              onCheckedChange={(checked) => setDontShowAgain(checked === true)}
+            />
+            <span className="text-xs text-muted-foreground">Don't show this again</span>
           </label>
+          <span className="label-masthead !text-[10px]">Re-enable in Settings</span>
         </div>
-
-        <p className="text-xs text-muted-foreground text-center mt-2">
-          Access help anytime via the Help button in the sidebar.
-          You can re-enable this dialog in Settings.
-        </p>
       </DialogContent>
     </Dialog>
   )

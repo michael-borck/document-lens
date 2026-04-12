@@ -317,11 +317,16 @@ export function Settings() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
-      <div className="flex items-center gap-3 mb-6">
-        <SettingsIcon className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Settings</h1>
-      </div>
+    <div className="p-10 max-w-3xl mx-auto">
+      <header className="mb-8">
+        <div className="label-masthead mb-3">The Reading Room · Configuration</div>
+        <div className="flex items-end justify-between border-b-2 border-foreground pb-4">
+          <h1 className="font-display text-5xl font-medium leading-none tracking-tight">
+            Settings
+          </h1>
+          <SettingsIcon className="h-5 w-5 text-muted-foreground mb-2" />
+        </div>
+      </header>
 
       {/* General Settings */}
       <Card className="mb-6">
@@ -653,20 +658,20 @@ export function Settings() {
             </div>
           </div>
 
-          {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 py-4 border-y">
-            <div className="text-center">
-              <div className="text-2xl font-bold">{stats.projects}</div>
-              <div className="text-xs text-muted-foreground">Projects</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{stats.documents}</div>
-              <div className="text-xs text-muted-foreground">Documents</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold">{stats.analyses}</div>
-              <div className="text-xs text-muted-foreground">Analyses</div>
-            </div>
+          {/* Stats — editorial figures row */}
+          <div className="grid grid-cols-3 gap-0 border border-border divide-x divide-border bg-background/40">
+            {[
+              { label: 'Projects', value: stats.projects },
+              { label: 'Documents', value: stats.documents },
+              { label: 'Analyses', value: stats.analyses },
+            ].map((item) => (
+              <div key={item.label} className="px-5 py-4">
+                <div className="label-masthead">{item.label}</div>
+                <div className="font-display text-3xl font-medium tabular mt-1 text-foreground leading-none">
+                  {String(item.value).padStart(2, '0')}
+                </div>
+              </div>
+            ))}
           </div>
 
           {/* Restore default keyword lists */}
