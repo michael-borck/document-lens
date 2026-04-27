@@ -352,3 +352,48 @@ class TestMetadataInference:
 #             files={"files": (path.name, f, content_type)},
 #         )
 #     assert response.status_code == 200
+
+
+class TestDocxFileUpload:
+    """Smoke tests for DOCX file upload and text extraction."""
+
+    @pytest.mark.docx
+    def test_upload_docx_returns_200(self, client: TestClient, sample_docx_paths: list[Path]):
+        """Uploading a DOCX should return 200 OK."""
+        if not sample_docx_paths:
+            pytest.skip("No DOCX files in test-data directory")
+
+        docx_path = sample_docx_paths[0]
+        with open(docx_path, "rb") as f:
+            response = client.post(
+                "/files",
+                files={"files": (docx_path.name, f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+            )
+
+        assert response.status_code == 200
+
+    @pytest.mark.docx
+    def test_upload_docx_with_extracted_text(self, client: TestClient, sample_docx_paths: list[Path]):
+        """DOCX upload with include_extracted_text should return non-empty text."""
+        if not sample_docx_paths:
+            pytest.skip("No DOCX files in test-data directory")
+
+        docx_path = sample_docx_paths[0]
+        with open(docx_path, "rb") as f:
+            response = client.post(
+                "/files",
+                files={"files": (docx_path.name, f, "application/vnd.openxmlformats-officedocument.wordprocessingml.document")},
+                data={"include_extracted_text": "true"},
+            )
+
+        assert response.status_code == 200
+        data = response.json()
+        file_result = data["results"]["individual_files"][0]
+
+        assert "extracted_text" in file_result
+        extracted = file_result["extracted_text"]
+        assert "full_text" in extracted
+        assert len(extracted["full_text"]) > 0
+        assert extracted["total_pages"] == 1
+        assert len(extracted["pages"]) == 1
+        assert extracted["pages"][0]["page_number"] == 1
