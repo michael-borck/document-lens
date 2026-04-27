@@ -106,8 +106,6 @@ module = [
     "slowapi.*",
     "PyPDF2.*",
     "pdfplumber.*",
-    "docx.*",
-    "pptx.*",
     "textstat.*",
     "nltk.*",
     "sklearn.*",

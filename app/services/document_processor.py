@@ -11,17 +11,9 @@ from typing import Any
 from fastapi import HTTPException
 from markitdown import MarkItDown
 
-try:
-    import pypdf
-    from pypdf import PdfReader
-except ImportError:
-    pypdf = None  # type: ignore[assignment]
-    PdfReader = None  # type: ignore[misc,assignment]
-
-try:
-    from pdfplumber.pdf import PDF as PDFPlumberPDF  # noqa: N811
-except ImportError:
-    PDFPlumberPDF = None  # type: ignore[assignment, misc]
+import pypdf
+from pypdf import PdfReader
+from pdfplumber.pdf import PDF as PDFPlumberPDF  # noqa: N811
 
 # MIME types handled by markitdown (all non-PDF formats)
 _MARKITDOWN_MIME_TYPES = {
@@ -43,7 +35,7 @@ class DocumentProcessor:
     """Handles text extraction from various document formats"""
 
     def __init__(self) -> None:
-        self.pdf_available = PdfReader is not None
+        self.pdf_available = True
 
     async def extract_text(self, content: bytes, content_type: str, filename: str) -> str:
         """
@@ -107,13 +99,14 @@ class DocumentProcessor:
         suffix = Path(filename).suffix or ".bin"
         tmp_path: str | None = None
         try:
+            # delete=False required: file must be closed before markitdown opens it (Windows compat)
             with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
                 tmp.write(content)
                 tmp_path = tmp.name
             result = _markitdown.convert(tmp_path)
             text = result.text_content or ""
             if not text.strip():
-                raise ValueError(f"No text could be extracted from {filename}")
+                raise ValueError("No text could be extracted from this document")
             return text
         finally:
             if tmp_path and Path(tmp_path).exists():
@@ -122,14 +115,10 @@ class DocumentProcessor:
     async def _extract_from_pdf(self, content: bytes, filename: str) -> str:
         """Extract text from PDF file"""
         result = await self._extract_from_pdf_with_pages(content, filename)
-        full_text: str = result["full_text"]
-        return full_text
+        return result["full_text"]
 
     async def _extract_from_pdf_with_pages(self, content: bytes, filename: str) -> dict[str, Any]:
         """Extract text from PDF file with real page-level granularity."""
-        if not pypdf:
-            raise ImportError("pypdf not available. Install with: pip install pypdf")
-
         pages: list[dict[str, Any]] = []
 
         try:
@@ -142,7 +131,7 @@ class DocumentProcessor:
 
             # Fall back to pdfplumber if pypdf extracted almost nothing
             total_text = "".join(p["text"] for p in pages)
-            if len(total_text) < 100 and PDFPlumberPDF is not None:
+            if len(total_text) < 100:
                 pdf_file.seek(0)
                 with PDFPlumberPDF(pdf_file) as pdf:
                     pages = []
@@ -191,31 +180,30 @@ class DocumentProcessor:
         """Extract metadata from PDF using pypdf."""
         metadata: dict[str, Any] = {}
 
-        if self.pdf_available:
-            try:
-                pdf_file = io.BytesIO(content)
-                reader = PdfReader(pdf_file)
+        try:
+            pdf_file = io.BytesIO(content)
+            reader = PdfReader(pdf_file)
 
-                metadata["pages"] = len(reader.pages)
+            metadata["pages"] = len(reader.pages)
 
-                if reader.metadata:
-                    doc_info = reader.metadata
-                    metadata["title"] = str(doc_info.get("/Title", "")).strip()
-                    metadata["author"] = str(doc_info.get("/Author", "")).strip()
-                    metadata["subject"] = str(doc_info.get("/Subject", "")).strip()
-                    metadata["creator"] = str(doc_info.get("/Creator", "")).strip()
-                    metadata["producer"] = str(doc_info.get("/Producer", "")).strip()
+            if reader.metadata:
+                doc_info = reader.metadata
+                metadata["title"] = str(doc_info.get("/Title", "")).strip()
+                metadata["author"] = str(doc_info.get("/Author", "")).strip()
+                metadata["subject"] = str(doc_info.get("/Subject", "")).strip()
+                metadata["creator"] = str(doc_info.get("/Creator", "")).strip()
+                metadata["producer"] = str(doc_info.get("/Producer", "")).strip()
 
-                    creation_date = doc_info.get("/CreationDate")
-                    if creation_date:
-                        metadata["creation_date"] = str(creation_date)
+                creation_date = doc_info.get("/CreationDate")
+                if creation_date:
+                    metadata["creation_date"] = str(creation_date)
 
-                    mod_date = doc_info.get("/ModDate")
-                    if mod_date:
-                        metadata["modification_date"] = str(mod_date)
+                mod_date = doc_info.get("/ModDate")
+                if mod_date:
+                    metadata["modification_date"] = str(mod_date)
 
-            except Exception as e:
-                metadata["pdf_metadata_error"] = str(e)
+        except Exception as e:
+            metadata["pdf_metadata_error"] = str(e)
 
         return metadata
 
