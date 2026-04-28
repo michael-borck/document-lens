@@ -104,7 +104,6 @@ ignore_missing_imports = false
 [[tool.mypy.overrides]]
 module = [
     "slowapi.*",
-    "PyPDF2.*",
     "pdfplumber.*",
     "textstat.*",
     "nltk.*",
