@@ -191,3 +191,12 @@ media/
 # Static files collection
 staticfiles/
 static_root/
+# Electron build artefacts
+dist-electron/
+release/
+# Claude Code
+.claude/
+# Local samples
+samples/
+# Compiled manual
+*.pdf
