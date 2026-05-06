@@ -23,6 +23,7 @@ import { exportKeywordResults } from '@/services/export'
 import { ProjectContextBar } from '@/components/ProjectContextBar'
 import { getOrCreateProjectProfile, updateProfile, type ProfileConfig } from '@/services/profiles'
 import { useProjectStore } from '@/stores/projectStore'
+import { toast } from '@/stores/toastStore'
 import type { DocumentRecord } from '@/services/documents'
 
 export function KeywordSearch() {
@@ -71,6 +72,7 @@ export function KeywordSearch() {
       setDocuments(result)
     } catch (error) {
       console.error('Failed to load documents:', error)
+      toast.error('Couldn’t load documents for keyword search', error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }

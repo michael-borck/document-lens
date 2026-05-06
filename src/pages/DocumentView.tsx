@@ -22,6 +22,7 @@ import { analyzeDocument, getDocumentAnalysis } from '@/services/analysis'
 import { downloadDocumentJson } from '@/services/export'
 import { KeywordSelector } from '@/components/KeywordSelector'
 import { DocumentMetadataModal } from '@/components/DocumentMetadataModal'
+import { toast } from '@/stores/toastStore'
 
 interface PageData {
   page_number: number
@@ -124,6 +125,7 @@ export function DocumentView() {
       }
     } catch (error) {
       console.error('Failed to load document:', error)
+      toast.error('Couldn’t load this document', error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }

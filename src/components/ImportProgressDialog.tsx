@@ -1,7 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Progress } from '@/components/ui/progress'
 import { Button } from '@/components/ui/button'
-import { FileText, CheckCircle, XCircle, Loader2 } from 'lucide-react'
+import { FileText, CheckCircle, XCircle, Loader2, AlertCircle } from 'lucide-react'
 import type { ImportProgress, ImportResult } from '@/services/documents'
 
 interface ImportProgressDialogProps {
@@ -16,17 +16,33 @@ export function ImportProgressDialog({ open, progress, results, onClose }: Impor
   const failCount = results.filter(r => !r.success).length
   const progressPercent = progress ? (progress.current / progress.total) * 100 : 0
 
+  const isFailed = progress?.status === 'failed'
+  const isTerminal = progress?.status === 'completed' || isFailed
+
+  const title = isFailed
+    ? 'Import Failed'
+    : progress?.status === 'completed'
+      ? 'Import Complete'
+      : 'Importing Documents'
+
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o && isTerminal) onClose?.()
+      }}
+    >
+      <DialogContent
+        className="sm:max-w-md"
+        onPointerDownOutside={(e) => { if (!isTerminal) e.preventDefault() }}
+        onEscapeKeyDown={(e) => { if (!isTerminal) e.preventDefault() }}
+      >
         <DialogHeader>
-          <DialogTitle>
-            {progress?.status === 'completed' ? 'Import Complete' : 'Importing Documents'}
-          </DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4">
-          {progress && progress.status !== 'completed' && (
+          {!isTerminal && progress && (
             <>
               <div className="flex items-center gap-3">
                 <Loader2 className="h-5 w-5 animate-spin text-primary" />
@@ -41,13 +57,27 @@ export function ImportProgressDialog({ open, progress, results, onClose }: Impor
             </>
           )}
 
-          {progress?.status === 'completed' && (
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-brass">
-                <CheckCircle className="h-5 w-5" />
-                <span className="font-medium">{successCount} file(s) imported successfully</span>
+          {isFailed && (
+            <div className="flex items-start gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/30">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Import was interrupted</p>
+                {progress?.error && (
+                  <p className="text-xs text-muted-foreground mt-1 break-words">{progress.error}</p>
+                )}
               </div>
-              
+            </div>
+          )}
+
+          {isTerminal && (
+            <div className="space-y-3">
+              {successCount > 0 && (
+                <div className="flex items-center gap-2 text-brass">
+                  <CheckCircle className="h-5 w-5" />
+                  <span className="font-medium">{successCount} file(s) imported successfully</span>
+                </div>
+              )}
+
               {failCount > 0 && (
                 <div className="flex items-center gap-2 text-destructive">
                   <XCircle className="h-5 w-5" />
@@ -78,7 +108,7 @@ export function ImportProgressDialog({ open, progress, results, onClose }: Impor
                   ))}
                 </div>
               )}
-              
+
               {onClose && (
                 <Button onClick={onClose} className="w-full mt-4">
                   Close

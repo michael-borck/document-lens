@@ -14,6 +14,7 @@ import { Settings } from './pages/Settings'
 import { KeywordLists } from './pages/KeywordLists'
 import { Help } from './pages/Help'
 import { WelcomeDialog } from './components/WelcomeDialog'
+import { Toaster } from './components/Toaster'
 import { seedFrameworkKeywords } from './services/keywords'
 import type { BackendStatus } from './types/electron'
 
@@ -102,6 +103,7 @@ function App() {
 
       <div className={isMac ? 'pt-7' : undefined}>
         <WelcomeDialog />
+        <Toaster />
         <StatusStrip
           status={status}
           retrying={retrying}
@@ -158,10 +160,10 @@ function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) 
       text: 'text-foreground',
       headline: 'Preparing the analysis engine',
       detail: mode === 'embedded'
-        ? 'First launch can take up to a minute while Python initializes.'
+        ? 'First launch can take up to a minute while Python initialises.'
         : mode === 'dev-auto'
-          ? 'Auto-starting uvicorn from ../document-lens (document-analyser) — hold a moment.'
-          : 'Waiting for the API server on :8765.',
+          ? 'Auto-starting document-analyser from ../document-analyser — hold a moment.'
+          : 'Waiting for the document-analyser API on :8765.',
     },
     ready: {
       label: 'Ready',
@@ -180,8 +182,8 @@ function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) 
       text: 'text-foreground',
       headline: 'Lost contact with the analysis engine',
       detail: isDev
-        ? 'Dev backend stopped responding. Check the uvicorn terminal for errors.'
-        : 'The backend is not responding. Local features still work; PDF extraction is paused.',
+        ? 'Dev backend stopped responding. Check the uvicorn terminal. Existing analyses, keyword search, n-grams, visualisations and export still work.'
+        : 'New PDF imports and analysis are paused. Existing analyses, keyword search, n-grams, visualisations and export still work.',
     },
     crashed: {
       label: 'Offline',
@@ -191,8 +193,8 @@ function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) 
       text: 'text-foreground',
       headline: isDev ? 'Dev backend is not running' : 'Analysis engine stopped',
       detail: isDev
-        ? 'Start it manually: cd ../document-lens && document-analyser serve --port 8765 — or let Electron auto-start it on next launch. Local features (keyword search, visualizations, export) still work.'
-        : 'Local features (keyword search, visualizations, export) still work. Restart the app to try again.',
+        ? 'Start it manually: cd ../document-analyser && document-analyser serve --port 8765 — or restart this app and Electron will auto-start it. Existing data, keyword search, visualisations and export still work.'
+        : 'Restart the app to relaunch the analysis engine. Existing data, keyword search, visualisations and export still work.',
     },
   }[phase as Exclude<LocalPhase, 'checking'>]
 

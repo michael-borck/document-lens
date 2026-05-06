@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils'
 import { duplicateProject } from '@/services/projects'
 import { getActiveProfile, getEnabledKeywords } from '@/services/profiles'
 import { ProfileEditor } from '@/components/ProfileEditor'
+import { toast } from '@/stores/toastStore'
 
 interface Project {
   id: string
@@ -98,6 +99,7 @@ export function ProjectList() {
       setKeywordCounts(counts)
     } catch (error) {
       console.error('Failed to load projects:', error)
+      toast.error('Couldn’t load your projects', error instanceof Error ? error.message : String(error))
     } finally {
       setLoading(false)
     }
