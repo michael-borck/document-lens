@@ -1,0 +1,134 @@
+{
+  "name": "ISO 27001 Information Security",
+  "framework": "iso-27001",
+  "version": "1.0",
+  "description": "Keywords aligned with ISO/IEC 27001 information security management system controls. ISO 27001 is the international standard for managing information security through a systematic approach.",
+  "source": "ISO/IEC 27001:2022, ISO/IEC 27002:2022, International Organization for Standardization",
+  "list_type": "grouped",
+  "total_keywords": 94,
+  "keywords": {
+    "Information Security Policies": [
+      "information security policy",
+      "security policy",
+      "policy review",
+      "management direction",
+      "security objectives",
+      "policy compliance",
+      "acceptable use policy",
+      "security governance"
+    ],
+    "Organization of Information Security": [
+      "security roles",
+      "segregation of duties",
+      "contact with authorities",
+      "security in projects",
+      "mobile device security",
+      "teleworking security",
+      "remote work security",
+      "information security organization"
+    ],
+    "Human Resource Security": [
+      "background verification",
+      "employment terms",
+      "security awareness",
+      "disciplinary process",
+      "termination responsibilities",
+      "confidentiality agreement",
+      "security training",
+      "personnel security"
+    ],
+    "Asset Management": [
+      "asset inventory",
+      "asset ownership",
+      "acceptable use",
+      "asset return",
+      "information classification",
+      "information labeling",
+      "asset handling",
+      "media handling",
+      "media disposal"
+    ],
+    "Access Control": [
+      "access control policy",
+      "user registration",
+      "user access provisioning",
+      "privileged access rights",
+      "user authentication",
+      "password management",
+      "access rights review",
+      "access removal",
+      "secure log-on",
+      "identity management"
+    ],
+    "Cryptography": [
+      "cryptographic controls",
+      "encryption policy",
+      "key management",
+      "cryptographic keys",
+      "encryption",
+      "data encryption",
+      "certificate management"
+    ],
+    "Physical Security": [
+      "physical security perimeter",
+      "physical entry controls",
+      "secure areas",
+      "equipment security",
+      "clear desk policy",
+      "equipment disposal",
+      "physical protection",
+      "environmental threats"
+    ],
+    "Operations Security": [
+      "documented procedures",
+      "change management",
+      "capacity management",
+      "malware protection",
+      "backup",
+      "event logging",
+      "audit logs",
+      "clock synchronization",
+      "software installation",
+      "vulnerability management",
+      "technical vulnerability"
+    ],
+    "Communications Security": [
+      "network security",
+      "network controls",
+      "network segregation",
+      "information transfer",
+      "electronic messaging",
+      "confidentiality agreements",
+      "secure transfer"
+    ],
+    "Supplier Relationships": [
+      "supplier security policy",
+      "supply chain security",
+      "supplier agreements",
+      "supplier service delivery",
+      "supplier monitoring",
+      "third party security",
+      "vendor management"
+    ],
+    "Incident Management": [
+      "security incident",
+      "incident reporting",
+      "incident response",
+      "incident assessment",
+      "evidence collection",
+      "incident learning",
+      "security event",
+      "incident procedure"
+    ],
+    "Compliance": [
+      "legal requirements",
+      "intellectual property",
+      "privacy protection",
+      "cryptographic regulation",
+      "security review",
+      "compliance review",
+      "audit requirements",
+      "technical compliance"
+    ]
+  }
+}

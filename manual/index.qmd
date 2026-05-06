@@ -1,0 +1,28 @@
+# Preface {.unnumbered}
+
+Welcome to Document Lens, a desktop application for batch PDF analysis of corporate reports using research frameworks like TCFD, GRI, SDGs, and SASB.
+
+This manual covers all features of the application, from basic document import to advanced analysis workflows.
+
+## Who This Manual Is For
+
+- Sustainability researchers analyzing corporate annual reports
+- Academic researchers studying disclosure patterns
+- Analysts comparing company reporting across frameworks
+- Anyone working with large collections of PDF documents
+
+## How to Use This Manual
+
+- **User Guide**: Start here for core concepts and basic workflows
+- **Quick Reference**: Fast lookup for common tasks
+- **Analysis Workflows**: Step-by-step examples for research scenarios
+- **Collaboration**: Sharing projects with colleagues
+
+## Getting Help
+
+- **In-App Help**: Press `Cmd/Ctrl + /` or click help icons throughout the app
+- **GitHub Issues**: [Report bugs or request features](https://github.com/michaelborck-education/document-lens-desktop/issues)
+
+---
+
+*This manual was generated from the in-app documentation and reflects the current version of Document Lens.*

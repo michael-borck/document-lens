@@ -1,0 +1,154 @@
+{
+  "name": "CIS Critical Security Controls",
+  "framework": "cis-controls",
+  "version": "1.0",
+  "description": "Keywords aligned with the Center for Internet Security (CIS) Critical Security Controls. CIS Controls provide prioritized cybersecurity best practices for defending against the most common cyber attacks.",
+  "source": "CIS Critical Security Controls Version 8, Center for Internet Security",
+  "list_type": "grouped",
+  "total_keywords": 98,
+  "keywords": {
+    "Asset Inventory": [
+      "hardware inventory",
+      "software inventory",
+      "asset discovery",
+      "unauthorized devices",
+      "unauthorized software",
+      "asset tracking",
+      "CMDB",
+      "configuration management database",
+      "shadow IT",
+      "rogue devices"
+    ],
+    "Data Protection": [
+      "data inventory",
+      "sensitive data",
+      "data classification",
+      "data encryption",
+      "data disposal",
+      "data loss prevention",
+      "DLP",
+      "removable media",
+      "data at rest",
+      "data in transit"
+    ],
+    "Secure Configuration": [
+      "secure baseline",
+      "configuration standards",
+      "hardening",
+      "system hardening",
+      "default credentials",
+      "unnecessary services",
+      "configuration management",
+      "security benchmarks",
+      "CIS benchmarks"
+    ],
+    "Account Management": [
+      "user accounts",
+      "service accounts",
+      "administrator accounts",
+      "account inventory",
+      "dormant accounts",
+      "account provisioning",
+      "account deprovisioning",
+      "privileged accounts",
+      "shared accounts"
+    ],
+    "Access Control": [
+      "role-based access",
+      "RBAC",
+      "least privilege",
+      "access reviews",
+      "MFA",
+      "multi-factor",
+      "centralized authentication",
+      "single sign-on",
+      "SSO",
+      "password policy"
+    ],
+    "Vulnerability Management": [
+      "vulnerability scanning",
+      "vulnerability remediation",
+      "patch management",
+      "patching cadence",
+      "CVE",
+      "vulnerability assessment",
+      "penetration testing",
+      "security testing",
+      "exploit mitigation",
+      "risk-based patching"
+    ],
+    "Audit Logging": [
+      "audit logging",
+      "log collection",
+      "log retention",
+      "log analysis",
+      "centralized logging",
+      "log integrity",
+      "security logs",
+      "event correlation",
+      "SIEM integration"
+    ],
+    "Email and Browser Security": [
+      "email security",
+      "email filtering",
+      "phishing protection",
+      "URL filtering",
+      "browser security",
+      "web filtering",
+      "malicious attachments",
+      "sandboxing",
+      "DNS filtering"
+    ],
+    "Malware Defense": [
+      "anti-malware",
+      "antivirus",
+      "endpoint detection",
+      "EDR",
+      "malware prevention",
+      "behavioral detection",
+      "signature updates",
+      "quarantine",
+      "real-time scanning"
+    ],
+    "Data Recovery": [
+      "backup procedures",
+      "backup testing",
+      "recovery testing",
+      "offsite backup",
+      "backup encryption",
+      "restoration procedures",
+      "backup frequency",
+      "immutable backups"
+    ],
+    "Network Security": [
+      "network segmentation",
+      "firewall rules",
+      "network access control",
+      "NAC",
+      "wireless security",
+      "network monitoring",
+      "IDS",
+      "IPS",
+      "intrusion prevention"
+    ],
+    "Security Awareness": [
+      "security awareness training",
+      "phishing awareness",
+      "social engineering",
+      "security culture",
+      "role-based training",
+      "security exercises",
+      "simulated attacks"
+    ],
+    "Application Security": [
+      "secure development",
+      "code review",
+      "application testing",
+      "web application firewall",
+      "WAF",
+      "input validation",
+      "secure coding",
+      "OWASP"
+    ]
+  }
+}
