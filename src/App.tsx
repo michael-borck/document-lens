@@ -33,6 +33,8 @@ function App() {
   const [status, setStatus] = useState<Status>({ phase: 'checking' })
   const [retrying, setRetrying] = useState(false)
   const [dismissedReady, setDismissedReady] = useState(false)
+  // Show a "checking..." hint after a short delay if the initial probe is slow
+  const [showCheckingHint, setShowCheckingHint] = useState(false)
 
   useEffect(() => {
     initializeApp()
@@ -54,6 +56,16 @@ function App() {
       unsubscribe?.()
     }
   }, [])
+
+  // After 1s, surface a "checking" indicator so the user knows we're alive
+  useEffect(() => {
+    if (status.phase !== 'checking') {
+      setShowCheckingHint(false)
+      return
+    }
+    const t = setTimeout(() => setShowCheckingHint(true), 1000)
+    return () => clearTimeout(t)
+  }, [status.phase])
 
   const refreshStatus = async () => {
     try {
@@ -109,6 +121,7 @@ function App() {
           retrying={retrying}
           onRetry={handleRetry}
           dismissedReady={dismissedReady}
+          showCheckingHint={showCheckingHint}
         />
 
       <Routes>
@@ -139,14 +152,30 @@ interface StripProps {
   retrying: boolean
   onRetry: () => void
   dismissedReady: boolean
+  showCheckingHint: boolean
 }
 
-function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) {
+function StatusStrip({ status, retrying, onRetry, dismissedReady, showCheckingHint }: StripProps) {
   const { phase, mode, lastError } = status
 
-  // Hide entirely when ready + auto-dismissed, or while still checking initial state
-  if (phase === 'checking') return null
+  // Hide entirely when ready + auto-dismissed, or while still checking and hint hasn't kicked in yet
+  if (phase === 'checking' && !showCheckingHint) return null
   if (phase === 'ready' && dismissedReady) return null
+
+  // Slow initial check — show a minimal "Checking..." pill so the user knows we're alive
+  if (phase === 'checking') {
+    return (
+      <div className="border-b border-border bg-card">
+        <div className="max-w-screen-2xl mx-auto px-6 py-2.5 flex items-center gap-3">
+          <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
+          <span className="label-masthead">Status · Checking</span>
+          <span className="text-xs text-muted-foreground font-display italic">
+            Contacting the analysis engine…
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   const isDev = mode === 'dev-auto' || mode === 'dev-external'
 

@@ -469,6 +469,18 @@ export function Visualizations() {
 
       {/* Charts */}
       {searchResults ? (
+        <>
+          <p className="text-xs text-muted-foreground mb-3">
+            Visualising{' '}
+            <span className="font-medium text-foreground">{selectedKeywords.length} keywords</span>
+            {selectedListName && (
+              <> from <span className="font-medium text-foreground">{selectedListName}</span></>
+            )}
+            {' '}across{' '}
+            <span className="font-medium text-foreground">
+              {activeDocuments.length} of {documents.length} document{documents.length === 1 ? '' : 's'}
+            </span>
+          </p>
         <Tabs defaultValue="wordcloud">
           <TabsList className="mb-4">
             <TabsTrigger value="wordcloud">
@@ -661,6 +673,7 @@ export function Visualizations() {
             </TabsContent>
           )}
         </Tabs>
+        </>
       ) : (
         <Card>
           <CardContent className="py-12 text-center">

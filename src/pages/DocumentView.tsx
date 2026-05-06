@@ -11,6 +11,7 @@ import {
   Loader2,
   RefreshCw,
   Download,
+  Pencil,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -278,7 +279,7 @@ export function DocumentView() {
         {/* Header */}
         <div className="p-4 border-b flex items-center gap-4">
           <Link to={`/project/${projectId}`}>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="-ml-2">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -682,8 +683,14 @@ export function DocumentView() {
       <div className="w-72 border-l bg-muted/20 p-4 overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-medium">Document Info</h3>
-          <Button variant="ghost" size="sm" onClick={() => setShowMetadataEdit(true)}>
-            Edit
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowMetadataEdit(true)}
+            title="Edit document metadata (company, year, industry, etc.)"
+          >
+            <Pencil className="h-3.5 w-3.5 mr-1.5" />
+            Edit metadata
           </Button>
         </div>
         
