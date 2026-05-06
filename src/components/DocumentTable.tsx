@@ -340,6 +340,7 @@ export function DocumentTable({
                     variant="ghost"
                     size="icon"
                     className="h-8 w-8"
+                    aria-label="More actions"
                     onClick={(e) => {
                       if (contextMenu?.id === doc.id) {
                         setContextMenu(null)

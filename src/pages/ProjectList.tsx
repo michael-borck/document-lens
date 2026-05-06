@@ -356,6 +356,7 @@ export function ProjectList() {
                           size="icon"
                           className="h-7 w-7"
                           title="Project Settings"
+                          aria-label="Project Settings"
                           onClick={(e) => {
                             e.preventDefault()
                             e.stopPropagation()
@@ -369,6 +370,7 @@ export function ProjectList() {
                           size="icon"
                           className="h-7 w-7"
                           title="Duplicate"
+                          aria-label="Duplicate project"
                           onClick={(e) => handleDuplicateProject(project, e)}
                           disabled={duplicatingId === project.id}
                         >
@@ -383,6 +385,7 @@ export function ProjectList() {
                           size="icon"
                           className="h-7 w-7"
                           title="Delete"
+                          aria-label="Delete project"
                           onClick={(e) => deleteProject(project.id, e)}
                         >
                           <Trash2 className="h-3.5 w-3.5 text-muted-foreground hover:text-destructive" />

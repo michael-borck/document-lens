@@ -24,6 +24,7 @@ import { downloadDocumentJson } from '@/services/export'
 import { KeywordSelector } from '@/components/KeywordSelector'
 import { DocumentMetadataModal } from '@/components/DocumentMetadataModal'
 import { toast } from '@/stores/toastStore'
+import { highlightMatches } from '@/lib/highlightMatches'
 
 interface PageData {
   page_number: number
@@ -228,16 +229,8 @@ export function DocumentView() {
   }, [pages, currentPage])
 
   const highlightedText = useMemo(() => {
-    if (!currentPageData) return ''
-    let text = currentPageData.text
-
-    // Highlight search term
-    if (textSearch) {
-      const regex = new RegExp(`(${textSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-      text = text.replace(regex, '<mark class="bg-brass/25 text-foreground px-0.5">$1</mark>')
-    }
-
-    return text
+    if (!currentPageData) return null
+    return highlightMatches(currentPageData.text, textSearch)
   }, [currentPageData, textSearch])
 
   const getReadabilityLabel = (score: number) => {
@@ -279,7 +272,7 @@ export function DocumentView() {
         {/* Header */}
         <div className="p-4 border-b flex items-center gap-4">
           <Link to={`/project/${projectId}`}>
-            <Button variant="ghost" size="icon" className="-ml-2">
+            <Button variant="ghost" size="icon" className="-ml-2" aria-label="Go back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -358,6 +351,7 @@ export function DocumentView() {
                   size="icon"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage <= 1}
+                  aria-label="Previous page"
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </Button>
@@ -369,6 +363,7 @@ export function DocumentView() {
                   size="icon"
                   onClick={() => setCurrentPage(p => Math.min(pages.length, p + 1))}
                   disabled={currentPage >= pages.length}
+                  aria-label="Next page"
                 >
                   <ChevronRight className="h-4 w-4" />
                 </Button>
@@ -379,10 +374,9 @@ export function DocumentView() {
             <Card className="flex-1 overflow-hidden">
               <CardContent className="p-4 h-full overflow-y-auto">
                 {currentPageData ? (
-                  <div
-                    className="whitespace-pre-wrap text-sm leading-relaxed font-mono"
-                    dangerouslySetInnerHTML={{ __html: highlightedText }}
-                  />
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed font-mono">
+                    {highlightedText}
+                  </div>
                 ) : (
                   <p className="text-muted-foreground">No text content available</p>
                 )}
@@ -652,16 +646,9 @@ export function DocumentView() {
                         <CardContent>
                           <div className="space-y-2">
                             {data.contexts.map((context, i) => (
-                              <div
-                                key={i}
-                                className="text-sm p-2 bg-muted/50 rounded"
-                                dangerouslySetInnerHTML={{
-                                  __html: context.replace(
-                                    new RegExp(`(${keyword})`, 'gi'),
-                                    '<mark class="bg-brass/25 text-foreground px-0.5">$1</mark>'
-                                  ),
-                                }}
-                              />
+                              <div key={i} className="text-sm p-2 bg-muted/50 rounded">
+                                {highlightMatches(context, keyword)}
+                              </div>
                             ))}
                             {data.count > data.contexts.length && (
                               <p className="text-xs text-muted-foreground">

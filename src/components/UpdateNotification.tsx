@@ -172,6 +172,7 @@ export function UpdateNotification() {
             variant="ghost"
             className="h-6 w-6 shrink-0"
             onClick={handleDismiss}
+            aria-label="Dismiss update notification"
           >
             <X className="h-3 w-3" />
           </Button>

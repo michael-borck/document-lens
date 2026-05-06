@@ -48,9 +48,12 @@ export function Help() {
     setContent('')
 
     // Load markdown file from public/docs directory
-    fetch(`./docs/${section}.md`)
+    const url = `./docs/${section}.md`
+    const knownSection = HELP_SECTIONS.find(s => s.id === section)
+    const sectionLabel = knownSection?.title ?? section
+    fetch(url)
       .then(response => {
-        if (!response.ok) throw new Error('File not found')
+        if (!response.ok) throw new Error(`HTTP ${response.status} for ${url}`)
         return response.text()
       })
       .then(text => {
@@ -58,8 +61,14 @@ export function Help() {
         setLoading(false)
       })
       .catch(error => {
-        console.error('Failed to load help content:', error)
-        setContent('# Help Not Found\n\nSorry, this help section could not be loaded.')
+        console.error(`Failed to load help content from ${url}:`, error)
+        const validSections = HELP_SECTIONS.map(s => `\`${s.id}\``).join(', ')
+        setContent(
+          `# Help section not found\n\n` +
+          `Couldn't load **${sectionLabel}** (\`${url}\`).\n\n` +
+          `${error instanceof Error ? `Reason: ${error.message}` : ''}\n\n` +
+          `Try one of: ${validSections}, or [return to the help index](#/help).`
+        )
         setLoading(false)
       })
   }, [section])
@@ -131,7 +140,7 @@ export function Help() {
       <div className="bg-card border-b border-border px-8 pt-6 pb-4 sticky top-0 z-10">
         <div className="flex items-center gap-3 mb-2">
           <Link to="/">
-            <Button variant="ghost" size="icon" className="-ml-2">
+            <Button variant="ghost" size="icon" className="-ml-2" aria-label="Go back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>

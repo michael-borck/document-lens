@@ -121,6 +121,7 @@ export function Layout() {
             onClick={toggleSidebar}
             className={cn("h-8 w-8", sidebarCollapsed ? "mx-auto" : "-ml-2")}
             title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {sidebarCollapsed ? (
               <PanelLeft className="h-4 w-4" />

@@ -24,6 +24,7 @@ import { ProjectContextBar } from '@/components/ProjectContextBar'
 import { getOrCreateProjectProfile, updateProfile, type ProfileConfig } from '@/services/profiles'
 import { useProjectStore } from '@/stores/projectStore'
 import { toast } from '@/stores/toastStore'
+import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import type { DocumentRecord } from '@/services/documents'
 
 export function KeywordSearch() {
@@ -245,12 +246,13 @@ export function KeywordSearch() {
     return sorted
   }, [results, sortBy])
 
+  const debouncedFilterKeyword = useDebouncedValue(filterKeyword, 200)
+
   const filteredKeywords = useMemo(() => {
-    if (!results || !filterKeyword) return results?.keywords || []
-    return results.keywords.filter(k => 
-      k.toLowerCase().includes(filterKeyword.toLowerCase())
-    )
-  }, [results, filterKeyword])
+    if (!results || !debouncedFilterKeyword) return results?.keywords || []
+    const q = debouncedFilterKeyword.toLowerCase()
+    return results.keywords.filter(k => k.toLowerCase().includes(q))
+  }, [results, debouncedFilterKeyword])
 
   const highlightText = (text: string, keywords: string[]) => {
     if (!keywords.length) return text
@@ -550,7 +552,7 @@ export function KeywordSearch() {
                       <div className="space-y-4 mt-4">
                         {Object.entries(doc.matches)
                           .filter(([keyword]) =>
-                            !filterKeyword || keyword.toLowerCase().includes(filterKeyword.toLowerCase())
+                            !debouncedFilterKeyword || keyword.toLowerCase().includes(debouncedFilterKeyword.toLowerCase())
                           )
                           .sort((a, b) => b[1].count - a[1].count)
                           .map(([keyword, match]) => (

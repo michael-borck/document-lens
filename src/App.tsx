@@ -1,22 +1,25 @@
 import { Routes, Route, Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import { RefreshCw, Settings as SettingsIcon, X } from 'lucide-react'
+import { useEffect, useState, lazy, Suspense } from 'react'
+import { RefreshCw, Settings as SettingsIcon, X, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Layout } from './components/Layout'
-import { ProjectList } from './pages/ProjectList'
-import { ProjectDashboard } from './pages/ProjectDashboard'
-import { DocumentView } from './pages/DocumentView'
-import { KeywordSearch } from './pages/KeywordSearch'
-import { NgramAnalysis } from './pages/NgramAnalysis'
-import { Visualizations } from './pages/Visualizations'
-import { DocumentLibrary } from './pages/DocumentLibrary'
-import { Settings } from './pages/Settings'
-import { KeywordLists } from './pages/KeywordLists'
-import { Help } from './pages/Help'
 import { WelcomeDialog } from './components/WelcomeDialog'
 import { Toaster } from './components/Toaster'
 import { seedFrameworkKeywords } from './services/keywords'
 import type { BackendStatus } from './types/electron'
+
+// Route-level code splitting: each page becomes its own chunk so the heavy
+// chart/markdown/xlsx deps don't ship in the initial bundle.
+const ProjectList = lazy(() => import('./pages/ProjectList').then(m => ({ default: m.ProjectList })))
+const ProjectDashboard = lazy(() => import('./pages/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })))
+const DocumentView = lazy(() => import('./pages/DocumentView').then(m => ({ default: m.DocumentView })))
+const KeywordSearch = lazy(() => import('./pages/KeywordSearch').then(m => ({ default: m.KeywordSearch })))
+const NgramAnalysis = lazy(() => import('./pages/NgramAnalysis').then(m => ({ default: m.NgramAnalysis })))
+const Visualizations = lazy(() => import('./pages/Visualizations').then(m => ({ default: m.Visualizations })))
+const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary').then(m => ({ default: m.DocumentLibrary })))
+const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
+const KeywordLists = lazy(() => import('./pages/KeywordLists').then(m => ({ default: m.KeywordLists })))
+const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 
 type LocalPhase = 'checking' | 'starting' | 'ready' | 'unreachable' | 'crashed'
 
@@ -124,20 +127,26 @@ function App() {
           showCheckingHint={showCheckingHint}
         />
 
-      <Routes>
-        <Route path="/" element={<Layout />}>
-          <Route index element={<ProjectList />} />
-          <Route path="project/:projectId" element={<ProjectDashboard />} />
-          <Route path="project/:projectId/document/:documentId" element={<DocumentView />} />
-          <Route path="project/:projectId/search" element={<KeywordSearch />} />
-          <Route path="project/:projectId/ngrams" element={<NgramAnalysis />} />
-          <Route path="project/:projectId/visualize" element={<Visualizations />} />
-          <Route path="library" element={<DocumentLibrary />} />
-          <Route path="keywords" element={<KeywordLists />} />
-          <Route path="settings" element={<Settings />} />
-        </Route>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-16">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<Layout />}>
+            <Route index element={<ProjectList />} />
+            <Route path="project/:projectId" element={<ProjectDashboard />} />
+            <Route path="project/:projectId/document/:documentId" element={<DocumentView />} />
+            <Route path="project/:projectId/search" element={<KeywordSearch />} />
+            <Route path="project/:projectId/ngrams" element={<NgramAnalysis />} />
+            <Route path="project/:projectId/visualize" element={<Visualizations />} />
+            <Route path="library" element={<DocumentLibrary />} />
+            <Route path="keywords" element={<KeywordLists />} />
+            <Route path="settings" element={<Settings />} />
+          </Route>
           <Route path="help/:section?" element={<Help />} />
         </Routes>
+      </Suspense>
       </div>
     </div>
   )

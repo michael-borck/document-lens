@@ -31,6 +31,7 @@ import {
   type DocumentStatus,
   type ImportProgress,
 } from '@/services/documents'
+import { toast } from '@/stores/toastStore'
 
 type SortField = 'filename' | 'company_name' | 'report_year' | 'created_at'
 type SortDirection = 'asc' | 'desc'
@@ -170,7 +171,7 @@ export function DocumentLibrary() {
 
   const handleReExtract = async (doc: DocumentWithProjects) => {
     if (!doc.status.pdfAvailable) {
-      alert('Cannot re-extract: PDF file not found at original location.')
+      toast.error('Cannot re-extract', 'PDF file not found at original location.')
       return
     }
 
@@ -182,13 +183,14 @@ export function DocumentLibrary() {
     try {
       const result = await reExtractDocument(doc.id)
       if (result.success) {
+        toast.success('Text re-extracted', doc.filename)
         loadDocuments()
       } else {
-        alert(`Re-extraction failed: ${result.error}`)
+        toast.error('Re-extraction failed', result.error)
       }
     } catch (error) {
       console.error('Failed to re-extract:', error)
-      alert('Failed to re-extract text from document.')
+      toast.error('Failed to re-extract text', error instanceof Error ? error.message : String(error))
     } finally {
       setReExtracting(null)
     }
@@ -487,6 +489,7 @@ export function DocumentLibrary() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => setContextMenu(contextMenu === doc.id ? null : doc.id)}
+                            aria-label="More actions"
                           >
                             <MoreVertical className="h-4 w-4" />
                           </Button>

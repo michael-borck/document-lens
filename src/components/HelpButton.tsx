@@ -26,7 +26,7 @@ export function HelpButton({ section = 'user-guide', tooltip = 'View help' }: He
       <Tooltip>
         <TooltipTrigger asChild>
           <Link to={`/help/${section}`}>
-            <Button variant="ghost" size="icon" className="h-5 w-5">
+            <Button variant="ghost" size="icon" className="h-5 w-5" aria-label={tooltip}>
               <HelpCircle className="h-4 w-4" />
             </Button>
           </Link>

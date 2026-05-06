@@ -26,6 +26,7 @@ import { DocumentFilter } from '@/components/DocumentFilter'
 import type { DocumentRecord } from '@/services/documents'
 import { useProjectStore } from '@/stores/projectStore'
 import { ProjectContextBar } from '@/components/ProjectContextBar'
+import { useDebouncedValue } from '@/lib/useDebouncedValue'
 
 export function NgramAnalysis() {
   const { projectId } = useParams<{ projectId: string }>()
@@ -152,14 +153,14 @@ export function NgramAnalysis() {
     setPhraseContexts((prev) => ({ ...prev, [key]: contexts }))
   }
 
+  const debouncedSearchFilter = useDebouncedValue(searchFilter, 200)
+
   const filteredAggregated = useMemo(() => {
     if (!results) return []
-    if (!searchFilter) return results.aggregated
-
-    return results.aggregated.filter((ngram) =>
-      ngram.phrase.toLowerCase().includes(searchFilter.toLowerCase())
-    )
-  }, [results, searchFilter])
+    if (!debouncedSearchFilter) return results.aggregated
+    const q = debouncedSearchFilter.toLowerCase()
+    return results.aggregated.filter((ngram) => ngram.phrase.toLowerCase().includes(q))
+  }, [results, debouncedSearchFilter])
 
   const filteredByDocument = useMemo(() => {
     if (!results) return []
@@ -536,9 +537,9 @@ export function NgramAnalysis() {
                 const isExpanded = expandedDocs.has(doc.documentId)
                 const totalCount = doc.ngrams.reduce((sum, n) => sum + n.count, 0)
 
-                const filteredNgrams = searchFilter
+                const filteredNgrams = debouncedSearchFilter
                   ? doc.ngrams.filter((n) =>
-                      n.phrase.toLowerCase().includes(searchFilter.toLowerCase())
+                      n.phrase.toLowerCase().includes(debouncedSearchFilter.toLowerCase())
                     )
                   : doc.ngrams
 

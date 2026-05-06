@@ -503,7 +503,7 @@ export function Settings() {
                 onChange={(e) => setNewCountry({ ...newCountry, name: e.target.value })}
                 className="flex-1"
               />
-              <Button onClick={addCountry} size="icon" disabled={!newCountry.code || !newCountry.name}>
+              <Button onClick={addCountry} size="icon" disabled={!newCountry.code || !newCountry.name} aria-label="Add country">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -525,6 +525,7 @@ export function Settings() {
                       size="icon"
                       className="h-6 w-6"
                       onClick={() => deleteCountry(country.code)}
+                      aria-label="Remove country"
                     >
                       <X className="h-3 w-3" />
                     </Button>
@@ -588,7 +589,7 @@ export function Settings() {
                 onChange={(e) => setNewIndustry({ ...newIndustry, category: e.target.value })}
                 className="w-32"
               />
-              <Button onClick={addIndustry} size="icon" disabled={!newIndustry.id || !newIndustry.name}>
+              <Button onClick={addIndustry} size="icon" disabled={!newIndustry.id || !newIndustry.name} aria-label="Add industry">
                 <Plus className="h-4 w-4" />
               </Button>
             </div>
@@ -612,6 +613,7 @@ export function Settings() {
                       size="icon"
                       className="h-6 w-6"
                       onClick={() => deleteIndustry(industry.id)}
+                      aria-label="Remove industry"
                     >
                       <X className="h-3 w-3" />
                     </Button>

@@ -346,7 +346,7 @@ export function ProjectDashboard() {
       <header className="mb-8">
         <div className="flex items-center gap-3 mb-3">
           <Link to="/">
-            <Button variant="ghost" size="icon" className="-ml-2">
+            <Button variant="ghost" size="icon" className="-ml-2" aria-label="Go back">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
@@ -368,14 +368,14 @@ export function ProjectDashboard() {
               projectId={projectId!}
               onManageProfiles={() => setShowProfileEditor(true)}
             />
-            <Button variant="ghost" size="icon" onClick={handleDuplicateProject} disabled={duplicating} title="Duplicate project">
+            <Button variant="ghost" size="icon" onClick={handleDuplicateProject} disabled={duplicating} title="Duplicate project" aria-label="Duplicate project">
               {duplicating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
                 <Copy className="h-4 w-4" />
               )}
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleDeleteProject} title="Delete project">
+            <Button variant="ghost" size="icon" onClick={handleDeleteProject} title="Delete project" aria-label="Delete project">
               <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
             </Button>
           </div>
