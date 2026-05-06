@@ -32,11 +32,11 @@ jobs:
       - name: Checkout desktop app
         uses: actions/checkout@v4
 
-      - name: Checkout document-lens backend
+      - name: Checkout document-analyser backend
         uses: actions/checkout@v4
         with:
-          repository: michaelborck-education/document-lens
-          path: document-lens-backend
+          repository: michael-borck/document-analyser
+          path: document-analyser-backend
           # Use a specific tag/branch for reproducible builds
           # ref: v1.0.0
 
@@ -47,7 +47,7 @@ jobs:
 
       - name: Install Python dependencies and PyInstaller
         run: |
-          cd document-lens-backend
+          cd document-analyser-backend
           pip install --upgrade pip
           pip install pyinstaller
           pip install -e .
@@ -75,7 +75,7 @@ jobs:
 
       - name: Create PyInstaller entry point
         run: |
-          cd document-lens-backend
+          cd document-analyser-backend
           cat > run_server.py << 'ENTRYPOINT'
           #!/usr/bin/env python3
           """PyInstaller entry point for document-lens API."""
@@ -117,7 +117,7 @@ jobs:
           try:
               import uvicorn
               print("Uvicorn imported", file=sys.stderr, flush=True)
-              from app.main import app
+              from document_analyser.main import document_analyser as fastapi_app
               print("App imported", file=sys.stderr, flush=True)
           except Exception as e:
               import traceback
@@ -126,12 +126,12 @@ jobs:
               sys.exit(1)
 
           if __name__ == "__main__":
-              parser = argparse.ArgumentParser(description="Document Lens API Server")
+              parser = argparse.ArgumentParser(description="Document Analyser API Server")
               parser.add_argument("--host", default="127.0.0.1", help="Host to bind to")
               parser.add_argument("--port", type=int, default=8000, help="Port to bind to")
               args = parser.parse_args()
               print(f"Starting server on {args.host}:{args.port}", file=sys.stderr, flush=True)
-              uvicorn.run(app, host=args.host, port=args.port, log_level="info")
+              uvicorn.run(fastapi_app, host=args.host, port=args.port, log_level="info")
           ENTRYPOINT
           # Remove leading spaces from heredoc (works on both macOS and Linux)
           python -c "
@@ -148,7 +148,7 @@ jobs:
 
       - name: Build Python backend with PyInstaller
         run: |
-          cd document-lens-backend
+          cd document-analyser-backend
           # Copy nltk_data into the backend directory
           cp -r ../nltk_data ./nltk_data
           ls -la nltk_data/
@@ -163,7 +163,7 @@ jobs:
           pyinstaller --onefile \
             --console \
             --name "document-lens-api" \
-            --add-data "app/data${SEP}app/data" \
+            --add-data "document_analyser/data${SEP}document_analyser/data" \
             --add-data "nltk_data${SEP}nltk_data" \
             --hidden-import uvicorn.logging \
             --hidden-import uvicorn.lifespan \
@@ -204,7 +204,7 @@ jobs:
 
       - name: Test backend executable
         run: |
-          cd document-lens-backend
+          cd document-analyser-backend
           echo "Testing backend executable..."
           echo "Executable size: $(ls -lh ./dist/document-lens-api${{ matrix.backend_ext }})"
           
@@ -282,7 +282,7 @@ jobs:
       - name: Copy backend to resources
         run: |
           mkdir -p backend
-          cp "document-lens-backend/dist/document-lens-api${{ matrix.backend_ext }}" "backend/document-lens-api${{ matrix.backend_ext }}"
+          cp "document-analyser-backend/dist/document-lens-api${{ matrix.backend_ext }}" "backend/document-lens-api${{ matrix.backend_ext }}"
           ls -la backend/
         shell: bash
 

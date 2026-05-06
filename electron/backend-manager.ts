@@ -53,8 +53,7 @@ export class BackendManager extends EventEmitter {
       path.resolve(process.cwd(), '..', 'document-analyser'),
     ]
     for (const candidate of candidates) {
-      if (fs.existsSync(path.join(candidate, 'app', 'main.py')) ||
-          fs.existsSync(path.join(candidate, 'pyproject.toml'))) {
+      if (fs.existsSync(path.join(candidate, 'document_analyser', 'main.py'))) {
         return candidate
       }
     }
