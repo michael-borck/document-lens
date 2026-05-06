@@ -1,56 +1,193 @@
-# Dependencies
-node_modules/
-
-# Build outputs
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
 dist/
-dist-electron/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pythonenv*
+
+# PyCharm
+.idea/
+*.iml
+*.iws
 out/
-build/output/
-release/
 
-# Electron
-*.asar
+# VS Code
+.vscode/
+*.code-workspace
+.history/
 
-# Environment
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+*.tsbuildinfo
+.npm
+.eslintcache
+.node_repl_history
+*.tgz
+.yarn-integrity
+
+# React/Vite
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.vite/
+
+# Environment variables
 .env
 .env.local
-.env.*.local
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
+.env.development.local
+.env.test.local
+.env.production.local
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
 # Testing
-coverage/
+test-data/*.pdf
+test-data/*.docx
+test-data/*.pptx
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+cover/
+*.cover
+*.py,cover
+.hypothesis/
+nosetests.xml
+coverage.xml
+*.coveragerc
+.dmypy.json
+dmypy.json
 
 # Database
 *.db
 *.sqlite
 *.sqlite3
-
-# Python backend builds
-document-lens-backend/
-*.spec
+instance/
 
 # Temporary files
+*.tmp
+*.bak
+*.swp
+*~.nib
+*.orig
+.temp/
 tmp/
 temp/
 
-# Test samples (local PDFs for testing)
-samples/
+# Documentation builds
+docs/_build/
+site/
 
-# Manual build artifacts
-manual/build/
-Document-Lens-User-Manual.pdf
+# Package files
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+
+# Editor backups
+*~
+\#*\#
+.\#*
+
+# FastAPI
+backend/instance/
+backend/*.db
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+secrets/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Production builds
+build/
+dist/
+
+# Local development
+.local/
+scratch/
+
+# Uploaded files (in production these would be handled differently)
+uploads/
+media/
+
+# Static files collection
+staticfiles/
+static_root/

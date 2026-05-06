@@ -1,8 +1,6 @@
 # Document Lens
 
-<!-- BADGES:START -->
-[![edtech](https://img.shields.io/badge/-edtech-4caf50?style=flat-square)](https://github.com/topics/edtech) [![batch-processing](https://img.shields.io/badge/-batch--processing-blue?style=flat-square)](https://github.com/topics/batch-processing) [![cross-platform](https://img.shields.io/badge/-cross--platform-blue?style=flat-square)](https://github.com/topics/cross-platform) [![data-visualization](https://img.shields.io/badge/-data--visualization-blue?style=flat-square)](https://github.com/topics/data-visualization) [![desktop-app](https://img.shields.io/badge/-desktop--app-blue?style=flat-square)](https://github.com/topics/desktop-app) [![document-analysis](https://img.shields.io/badge/-document--analysis-blue?style=flat-square)](https://github.com/topics/document-analysis) [![electron](https://img.shields.io/badge/-electron-47848f?style=flat-square)](https://github.com/topics/electron) [![keyword-analysis](https://img.shields.io/badge/-keyword--analysis-blue?style=flat-square)](https://github.com/topics/keyword-analysis) [![pdf-analysis](https://img.shields.io/badge/-pdf--analysis-blue?style=flat-square)](https://github.com/topics/pdf-analysis) [![research](https://img.shields.io/badge/-research-3f51b5?style=flat-square)](https://github.com/topics/research)
-<!-- BADGES:END -->
+Extracts text from documents and returns readability metrics, word counts, and structural information. Accepts PDF, DOCX, PPTX, and plain text formats.
 
 A cross-platform Electron desktop application for batch PDF analysis, designed for researchers analysing large document collections across various domains.
 
@@ -115,29 +113,40 @@ Recipients import bundles to replicate the sender's complete analysis setup. Int
 ### Setup
 
 ```bash
-# Install dependencies
-npm install
-
-# Start development
-npm run dev
+pip install document-analyser
 ```
 
-### Building
+Requires Python 3.11+.
+
+## Usage
+
+### Python
+
+```python
+from app.analyser import DocumentAnalyser
+
+result = DocumentAnalyser().analyse("report.pdf")
+
+print(f"Words:       {result['word_count']}")
+print(f"Sentences:   {result['sentence_count']}")
+print(f"Readability: {result['readability']['flesch_reading_ease']:.1f} (Flesch)")
+print(result["text"][:500])
+```
+
+### CLI
 
 ```bash
-# Build for current platform
-npm run build
+# Human-readable summary
+document-analyser report.pdf
 
-# Build for specific platform
-npm run build:mac     # macOS (.dmg)
-npm run build:win     # Windows (.exe)
-npm run build:linux   # Linux (.AppImage)
+# Machine-readable JSON
+document-analyser thesis.docx --json
 
-# Build for all platforms (requires appropriate OS or CI)
-npm run build:all
+# Start the HTTP server
+document-analyser serve --port 8000
 ```
 
-Build outputs are placed in the `release/` directory.
+### HTTP API
 
 ### Releasing
 
@@ -169,12 +178,16 @@ document-lens/
 └── build/            # Build configuration
 ```
 
-## Backend
+## Supported formats
 
-This application connects to the [document-lens](https://github.com/michaelborck-education/document-lens) API backend for PDF text extraction and analysis.
+| Format | Extensions |
+|---|---|
+| PDF | `.pdf` |
+| Word | `.docx` |
+| PowerPoint | `.pptx` |
+| Plain text | `.txt` `.md` |
 
-- **Development**: Run the backend locally (`uvicorn app.main:app`)
-- **Distribution**: GitHub Actions CI/CD automatically builds and bundles the backend executable using PyInstaller for each platform
+## Output
 
 ## Licence
 
