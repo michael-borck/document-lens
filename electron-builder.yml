@@ -1,5 +1,5 @@
-appId: com.documentlens.desktop
-productName: Document Lens Desktop
+appId: com.documentlens.app
+productName: Document Lens
 copyright: Copyright © 2024 Michael Borck
 
 directories:
@@ -74,4 +74,4 @@ dmg:
 publish:
   provider: github
   owner: michaelborck-education
-  repo: document-lens-desktop
+  repo: document-lens

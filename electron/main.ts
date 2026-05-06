@@ -149,7 +149,9 @@ app.whenReady().then(async () => {
 
   // Forward phase changes to the renderer
   backendManager.on('phase-changed', (status) => {
-    mainWindow?.webContents.send('backend:status-changed', status)
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('backend:status-changed', status)
+    }
   })
 
   // Start backend. In production we spawn the bundled PyInstaller executable.

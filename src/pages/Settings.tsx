@@ -404,7 +404,7 @@ export function Settings() {
             Backend Configuration
           </CardTitle>
           <CardDescription>
-            Configure the connection to the document-lens API backend
+            Configure the connection to the document-analyser API backend
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -727,10 +727,10 @@ export function Settings() {
             <button
               className="text-primary hover:underline"
               onClick={() => {
-                window.electron.openExternal('https://github.com/michaelborck-education/document-lens')
+                window.electron.openExternal('https://github.com/michaelborck-education/document-analyser')
               }}
             >
-              document-lens
+              document-analyser
             </button>
           </div>
           <div className="flex justify-between">

@@ -132,9 +132,9 @@ Researchers are encouraged to:
 When citing Document Lens keyword lists in academic work:
 
 ```
-Document Lens Desktop [Computer software]. (2024). Version X.X.
+Document Lens [Computer software]. (2024). Version X.X.
 Keyword lists generated using Claude (Anthropic) with human review.
-https://github.com/michaelborck-education/document-lens-desktop
+https://github.com/michaelborck-education/document-lens
 ```
 
 ## Version History

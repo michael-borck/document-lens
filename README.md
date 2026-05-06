@@ -1,17 +1,17 @@
-# Document Lens Desktop
+# Document Lens
 
 <!-- BADGES:START -->
 [![edtech](https://img.shields.io/badge/-edtech-4caf50?style=flat-square)](https://github.com/topics/edtech) [![batch-processing](https://img.shields.io/badge/-batch--processing-blue?style=flat-square)](https://github.com/topics/batch-processing) [![cross-platform](https://img.shields.io/badge/-cross--platform-blue?style=flat-square)](https://github.com/topics/cross-platform) [![data-visualization](https://img.shields.io/badge/-data--visualization-blue?style=flat-square)](https://github.com/topics/data-visualization) [![desktop-app](https://img.shields.io/badge/-desktop--app-blue?style=flat-square)](https://github.com/topics/desktop-app) [![document-analysis](https://img.shields.io/badge/-document--analysis-blue?style=flat-square)](https://github.com/topics/document-analysis) [![electron](https://img.shields.io/badge/-electron-47848f?style=flat-square)](https://github.com/topics/electron) [![keyword-analysis](https://img.shields.io/badge/-keyword--analysis-blue?style=flat-square)](https://github.com/topics/keyword-analysis) [![pdf-analysis](https://img.shields.io/badge/-pdf--analysis-blue?style=flat-square)](https://github.com/topics/pdf-analysis) [![research](https://img.shields.io/badge/-research-3f51b5?style=flat-square)](https://github.com/topics/research)
 <!-- BADGES:END -->
 
-A cross-platform Electron desktop application for batch PDF analysis, designed for researchers analyzing large document collections across various domains.
+A cross-platform Electron desktop application for batch PDF analysis, designed for researchers analysing large document collections across various domains.
 
 ## Overview
 
-Document Lens Desktop enables researchers to:
+Document Lens enables researchers to:
 - **Batch import** PDF documents (annual reports, research papers, contracts, etc.)
 - **Choose a research focus** with pre-loaded keyword frameworks for your domain
-- **Analyze** documents using pre-built keyword lists, custom keywords, or hierarchical taxonomies
+- **Analyse** documents using pre-built keyword lists, custom keywords, or hierarchical taxonomies
 - **Search** across documents for keywords with tier-level aggregation (e.g., by SDG pillar)
 - **Discover** terminology patterns with n-gram analysis (bigrams and trigrams)
 - **Compare** coverage across frameworks and documents
@@ -21,7 +21,7 @@ Document Lens Desktop enables researchers to:
 
 ## Target Users
 
-- Researchers analyzing document collections
+- Researchers analysing document collections
 - Compliance teams reviewing corporate documents
 - Non-technical users requiring simple installation
 - Platform priority: Windows > Mac > Linux
@@ -32,7 +32,7 @@ Document Lens Desktop enables researchers to:
 
 The app guides users through four levels of analysis:
 
-1. **Import & Analyze** - Import PDFs, run document-level analysis (readability, writing quality, word frequency)
+1. **Import & Analyse** - Import PDFs, run document-level analysis (readability, writing quality, word frequency)
 2. **Keyword Search** - Search for framework terms across documents with tier-level aggregation
 3. **N-gram Discovery** - Find frequently occurring 2-3 word phrases to discover terminology patterns
 4. **Visualize & Compare** - Generate charts comparing keyword usage, trends, and document coverage
@@ -54,7 +54,7 @@ The app guides users through four levels of analysis:
 
 ### Hierarchical Taxonomies
 
-Keyword lists can be organized into multi-level taxonomies with named tiers. For example, the SDGs Wedding Cake Model organizes 397 keywords into:
+Keyword lists can be organised into multi-level taxonomies with named tiers. For example, the SDGs Wedding Cake Model organises 397 keywords into:
 
 - **Pillar** (Environmental, Social, Economic, Governance) > **Goal** (SDG 1-17) > **Keywords**
 
@@ -153,7 +153,7 @@ Build outputs are placed in the `release/` directory.
 ### Project Structure
 
 ```
-document-lens-desktop/
+document-lens/
 ├── electron/           # Main process (Electron)
 │   ├── main.ts
 │   ├── preload.ts
@@ -176,6 +176,6 @@ This application connects to the [document-lens](https://github.com/michaelborck
 - **Development**: Run the backend locally (`uvicorn app.main:app`)
 - **Distribution**: GitHub Actions CI/CD automatically builds and bundles the backend executable using PyInstaller for each platform
 
-## License
+## Licence
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT Licence - see [LICENSE](LICENSE) for details.

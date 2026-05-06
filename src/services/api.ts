@@ -1,8 +1,8 @@
 /**
  * Document Lens API Client
  * 
- * Connects to the document-lens backend for text extraction and analysis.
- * Backend repo: https://github.com/michaelborck-education/document-lens
+ * Connects to the document-analyser backend for text extraction and analysis.
+ * Backend repo: https://github.com/michaelborck-education/document-analyser
  */
 
 import { getBackendUrl, getDefaultBackendUrl } from '@/config/backend'

@@ -49,8 +49,8 @@ export class BackendManager extends EventEmitter {
   /** Locate the Python dev backend repo (sibling directory) */
   private findDevBackendRepo(): string | null {
     const candidates = [
-      path.resolve(app.getAppPath(), '..', 'document-lens'),
-      path.resolve(process.cwd(), '..', 'document-lens'),
+      path.resolve(app.getAppPath(), '..', 'document-analyser'),
+      path.resolve(process.cwd(), '..', 'document-analyser'),
     ]
     for (const candidate of candidates) {
       if (fs.existsSync(path.join(candidate, 'app', 'main.py')) ||
@@ -174,14 +174,14 @@ export class BackendManager extends EventEmitter {
 
     if (fs.existsSync(venvPython)) {
       command = venvPython
-      args = ['-m', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+      args = ['-m', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
     } else if (fs.existsSync(venvPythonWin)) {
       command = venvPythonWin
-      args = ['-m', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+      args = ['-m', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
     } else {
       // Try `uv run` — assumes uv is on PATH
       command = 'uv'
-      args = ['run', 'uvicorn', 'app.main:app', '--host', this.host, '--port', String(this.port)]
+      args = ['run', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
     }
 
     this.setPhase('starting')

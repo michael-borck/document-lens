@@ -160,7 +160,7 @@ function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) 
       detail: mode === 'embedded'
         ? 'First launch can take up to a minute while Python initializes.'
         : mode === 'dev-auto'
-          ? 'Auto-starting uvicorn from ../document-lens — hold a moment.'
+          ? 'Auto-starting uvicorn from ../document-lens (document-analyser) — hold a moment.'
           : 'Waiting for the API server on :8765.',
     },
     ready: {
@@ -191,7 +191,7 @@ function StatusStrip({ status, retrying, onRetry, dismissedReady }: StripProps) 
       text: 'text-foreground',
       headline: isDev ? 'Dev backend is not running' : 'Analysis engine stopped',
       detail: isDev
-        ? 'Start it manually: cd ../document-lens && ./start.sh — or let Electron auto-start it on next launch. Local features (keyword search, visualizations, export) still work.'
+        ? 'Start it manually: cd ../document-lens && document-analyser serve --port 8765 — or let Electron auto-start it on next launch. Local features (keyword search, visualizations, export) still work.'
         : 'Local features (keyword search, visualizations, export) still work. Restart the app to try again.',
     },
   }[phase as Exclude<LocalPhase, 'checking'>]

@@ -200,9 +200,9 @@ For research reproducibility, we recommend:
 When citing Document Lens keyword lists in academic work:
 
 ```
-Document Lens Desktop [Computer software]. (2025). Version X.X.
+Document Lens [Computer software]. (2025). Version X.X.
 Keyword lists generated using Claude (Anthropic) with human review.
-https://github.com/michaelborck-education/document-lens-desktop
+https://github.com/michaelborck-education/document-lens
 ```
 
 ---
@@ -219,5 +219,5 @@ https://github.com/michaelborck-education/document-lens-desktop
 
 For questions about keyword methodology or to suggest improvements:
 
-- **GitHub Issues**: [Report an issue](https://github.com/michaelborck-education/document-lens-desktop/issues)
-- **Repository**: [Document Lens Desktop](https://github.com/michaelborck-education/document-lens-desktop)
+- **GitHub Issues**: [Report an issue](https://github.com/michaelborck-education/document-lens/issues)
+- **Repository**: [Document Lens](https://github.com/michaelborck-education/document-lens)
