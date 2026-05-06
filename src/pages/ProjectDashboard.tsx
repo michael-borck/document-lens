@@ -670,26 +670,20 @@ export function ProjectDashboard() {
               ))}
             </div>
           ) : documents.length === 0 ? (
-            <div
-              className="text-center py-16 border border-dashed border-border hover:border-foreground/40 cursor-pointer transition-colors"
-              onClick={() => handleImportFiles()}
-            >
+            <div className="text-center py-16 border border-dashed border-border rounded-md">
               <FileText className="h-10 w-10 mx-auto text-muted-foreground mb-4" strokeWidth={1.25} />
-              <h2 className="font-display text-2xl font-medium mb-2">No documents yet</h2>
-              <p className="font-display italic text-muted-foreground mb-5 max-w-sm mx-auto">
-                Drag and drop PDF files here, or use the buttons below to begin.
+              <h2 className="font-display text-2xl font-medium mb-2">No documents in this project yet</h2>
+              <p className="font-display italic text-muted-foreground mb-6 max-w-md mx-auto">
+                Drop PDFs anywhere on this page, or pick a starting point:
               </p>
-              <div className="flex items-center justify-center gap-2">
-                <Button>
+              <div className="flex items-center justify-center gap-3">
+                <Button onClick={() => handleImportFiles()}>
                   <Upload className="h-4 w-4 mr-2" />
-                  Import PDFs
+                  Import PDFs from your computer
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setShowAddFromLibrary(true)
-                  }}
+                  onClick={() => setShowAddFromLibrary(true)}
                 >
                   <Library className="h-4 w-4 mr-2" />
                   Add from Library

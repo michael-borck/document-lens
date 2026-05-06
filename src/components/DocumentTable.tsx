@@ -25,6 +25,8 @@ import {
   reExtractDocument,
   checkPdfExists,
 } from '@/services/documents'
+import { analyzeDocument } from '@/services/analysis'
+import { toast } from '@/stores/toastStore'
 
 type SortField = 'filename' | 'company_name' | 'report_year' | 'analysis_status' | 'created_at'
 type SortDirection = 'asc' | 'desc'
@@ -59,6 +61,25 @@ export function DocumentTable({
   const [contextMenu, setContextMenu] = useState<{ id: string; x: number; y: number; openUp: boolean } | null>(null)
   const [documentStatuses, setDocumentStatuses] = useState<Record<string, DocumentStatus>>({})
   const [reExtracting, setReExtracting] = useState<string | null>(null)
+  const [retryingAnalysis, setRetryingAnalysis] = useState<string | null>(null)
+
+  const handleRetryAnalysis = async (doc: DocumentRecord) => {
+    if (!doc.extracted_text) {
+      toast.error('Cannot retry: no extracted text', 'Try re-extracting from the PDF first.')
+      return
+    }
+    setRetryingAnalysis(doc.id)
+    try {
+      await analyzeDocument(doc)
+      toast.success('Analysis complete', doc.filename)
+      onRefresh?.()
+    } catch (error) {
+      console.error('Retry analysis failed:', error)
+      toast.error('Analysis still failing', error instanceof Error ? error.message : String(error))
+    } finally {
+      setRetryingAnalysis(null)
+    }
+  }
 
   const openContextMenu = useCallback((docId: string, buttonElement: HTMLButtonElement) => {
     const rect = buttonElement.getBoundingClientRect()
@@ -99,7 +120,7 @@ export function DocumentTable({
   const handleReExtract = async (doc: DocumentRecord) => {
     const status = documentStatuses[doc.id]
     if (status && !status.pdfAvailable) {
-      alert('Cannot re-extract: PDF file not found at original location.')
+      toast.error('Cannot re-extract', 'PDF file not found at original location.')
       return
     }
 
@@ -111,13 +132,14 @@ export function DocumentTable({
     try {
       const result = await reExtractDocument(doc.id)
       if (result.success) {
+        toast.success('Text re-extracted', doc.filename)
         onRefresh?.()
       } else {
-        alert(`Re-extraction failed: ${result.error}`)
+        toast.error('Re-extraction failed', result.error)
       }
     } catch (error) {
       console.error('Failed to re-extract:', error)
-      alert('Failed to re-extract text from document.')
+      toast.error('Failed to re-extract text', error instanceof Error ? error.message : String(error))
     } finally {
       setReExtracting(null)
     }
@@ -386,6 +408,19 @@ export function DocumentTable({
                           <RefreshCw className={`h-4 w-4 ${reExtracting === doc.id ? 'animate-spin' : ''}`} />
                           {reExtracting === doc.id ? 'Re-extracting...' : 'Re-extract Text'}
                         </button>
+                        {doc.analysis_status === 'failed' && (
+                          <button
+                            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-destructive hover:bg-muted"
+                            onClick={() => {
+                              handleRetryAnalysis(doc)
+                              setContextMenu(null)
+                            }}
+                            disabled={retryingAnalysis === doc.id}
+                          >
+                            <RefreshCw className={`h-4 w-4 ${retryingAnalysis === doc.id ? 'animate-spin' : ''}`} />
+                            {retryingAnalysis === doc.id ? 'Retrying…' : 'Retry Analysis'}
+                          </button>
+                        )}
                         {onViewStats && (
                           <button
                             className="flex items-center gap-2 w-full px-3 py-2 text-sm hover:bg-muted"

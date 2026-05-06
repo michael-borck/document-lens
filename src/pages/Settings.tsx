@@ -36,6 +36,7 @@ import {
 import { api } from '@/services/api'
 import { BACKEND_URL } from '@/config/backend'
 import { FOCUSES, DEFAULT_FOCUS } from '@/data/focuses'
+import { toast } from '@/stores/toastStore'
 import { restoreDefaultKeywordLists } from '@/services/keywords'
 
 interface Country {
@@ -207,14 +208,20 @@ export function Settings() {
   }
 
   const saveBackendUrl = async () => {
+    if (!backendUrl.trim()) {
+      toast.error('Enter a backend URL before saving')
+      return
+    }
     try {
       await window.electron.dbRun(
         "UPDATE settings SET value = ? WHERE key = 'backend_url'",
         [backendUrl]
       )
       api.setBaseUrl(backendUrl)
+      toast.success('Backend URL saved', backendUrl)
     } catch (error) {
       console.error('Failed to save backend URL:', error)
+      toast.error('Couldn’t save backend URL', error instanceof Error ? error.message : String(error))
     }
   }
 

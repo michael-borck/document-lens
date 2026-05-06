@@ -10,6 +10,7 @@ import {
   Loader2,
   Settings2,
   Layers,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -437,9 +438,19 @@ export function Visualizations() {
               Select Other Keywords
             </Button>
             {selectedKeywords.length > 0 && (
-              <span className="text-sm text-muted-foreground">
-                {selectedKeywords.length} keywords from {selectedListName}
-              </span>
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <span>
+                  {selectedKeywords.length} keywords from {selectedListName}
+                </span>
+                <button
+                  onClick={() => handleKeywordSelect([], '')}
+                  className="ml-1 -my-1 p-1 hover:text-foreground rounded transition-colors"
+                  title="Clear keyword selection"
+                  aria-label="Clear keyword selection"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              </div>
             )}
             {analyzing && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

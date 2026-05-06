@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Search, Download, ChevronDown, ChevronRight, FileText } from 'lucide-react'
+import { ArrowLeft, Search, Download, ChevronDown, ChevronRight, FileText, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
@@ -302,9 +302,19 @@ export function KeywordSearch() {
                 Select Framework Keywords
               </Button>
               {selectedKeywords.length > 0 && (
-                <span className="text-sm text-muted-foreground">
-                  {selectedKeywords.length} keywords from {selectedListName}
-                </span>
+                <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <span>
+                    {selectedKeywords.length} keywords from {selectedListName}
+                  </span>
+                  <button
+                    onClick={() => handleKeywordSelect([], '')}
+                    className="ml-1 -my-1 p-1 hover:text-foreground rounded transition-colors"
+                    title="Clear keyword selection"
+                    aria-label="Clear keyword selection"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                </div>
               )}
             </div>
 
