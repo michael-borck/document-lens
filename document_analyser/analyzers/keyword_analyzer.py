@@ -5,7 +5,7 @@ Contextual keyword search analyzer
 import re
 from typing import Any
 
-from app.models.schemas import (
+from document_analyser.models.schemas import (
     DocumentKeywordResult,
     KeywordMatch,
     KeywordResult,

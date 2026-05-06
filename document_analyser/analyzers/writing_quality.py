@@ -17,7 +17,7 @@ except ImportError:
     sent_tokenize = None
     word_tokenize = None
 
-from app.models.schemas import WritingQuality
+from document_analyser.models.schemas import WritingQuality
 
 
 class WritingQualityAnalyzer:

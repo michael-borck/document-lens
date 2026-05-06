@@ -22,7 +22,7 @@ except ImportError:
     stopwords = None
     ngrams = None
 
-from app.models.schemas import PhraseCount, WordAnalysis, WordFrequency
+from document_analyser.models.schemas import PhraseCount, WordAnalysis, WordFrequency
 
 
 class WordAnalyzer:

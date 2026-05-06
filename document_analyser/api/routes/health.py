@@ -6,7 +6,7 @@ import time
 
 from fastapi import APIRouter
 
-from app.models.schemas import HealthResponse
+from document_analyser.models.schemas import HealthResponse
 
 router = APIRouter()
 
@@ -19,7 +19,7 @@ async def health_check() -> HealthResponse:
     uptime = time.time() - START_TIME
 
     return HealthResponse(
-        status="healthy",
+        status="ok",
         version="1.0.0",
         uptime=uptime
     )

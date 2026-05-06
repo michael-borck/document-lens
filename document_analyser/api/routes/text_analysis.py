@@ -9,11 +9,11 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.analyzers.ner_analyzer import NerAnalyzer
-from app.analyzers.readability import ReadabilityAnalyzer
-from app.analyzers.word_analysis import WordAnalyzer
-from app.analyzers.writing_quality import WritingQualityAnalyzer
-from app.core.config import settings
+from document_analyser.analyzers.ner_analyzer import NerAnalyzer
+from document_analyser.analyzers.readability import ReadabilityAnalyzer
+from document_analyser.analyzers.word_analysis import WordAnalyzer
+from document_analyser.analyzers.writing_quality import WritingQualityAnalyzer
+from document_analyser.core.config import settings
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)

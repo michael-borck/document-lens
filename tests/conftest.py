@@ -6,13 +6,13 @@ import os
 from collections.abc import Generator
 from pathlib import Path
 
-# Set a high rate limit for testing BEFORE importing the app
+# Set a high rate limit for testing BEFORE importing the document_analyser
 os.environ["RATE_LIMIT"] = "1000/minute"
 
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from document_analyser.main import document_analyser
 
 
 # === Test Client Fixtures ===
@@ -22,9 +22,9 @@ from app.main import app
 def client() -> Generator[TestClient, None, None]:
     """
     Provides a FastAPI TestClient for the entire test session.
-    Uses session scope for efficiency - the app is only initialized once.
+    Uses session scope for efficiency - the document_analyser is only initialized once.
     """
-    with TestClient(app) as test_client:
+    with TestClient(document_analyser) as test_client:
         yield test_client
 
 
@@ -36,7 +36,7 @@ async def async_client():
     """
     import httpx
 
-    transport = httpx.ASGITransport(app=app)  # type: ignore[arg-type]
+    transport = httpx.ASGITransport(document_analyser=document_analyser)  # type: ignore[arg-type]
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         yield client
 

@@ -5,7 +5,7 @@ N-gram analysis utilities (bigrams and trigrams)
 import re
 from collections import Counter
 
-from app.models.schemas import Ngram
+from document_analyser.models.schemas import Ngram
 
 
 class NgramAnalyzer:

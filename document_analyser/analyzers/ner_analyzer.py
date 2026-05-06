@@ -7,7 +7,7 @@ try:
 except ImportError:
     spacy = None  # type: ignore
 
-from app.models.schemas import NEREntity, NERResponse
+from document_analyser.models.schemas import NEREntity, NERResponse
 
 
 class NerAnalyzer:

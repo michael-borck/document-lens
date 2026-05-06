@@ -5,10 +5,10 @@ Advanced text analysis endpoints: n-grams, NER, and contextual keyword search
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.analyzers.keyword_analyzer import KeywordAnalyzer
-from app.analyzers.ner_analyzer import NerAnalyzer
-from app.analyzers.ngram_analyzer import NgramAnalyzer
-from app.models.schemas import (
+from document_analyser.analyzers.keyword_analyzer import KeywordAnalyzer
+from document_analyser.analyzers.ner_analyzer import NerAnalyzer
+from document_analyser.analyzers.ngram_analyzer import NgramAnalyzer
+from document_analyser.models.schemas import (
     KeywordSearchResponse,
     MultiKeywordSearchResponse,
     NERResponse,

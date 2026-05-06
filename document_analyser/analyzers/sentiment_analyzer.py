@@ -14,7 +14,7 @@ except ImportError:
     nltk = None
     sent_tokenize = None
 
-from app.models.schemas import (
+from document_analyser.models.schemas import (
     GranularSentimentResponse,
     ParagraphSentiment,
     SectionSentiment,

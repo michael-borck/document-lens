@@ -9,7 +9,7 @@ except ImportError:
     SentenceTransformer = None
     np = None
 
-from app.models.schemas import DomainMapping, DomainMappingResponse
+from document_analyser.models.schemas import DomainMapping, DomainMappingResponse
 
 
 class DomainMapper:

@@ -10,12 +10,12 @@ from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.analyzers.integrity_checker import IntegrityChecker
-from app.core.config import settings
-from app.models.schemas import AnalysisOptions, ReferenceResults
-from app.services.doi_resolver import DOIResolver
-from app.services.reference_extractor import ReferenceExtractor
-from app.services.url_verifier import URLVerifier
+from document_analyser.analyzers.integrity_checker import IntegrityChecker
+from document_analyser.core.config import settings
+from document_analyser.models.schemas import AnalysisOptions, ReferenceResults
+from document_analyser.services.doi_resolver import DOIResolver
+from document_analyser.services.reference_extractor import ReferenceExtractor
+from document_analyser.services.url_verifier import URLVerifier
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -143,7 +143,7 @@ async def analyse_academic_features(
 
 async def _analyze_references(references: list, text: str, options: AnalysisOptions) -> ReferenceResults:
     """Analyze references for broken URLs, unresolved DOIs, etc."""
-    from app.models.schemas import Issue
+    from document_analyser.models.schemas import Issue
 
     broken_urls = 0
     unresolved_dois = 0

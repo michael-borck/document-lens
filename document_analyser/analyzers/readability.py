@@ -19,7 +19,7 @@ except ImportError:
     textstat = None
     sent_tokenize = None
 
-from app.models.schemas import DocumentAnalysis
+from document_analyser.models.schemas import DocumentAnalysis
 
 
 class ReadabilityAnalyzer:

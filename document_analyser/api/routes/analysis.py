@@ -8,21 +8,21 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from app.analyzers.integrity_checker import IntegrityChecker
-from app.analyzers.readability import ReadabilityAnalyzer
-from app.analyzers.word_analysis import WordAnalyzer
-from app.analyzers.writing_quality import WritingQualityAnalyzer
-from app.core.config import settings
-from app.models.schemas import (
+from document_analyser.analyzers.integrity_checker import IntegrityChecker
+from document_analyser.analyzers.readability import ReadabilityAnalyzer
+from document_analyser.analyzers.word_analysis import WordAnalyzer
+from document_analyser.analyzers.writing_quality import WritingQualityAnalyzer
+from document_analyser.core.config import settings
+from document_analyser.models.schemas import (
     AnalysisOptions,
     AnalysisResults,
     DocumentComparison,
     ReferenceResults,
 )
-from app.services.document_processor import DocumentProcessor
-from app.services.doi_resolver import DOIResolver
-from app.services.reference_extractor import ReferenceExtractor
-from app.services.url_verifier import URLVerifier
+from document_analyser.services.document_processor import DocumentProcessor
+from document_analyser.services.doi_resolver import DOIResolver
+from document_analyser.services.reference_extractor import ReferenceExtractor
+from document_analyser.services.url_verifier import URLVerifier
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)

@@ -4,7 +4,7 @@ Configuration settings for DocumentLens API
 
 from typing import Any
 
-from pydantic import ConfigDict, Field, field_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 
@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "DocumentLens"
 
     # CORS settings - can be set as comma-separated string in .env.
-    # Note: ignored entirely when DOCUMENT_LENS_MODE=desktop (see app/main.py),
+    # Note: ignored entirely when DOCUMENT_LENS_MODE=desktop (see document_analyser/main.py),
     # which swaps in a permissive regex for embedded Electron use.
     ALLOWED_ORIGINS: str | list[str] = Field(
         default="http://localhost:5173,http://localhost:5174,http://localhost:3000",
@@ -27,8 +27,9 @@ class Settings(BaseSettings):
     PROCESS_TIMEOUT: int = 120  # 2 minutes
     MAX_FILES_PER_REQUEST: int = 5
 
-    # Rate limiting
-    RATE_LIMIT: str = "10/hour"
+    # Rate limiting — off by default, enable for public deployments
+    RATE_LIMIT_ENABLED: bool = False
+    RATE_LIMIT: str = "60/minute"
 
     # Analysis settings
     DEFAULT_CITATION_STYLE: str = "auto"
@@ -58,6 +59,14 @@ class Settings(BaseSettings):
         elif isinstance(v, list):
             return v
         return []
+
+    @model_validator(mode="after")
+    def apply_rate_limit_enabled(self) -> "Settings":
+        # When disabled, set an effectively unlimited rate so per-route
+        # @limiter.limit() decorators (evaluated at import time) see a safe value.
+        if not self.RATE_LIMIT_ENABLED:
+            self.RATE_LIMIT = "999999/hour"
+        return self
 
     model_config = ConfigDict(
         case_sensitive=True,

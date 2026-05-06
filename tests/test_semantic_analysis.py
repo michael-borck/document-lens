@@ -3,9 +3,9 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from app.main import app
+from document_analyser.main import document_analyser
 
-client = TestClient(app)
+client = TestClient(document_analyser)
 
 SAMPLE_TEXT = """
 INTRODUCTION

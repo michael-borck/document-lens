@@ -8,7 +8,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from app.models.schemas import SuspiciousPatterns
+from document_analyser.models.schemas import SuspiciousPatterns
 
 
 class IntegrityChecker:

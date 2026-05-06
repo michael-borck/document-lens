@@ -1,149 +1,96 @@
-# DocumentLens
+# document-analyser
 
-<!-- BADGES:START -->
-[![edtech](https://img.shields.io/badge/-edtech-4caf50?style=flat-square)](https://github.com/topics/edtech) [![academic-integrity](https://img.shields.io/badge/-academic--integrity-blue?style=flat-square)](https://github.com/topics/academic-integrity) [![api](https://img.shields.io/badge/-api-blue?style=flat-square)](https://github.com/topics/api) [![docker](https://img.shields.io/badge/-docker-2496ed?style=flat-square)](https://github.com/topics/docker) [![document-analysis](https://img.shields.io/badge/-document--analysis-blue?style=flat-square)](https://github.com/topics/document-analysis) [![microservice](https://img.shields.io/badge/-microservice-blue?style=flat-square)](https://github.com/topics/microservice) [![natural-language-processing](https://img.shields.io/badge/-natural--language--processing-blue?style=flat-square)](https://github.com/topics/natural-language-processing) [![nlp](https://img.shields.io/badge/-nlp-blue?style=flat-square)](https://github.com/topics/nlp) [![python](https://img.shields.io/badge/-python-3776ab?style=flat-square)](https://github.com/topics/python) [![readability](https://img.shields.io/badge/-readability-blue?style=flat-square)](https://github.com/topics/readability)
-<!-- BADGES:END -->
+Extracts text from documents and returns readability metrics, word counts, and structural information. Accepts PDF, DOCX, PPTX, and plain text formats.
 
-**Text Analysis & Academic Intelligence Microservice**
+Part of the [analyser family](#the-analyser-family).
 
-Transform text content into actionable insights through comprehensive linguistic analysis, writing quality assessment, and academic integrity checking.
-
-## 🚀 Quick Start
+## Install
 
 ```bash
-# Docker deployment (recommended)
-docker-compose up -d
-
-# Or raw deployment
-./deploy.sh
-
-# API available at: http://localhost:8002
-# Documentation: http://localhost:8002/docs
+pip install document-analyser
 ```
 
-## 📊 API Endpoints
+Requires Python 3.11+.
 
-### Core Analysis
-- `GET /health` - Service health check
-- `POST /text` - Text analysis (readability, quality, word frequency)
-- `POST /academic` - Academic analysis (citations, DOI resolution, integrity)
-- `POST /files` - File upload + analysis (PDF, DOCX, TXT, MD)
+## Usage
 
-### Advanced Text Analysis
-- `POST /advanced/ngrams` - N-gram extraction with optional filter terms
-- `POST /advanced/ner` - Named entity recognition
-- `POST /advanced/search/keywords` - Batch keyword search across multiple terms
+### Python
 
-### Document Intelligence
-- `POST /files/infer-metadata` - Infer year, company, industry, document type from content
-- `POST /text/infer-metadata` - Metadata inference from raw text
-- Page-level text extraction (via `include_extracted_text=true` on `/files`)
+```python
+from app.analyser import DocumentAnalyser
 
-### Integration
-- Root endpoint: `GET /` - Service info and available endpoints
-- For presentations: Use [PresentationLens](https://github.com/michael-borck/presentation-lens)
-- For recordings: Use [RecordingLens](https://github.com/michael-borck/recording-lens)
+result = DocumentAnalyser().analyse("report.pdf")
 
-## 🎯 Use Cases
-
-- **Text Analysis**: Readability, writing quality, word frequency for any text content
-- **Academic Analysis**: Citation verification, DOI resolution, AI detection, integrity checking
-- **Document Intelligence**: Extract and analyze text from PDFs and Word documents
-- **Sustainability Research**: Batch keyword analysis for TCFD, GRI, SDGs, SASB frameworks
-- **Corporate Report Analysis**: Auto-detect metadata (year, company, industry) from annual reports
-- **Multi-Service Workflows**: Integrate with specialized analysis services
-
-### Desktop Application Support
-DocumentLens powers the **document-lens-desktop** Electron application for researchers analyzing corporate sustainability reports. Features include:
-- Smart metadata inference (company name, year, industry, document type)
-- Framework keyword analysis (TCFD, GRI, SDGs, SASB)
-- Batch processing with SQLite storage
-- Offline operation via bundled Python backend
-
-## 🏗️ Microservices Ecosystem
-
-DocumentLens is part of a focused microservices architecture:
-
-| Service | Purpose | Repository |
-|---------|---------|------------|
-| **DocumentLens** | Text analysis & academic intelligence | *This repo* |
-| **PresentationLens** | Presentation design & structure analysis | [presentation-lens](https://github.com/michael-borck/presentation-lens) |
-| **RecordingLens** | Student recordings (video/audio) analysis | [recording-lens](https://github.com/michael-borck/recording-lens) |
-| **CodeLens** | Source code quality & analysis | [code-lens](https://github.com/michael-borck/code-lens) |
-| **SubmissionLens** | Student submission router & frontend | [submission-lens](https://github.com/michael-borck/submission-lens) |
-
-### Integration Pattern
-```mermaid
-graph LR
-    A[Student Submission] --> B[SubmissionLens Frontend]
-    B --> C{File Type Router}
-    C -->|Text/PDF/DOCX| D[DocumentLens]
-    C -->|PPTX| E[PresentationLens]
-    C -->|Video/Audio| F[RecordingLens]
-    C -->|Source Code| G[CodeLens]
-    E --> D
-    F --> D
-    G --> D
-    D --> H[Combined Feedback]
-    H --> B
-    B --> I[Student Dashboard]
+print(f"Words:       {result['word_count']}")
+print(f"Sentences:   {result['sentence_count']}")
+print(f"Readability: {result['readability']['flesch_reading_ease']:.1f} (Flesch)")
+print(result["text"][:500])
 ```
 
-## 🚀 Deployment
-
-### Docker Deployment (Recommended)
-```bash
-git clone https://github.com/michael-borck/document-lens.git
-cd document-lens
-docker-compose up -d  # Single container deployment
-```
-
-### Raw/Native Deployment
-```bash
-git clone https://github.com/michael-borck/document-lens.git
-cd document-lens
-./deploy.sh  # Handles venv, dependencies, and production server
-```
-
-## 🧪 Testing
+### CLI
 
 ```bash
-# Install dev dependencies
-uv sync --extra dev
+# Human-readable summary
+document-analyser report.pdf
 
-# Run all tests
-uv run pytest tests/ -v
+# Machine-readable JSON
+document-analyser thesis.docx --json
 
-# Run specific test file
-uv run pytest tests/test_files.py -v
-
-# Run only PDF tests
-uv run pytest tests/ -m pdf -v
-
-# Skip slow tests
-uv run pytest tests/ -m "not slow" -v
-
-# Run with coverage report
-uv run pytest tests/
+# Start the HTTP server
+document-analyser serve --port 8000
 ```
 
-### Test Structure
-- `tests/conftest.py` - Shared fixtures and test client setup
-- `tests/test_health.py` - Health/smoke tests
-- `tests/test_text_analysis.py` - Text analysis endpoint tests
-- `tests/test_academic_analysis.py` - Academic analysis endpoint tests
-- `tests/test_files.py` - PDF file upload tests
+### HTTP API
 
-### Test Data
-Place test files (PDF, DOCX, etc.) in the `test-data/` directory. The test suite automatically discovers and uses these files for parameterized tests.
+```bash
+curl -X POST http://localhost:8000/analyse \
+  -F "file=@report.pdf"
+```
 
-## 📚 Documentation
+## Supported formats
 
-- `DEPLOYMENT.md` - Deployment guide for Docker and raw installations
-- `DOCUMENTLENS_SETUP.md` - Setup and usage instructions
-- `.env.example` - Configuration template
-- `docs/` - Additional architecture and integration documentation
+| Format | Extensions |
+|---|---|
+| PDF | `.pdf` |
+| Word | `.docx` |
+| PowerPoint | `.pptx` |
+| Plain text | `.txt` `.md` |
 
----
+## Output
 
-*DocumentLens: Pure text intelligence at the heart of content analysis*
+```json
+{
+  "format": "pdf",
+  "file_path": "/path/to/report.pdf",
+  "file_size": 204800,
+  "page_count": 12,
+  "word_count": 4823,
+  "sentence_count": 312,
+  "paragraph_count": 89,
+  "text": "Executive summary...",
+  "readability": {
+    "flesch_reading_ease": 52.3,
+    "flesch_kincaid_grade": 11.2,
+    "gunning_fog": 13.8,
+    "smog_index": 12.1,
+    "automated_readability_index": 11.9
+  }
+}
+```
+
+## The analyser family
+
+Low-level analysis tools. Each accepts files directly and returns structured JSON. Build your own UI or pipeline on top.
+
+| Package | Handles |
+|---|---|
+| [speech-analyser](https://github.com/michael-borck/speech-analyser) | audio and video files — transcript and speech metrics |
+| [video-analyser](https://github.com/michael-borck/video-analyser) | video files — frames, scenes, and visual quality |
+| [document-analyser](https://github.com/michael-borck/document-analyser) | PDF, DOCX, PPTX, TXT — text and readability |
+| [code-analyser](https://github.com/michael-borck/code-analyser) | source code — style, complexity, and quality metrics |
+| [records-analyser](https://github.com/michael-borck/records-analyser) | CSV, Excel, SQLite, Parquet, JSON — data profiling |
+| [multi-analyser](https://github.com/michael-borck/multi-analyser) | any file — detects format and routes to the right tool |
+
+## Licence
+
+MIT
