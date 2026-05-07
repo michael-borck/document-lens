@@ -131,9 +131,9 @@ export class BackendManager extends EventEmitter {
       detached: false,
       env: {
         ...process.env,
-        DOCUMENT_LENS_PORT: String(this.port),
-        DOCUMENT_LENS_HOST: this.host,
-        DOCUMENT_LENS_MODE: 'desktop'
+        DOCUMENT_ANALYSER_PORT: String(this.port),
+        DOCUMENT_ANALYSER_HOST: this.host,
+        DOCUMENT_ANALYSER_MODE: 'desktop'
       }
     })
 
@@ -192,9 +192,9 @@ export class BackendManager extends EventEmitter {
         detached: false,
         env: {
           ...process.env,
-          DOCUMENT_LENS_PORT: String(this.port),
-          DOCUMENT_LENS_HOST: this.host,
-          DOCUMENT_LENS_MODE: 'desktop',
+          DOCUMENT_ANALYSER_PORT: String(this.port),
+          DOCUMENT_ANALYSER_HOST: this.host,
+          DOCUMENT_ANALYSER_MODE: 'desktop',
           PYTHONUNBUFFERED: '1',
         }
       })
