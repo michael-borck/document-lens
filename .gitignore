@@ -1,86 +1,28 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-*.manifest
-*.spec
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Virtual Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-pythonenv*
-
-# PyCharm
-.idea/
-*.iml
-*.iws
-out/
-
-# VS Code
-.vscode/
-*.code-workspace
-.history/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-*.ipynb_checkpoints/
-
-# pyenv
-.python-version
-
-# pipenv
-Pipfile.lock
-
-# poetry
-poetry.lock
-
-# Node.js
+# Node / npm
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-lerna-debug.log*
-.pnpm-debug.log*
-*.tsbuildinfo
+pnpm-debug.log*
 .npm
 .eslintcache
 .node_repl_history
 *.tgz
 .yarn-integrity
 
-# React/Vite
-frontend/dist/
-frontend/dist-ssr/
-frontend/*.local
-frontend/.vite/
+# TypeScript
+*.tsbuildinfo
 
-# Environment variables
+# Vite / build output
+dist/
+dist-electron/
+release/
+manual/build/
+
+# Electron-builder
+release/
+
+# Environment
 .env
 .env.local
 .env.development.local
@@ -90,113 +32,37 @@ frontend/.vite/
 # Logs
 logs/
 *.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
-lerna-debug.log*
 
-# OS files
+# Editor / OS
 .DS_Store
-.DS_Store?
 ._*
 .Spotlight-V100
 .Trashes
-ehthumbs.db
 Thumbs.db
+ehthumbs.db
 desktop.ini
-
-# Testing
-test-data/*.pdf
-test-data/*.docx
-test-data/*.pptx
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-.pytest_cache/
-cover/
-*.cover
-*.py,cover
-.hypothesis/
-nosetests.xml
-coverage.xml
-*.coveragerc
-.dmypy.json
-dmypy.json
-
-# Database
-*.db
-*.sqlite
-*.sqlite3
-instance/
-
-# Temporary files
-*.tmp
-*.bak
-*.swp
-*~.nib
-*.orig
-.temp/
-tmp/
-temp/
-
-# Documentation builds
-docs/_build/
-site/
-
-# Package files
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# Editor backups
+.idea/
+.vscode/
+*.iml
 *~
 \#*\#
 .\#*
+.history/
 
-# FastAPI
-backend/instance/
-backend/*.db
+# Testing / coverage
+.coverage
+coverage/
+htmlcov/
+coverage.xml
 
-# Secrets
-*.pem
-*.key
-*.crt
-*.p12
-secrets/
+# Local SQLite
+*.db
+*.sqlite
+*.sqlite3
 
-# Docker
-.dockerignore
-docker-compose.override.yml
-
-# Production builds
-build/
-dist/
-
-# Local development
-.local/
-scratch/
-
-# Uploaded files (in production these would be handled differently)
-uploads/
-media/
-
-# Static files collection
-staticfiles/
-static_root/
-# Electron build artefacts
-dist-electron/
-release/
-# Claude Code
+# Claude Code tooling
 .claude/
-# Local samples
+
+# User-local samples / manual artefacts
 samples/
-# Compiled manual
 *.pdf
