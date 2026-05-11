@@ -25,8 +25,8 @@ the change needs a written justification — not the principle.
 3. **Always show the level of analysis explicitly.**
    Every chart, table, and metric must visibly indicate: (a) is this one
    document or many? (b) is this keyword-driven or generic? (c) at what
-   tier is the data rolled up? A user should never wonder "what am I
-   looking at?".
+   tier or axis is the data rolled up? A user should never wonder "what am
+   I looking at?".
 
 4. **Defaults for non-experts; depth on demand.**
    Sensible defaults make the first run productive without configuration.
@@ -51,12 +51,21 @@ the change needs a written justification — not the principle.
    analysis on another machine.
 
 8. **Be honest about model limitations.**
-   Wherever ML signals appear (sentiment, embedding-based domain mapping,
+   Wherever ML signals appear (sentiment, embedding-based tag inference,
    synonym suggestions), label them as *signals* not *facts*. Use plain
    language ("approximate", "treat as a hint", "the model agrees with this
    ~70% of the time"). Never display a sentiment score, similarity
-   percentage, or domain-distribution chart without an inline caveat
+   percentage, or context-classification chart without an inline caveat
    appropriate to its precision.
+
+9. **Generalise the structure; ship sustainability defaults.**
+   The data model and workflows are domain-agnostic — keyword polarity,
+   tag axes, and scoring rules apply equally to sustainability research,
+   cybersecurity compliance, financial disclosure analysis, etc. But the
+   app ships pre-loaded with the SDG keyword set, the Wedding Cake pillar
+   axis, the Function axis (Teaching / Research / Engagement / Operations)
+   and the 5-level Wedding Cake Score so that sustainability researchers
+   are productive immediately, with zero configuration.
 
 ---
 
@@ -96,55 +105,103 @@ talks about.
     with real years.
   - `company` / `entity` (string, optional, user-editable) — the
     organisation the document belongs to, used for grouping.
-  - `sector` / `category` (string, optional, user-editable) — domain
+  - `sector` / `category` (string, optional, user-editable) — broad
     category for cross-cohort analysis.
   - `page_count`, `word_count`, `import_date`, etc. (system-managed).
-- **Domain list** (global, named). A small set of named domains (e.g.,
-  "Risk", "Sustainability", "Innovation", "Governance"). Used by
-  workflow E (Map). Discipline-specific — defines the *lens* through
-  which the researcher views documents.
-- **Keyword list** (global, named). Either:
+- **Tag Axis** (global, named). A dimension along which keywords or
+  keyword-mentions can be classified. Two source types:
+  - `keyword-attached`: values are part of each keyword's definition
+    (e.g., the SDG axis carries values 1–17, assigned per keyword in
+    the SDG keyword list; the Pillar axis derives from SDG via a
+    fixed mapping).
+  - `document-context`: values are inferred from where the keyword
+    appears in the document (e.g., the Function axis tags each
+    keyword *mention* with Teaching / Research / Engagement /
+    Operations based on the surrounding section).
+  Each axis is either flat (e.g., Function) or hierarchical
+  (e.g., Pillar → SDG, where Pillar is a roll-up of SDG).
+  Tag Axes replace the earlier "Domain list" entity — that concept
+  was a special case of an enumerated tag axis.
+- **Keyword List** (global, named). Either:
   - **Built-in framework** (toggle-only): pre-shipped lists like SDGs,
     TCFD, NIST CSF. Users can toggle keywords on/off but cannot add,
-    rename, or restructure.
-  - **Custom list** (fully editable): user-created or copied-from-builtin.
-    Add, rename, restructure, organise into hierarchical tiers.
-- **Keyword** (within a Keyword list). The unit of search. Has a string
-  value, optional tier path (e.g., `Environmental > SDG-13 > climate`),
-  and a child **synonym list**.
-- **Synonym list** (per Keyword). A user-curated set of synonym terms for
-  that keyword. Editable for both built-in and custom keywords (synonyms
-  are user metadata layered on top, not part of the framework definition).
-  Each synonym has on/off toggle.
-- **Project**. A unit of *analysis configuration*, not a unit of storage:
+    rename, or restructure. Each built-in list declares which Tag
+    Axes its keywords carry values for.
+  - **Custom list** (fully editable): user-created or copied-from-
+    builtin. Add, rename, restructure, declare new tag axes.
+- **Keyword** (within a Keyword List). The unit of search. Has:
+  - `text` (string)
+  - `polarity: 'positive' | 'counter'` — *positive* keywords indicate
+    the framework topic IS being delivered (e.g., "renewable energy
+    initiatives" for SDG 7); *counter* keywords indicate the topic is
+    being **un**dermined or performatively framed (e.g., "fossil fuel
+    partnerships" for SDG 7, "carbon offset reliance (without
+    reduction)" for SDG 13). Both kinds carry the same SDG tag — the
+    polarity is the difference.
+  - `tags: { axis_id: value | value[] }` — the values this keyword
+    carries on each Keyword-attached axis. e.g., the keyword "campus
+    water management" might carry `{ sdg: 6, pillar: 'biosphere' }`.
+  - `synonyms: SynonymList` — child list of user-curated synonym
+    terms.
+- **Synonym** (per Keyword). A user-curated term semantically close to
+  the parent keyword. Editable for both built-in and custom keywords
+  (synonyms are user metadata layered on top, not part of the
+  framework definition). Each has on/off toggle.
+- **Scoring Rule** (global, named). A user-definable rule that
+  computes a score (numeric or label) from the analysis output.
+  Examples:
+  - "5-level Wedding Cake Score" (default, ships with the app):
+    Level 0–4 based on whether economic, environmental, and social
+    SDGs are delivered simultaneously across the four core
+    Functions. Specifically: Level N = N of the four Functions
+    deliver all three pillars (Economy / Society / Biosphere) at the
+    same time.
+  - User-defined: e.g., "NIST CSF Maturity" rule for cybersecurity
+    research, computing a 0–4 maturity score per CSF function.
+  Scoring rules are reusable across projects.
+- **Project**. A unit of *analysis configuration*, not a unit of
+  storage:
   - Selects a subset of Library documents
-  - Picks **one Domain list** (cardinality 1:N — one Domain list serves many
-    Projects, but a Project has exactly one)
-  - References zero or more Keyword lists
-  - Caches analysis results (so the user doesn't re-run on every open)
-  - Stores grouping/filter preferences (e.g., "group by company", "filter
-    to year ≥ 2015")
+  - References one or more **Keyword Lists**
+  - Activates zero or more **Tag Axes** (typically one Keyword-
+    attached axis per active Keyword List + any Document-context
+    axes the user wants to apply, e.g., Function)
+  - References zero or more **Scoring Rules** (typically one default
+    + any user-defined rules)
+  - Caches analysis results
+  - Stores grouping/filter preferences (e.g., "group by company",
+    "filter to year ≥ 2015")
 
 ### Relationships and cardinality
 
 ```
 Library ──< Document
-Library ──< Domain list ──< Project
-Library ──< Keyword list ──< (used by) Project
-Keyword list ──< Keyword ──< Synonym
+Library ──< Keyword List ──< (used by) Project
+Library ──< Tag Axis ──< (activated by) Project
+Library ──< Scoring Rule ──< (referenced by) Project
+Keyword List ──> declares ──> Tag Axis (for keyword-attached axes)
+Keyword List ──< Keyword
+Keyword ──< Synonym
+Keyword ──> tags ──> Tag Axis values
 Project ──< (selects) Document
-Project ──> (one) Domain list
 ```
 
 ### Workflows on this model
 
 - **Re-analyse same docs through a different lens** = clone Project,
-  swap Domain list (or Keyword lists), keep Document selection
+  swap Keyword List or Tag Axes, keep Document selection
 - **Compare two analyses** = two Projects over the same Documents
 - **Share with a collaborator** = export Project (selected docs +
   configs + cached results) as a `.lens` bundle
 - **Bulk year correction** = upload a `filename,year` CSV against the
   Library; updates apply to every Project that references those documents
+- **Counter-keyword analysis** = a Coverage view filtered to
+  `polarity = 'counter'`, or a Compare view scoring `positive_matches -
+  counter_matches`, or a Track view of counter-mentions over time
+  (greenwashing trend detection)
+- **2D cross-tabulation** = a Map view with two axes selected
+  (e.g., SDG × Function) showing the matrix per document or per
+  project aggregate
 
 ---
 
@@ -163,11 +220,14 @@ Status legend:
 | US-A-02 | As a researcher, I want to switch the view between individual keywords and higher tier roll-ups (e.g., SDG keywords ↔ SDG goals ↔ SDG pillars), so that I can present at the level my audience expects. | CONFIRMED |
 | US-A-03 | As a researcher, I want coverage results to be exportable as CSV/Excel, so that I can include them in a paper or report. | CONFIRMED |
 | US-A-04 | As a researcher, I want coverage to count synonym matches (where I've accepted them) alongside the parent keyword, so that I'm not undercounting because the document used a near-equivalent term. | CONFIRMED |
+| US-A-05 | As a researcher, I want to filter coverage by keyword polarity (positive / counter / both), so that I can see how much a document signals topic alignment vs how much it signals counter-alignment (e.g., greenwashing language). | CONFIRMED |
+| US-A-06 | As a researcher, I want to filter coverage by Tag Axis value (e.g., "show only Teaching mentions" or "show only SDG-13 keywords"), so that I can scope the heatmap to the slice that matters for a given question. | CONFIRMED |
 
 **Wires to:** existing local keyword search; document × keyword heatmap as
-primary viz; tier-aggregation toggle; synonym-aware match counter.
+primary viz; tier-aggregation toggle; synonym-aware match counter;
+polarity toggle; per-axis filters.
 
-### B. Compare — "Which company / report does best on this framework?"
+### B. Compare — "Which document does best on this framework?"
 
 | ID | Story | Status |
 |---|---|---|
@@ -175,11 +235,18 @@ primary viz; tier-aggregation toggle; synonym-aware match counter.
 | US-B-02 | As a researcher, I want to compare a single company's coverage of multiple frameworks side-by-side, so that I can see which lenses they prioritise. | SPECULATIVE |
 | US-B-03 | As a compliance reviewer, I want a "framework completeness score" per document, so that I can rank submissions by disclosure quality. | DRAFT |
 | US-B-04 | As a researcher, I want to filter the comparison by document attributes (year ≥ 2018, sector = "Banking", company in [...]), so that I can scope the comparison to a meaningful cohort. | CONFIRMED |
+| US-B-05 | As a researcher, I want to rank documents by a custom **Scoring Rule** (e.g., the 5-level Wedding Cake Score for sustainability work), so that the comparison reflects the rubric I actually care about — not just raw match counts. | CONFIRMED |
 
 **Wires to:** existing local data; new comparison view (replaces parts of
-the current Visualisations page); filter UI driven by Document attributes.
+the current Visualisations page); filter UI driven by Document attributes;
+Scoring Rule selector.
 
 ### C. Track — "How has this topic changed over the years?"
+
+> *This is the primary deliverable for the sustainability research use
+> case — a paper showing whether sustainability reporting has increased
+> or decreased over time. Track is the workflow most likely to produce
+> the figure that ends up in print.*
 
 | ID | Story | Status |
 |---|---|---|
@@ -187,10 +254,14 @@ the current Visualisations page); filter UI driven by Document attributes.
 | US-C-02 | As a researcher, I want to see how the *language* (not just the keyword counts) used around a topic has changed over time, so that I can detect rhetorical shifts that simple counts miss. | DRAFT |
 | US-C-03 | As a researcher, I want to overlay multiple companies on the same trend chart, so that I can compare longitudinal trajectories. | SPECULATIVE |
 | US-C-04 | As a researcher, I want documents with unknown year to appear in a separate "Year unknown" bucket on trend charts, never silently dropped, so that I can see at a glance how much data is missing. | CONFIRMED |
+| US-C-05 | As a researcher, I want to track positive-vs-counter keyword balance over time on the same chart, so that I can see whether a sector's reporting is becoming more substantive or more performative. | CONFIRMED |
+| US-C-06 | As a researcher, I want to break down a trend by Tag Axis value (e.g., trend of SDG-13 mentions split by Function: Teaching / Research / Engagement / Operations), so that I can see *where* in core activity the change is happening. | CONFIRMED |
+| US-C-07 | As a researcher, I want to export a trend chart **paper-ready** — chart PNG plus methodology blurb (which framework, which scoring rule, which filters, which document set, date range) plus underlying data CSV — so that I can drop it directly into a paper without manually reconstructing the methodology section. | CONFIRMED |
 
-**Wires to:** existing data + optional `analyzeSentiment` for US-C-02; new
-trend page (replaces parts of Visualisations); requires `Document.year`
-attribute (number | null) and the year-correction UI from US-X-06.
+**Wires to:** existing data + optional `analyzeSentiment` for US-C-02;
+new trend page (replaces parts of Visualisations); requires `Document.year`
+attribute (number | null) and the year-correction UI from US-X-06; new
+"export as paper-ready" bundle generator for US-C-07.
 
 **Sentiment honesty:** any C-* story that uses sentiment must follow
 design principle #8 — label it as a coarse signal, not a precise measure.
@@ -207,37 +278,53 @@ design principle #8 — label it as a coarse signal, not a precise measure.
 | US-D-06 | As a researcher, I want accepted synonyms to be stored as a synonym list attached to the parent keyword (not flattened into the keyword list), so that I can see which terms are "real" keywords vs. user-accepted synonyms in reports. | CONFIRMED |
 | US-D-07 | As a researcher, I want to add synonyms to keywords from built-in frameworks too (not only custom keywords), so that I don't have to copy a framework just to extend its matching. | CONFIRMED |
 | US-D-08 | As a researcher, I want a "synonym discovery report" that lists all suggested synonyms across all keywords in one place, so that I can do an end-to-end pass before starting analysis. | CONFIRMED |
+| US-D-09 | As a researcher, I want to discover candidate **counter-keywords** — corpus terms semantically close to my known counter-keywords — so that my counter-keyword list keeps pace with how greenwashing/performative language evolves. | CONFIRMED |
 
 **Wires to:** existing n-gram endpoint (US-D-01) + new synonym-discovery
-endpoint or use embeddings on corpus terms vs. keywords (US-D-02–US-D-08);
+endpoint or use embeddings on corpus terms vs. keywords (US-D-02–US-D-09);
 new per-keyword synonym list data structure; modifications to keyword
 search to include accepted synonyms (US-A-04).
 
-### E. Map — "Which discipline-specific lenses does this document cover, and how much?"
+### E. Map — "Where in this document does each topic appear, and how do topics overlap?"
+
+> *Was previously framed as "domain mapping". Reframed for the multi-axis
+> tag model: Map shows how a document distributes across one or two Tag
+> Axes simultaneously. With one axis selected, it's a per-document
+> distribution. With two axes selected, it's a 2D cross-tabulation —
+> directly producing the SDG × Function matrix the methodology calls
+> for.*
 
 | ID | Story | Status |
 |---|---|---|
-| US-E-01 | As a researcher, I want to define a Domain list for my discipline (e.g., for sustainability research: "Environmental", "Social", "Economic", "Governance") and reuse it across many projects, so that my lens definitions are consistent across studies. | CONFIRMED |
-| US-E-02 | As a researcher, I want each project to use exactly one Domain list (no per-document overrides within a project), so that comparisons across documents in the project share a common lens. | CONFIRMED |
-| US-E-03 | As a researcher, I want to clone a project and swap its Domain list, so that I can re-analyse the same document selection through a different lens without losing the original analysis. | CONFIRMED |
-| US-E-04 | As a researcher, I want domain mapping to work without me defining keywords for each domain (using semantic similarity), so that I can use it as a quick first-pass before any keyword work. | CONFIRMED |
-| US-E-05 | As a researcher, I want to see how each document distributes across the project's Domain list (per-document chart) and how the project as a whole distributes (aggregate chart), so that I can spot outliers and overall emphasis. | CONFIRMED |
+| US-E-01 | As a researcher, I want to see how each document distributes across a single Tag Axis (e.g., SDG, or Pillar, or Function), so that I can quickly understand a document's emphasis without reading it cover-to-cover. | CONFIRMED |
+| US-E-02 | As a researcher, I want to view a 2D cross-tabulation of two Tag Axes for one document (e.g., SDG × Function), so that I can see which SDGs are addressed via which core activities. | CONFIRMED |
+| US-E-03 | As a researcher, I want a project-aggregate view showing the cross-tabulation summed across all documents in the project, so that I can characterise the corpus as a whole. | CONFIRMED |
+| US-E-04 | As a researcher, I want to clone a project and swap its active Tag Axes or Keyword Lists, so that I can re-analyse the same documents through a different lens without losing the original analysis. | CONFIRMED |
+| US-E-05 | As a researcher, I want context-inferred axes (e.g., Function tagging from document section headings) to work without me having to manually classify each match, so that the per-document matrix is automatic. | DRAFT |
 
-**Wires to:** orphan `mapDomains` API method; new global Domain list
-manager (similar shape to existing Keyword List manager); per-project
-Domain list selector; new view per document + project-level aggregate.
+**Wires to:** new backend support for multi-axis tag inference (extends
+the orphan `mapDomains` endpoint); per-document and project-aggregate
+matrix views as primary visualisations.
 
-### F. Audit — "Are keywords appearing in sections where they don't belong?"
+### F. Audit — "Is each keyword being used in the right context?"
+
+> *Bidirectional: when the keyword's context **does** align with its
+> framework intent, that's a positive context confirmation. When it
+> **doesn't**, that's a flagged anomaly. Both forms of evidence are
+> valuable — confirmation supports defensible findings; anomalies
+> surface possible misuse.*
 
 | ID | Story | Status |
 |---|---|---|
 | US-F-01 | As a researcher, I want to be alerted when keywords appear in unexpected sections (e.g., "climate risk" discussed under Marketing rather than Risk Management), so that I can investigate whether the company is downplaying, hiding, or mis-framing important topics. | CONFIRMED |
 | US-F-02 | As a researcher, I want to see, for each "out of place" keyword, the surrounding sentences and the section it normally belongs in, so that I can quote the anomaly in a paper. | CONFIRMED |
+| US-F-03 | As a researcher, I want a positive-confirmation view (per the methodology's contextual relevance check) showing keywords whose use *was* verified to align with the framework intent, so that I can defend the analysis to a sceptical reviewer. | CONFIRMED |
 
-**Wires to:** orphan `detectStructuralMismatch` API method; new view per
-document (probably a tab on DocumentView).
+**Wires to:** orphan `detectStructuralMismatch` API method (already
+defined, never called) plus a complementary positive-confirmation pass;
+new view per document (probably a tab on DocumentView).
 
-### G. Read — "What does this document actually say about this topic?"
+### G. Read — "What does each document actually say about a topic?"
 
 | ID | Story | Status |
 |---|---|---|
@@ -246,6 +333,25 @@ document (probably a tab on DocumentView).
 
 **Wires to:** existing extracted text + page-anchor metadata; new
 concordance view (probably an extension of the existing DocumentView).
+
+### H. Score — "How does this document rate on my chosen rubric?"
+
+> *Per-document scoring view. The default Scoring Rule is the 5-level
+> Wedding Cake Score for the SDG framework. Users can define their own
+> Scoring Rules for non-sustainability work (e.g., a NIST CSF Maturity
+> rule for cybersecurity research).*
+
+| ID | Story | Status |
+|---|---|---|
+| US-H-01 | As a researcher, I want each document scored on the active Scoring Rule, so that I have a single defensible number to discuss in my paper. | CONFIRMED |
+| US-H-02 | As a researcher, I want to see *why* a document received a particular score — the underlying matrix or coverage table that drove the score — so that the score is auditable, not a black box. | CONFIRMED |
+| US-H-03 | As a researcher, I want to define my own Scoring Rules with a clear, simple syntax (without writing code), so that I can apply this app to non-sustainability domains. | CONFIRMED |
+| US-H-04 | As a researcher, I want to see a project-level distribution of scores (e.g., how many documents are at Level 0 vs Level 4), so that I can characterise the corpus as a whole. | CONFIRMED |
+| US-H-05 | As a sustainability researcher opening a fresh project, I want the 5-level Wedding Cake Score pre-applied so that I see a meaningful score on day one without configuring anything. | CONFIRMED (per principle #9) |
+
+**Wires to:** new Scoring Rule entity (data model); rule-evaluation
+engine; per-document score breakdown view; project-level distribution
+chart.
 
 ---
 
@@ -263,12 +369,15 @@ These don't belong to a single workflow — they shape multiple.
 | US-X-06 | As a researcher, I want to manually edit a document's year (and other attributes) when auto-detection failed or is wrong, so that trend charts and filters work correctly. | CONFIRMED |
 | US-X-07 | As a researcher with hundreds of documents, I want to upload a `filename,year` (or `title,year,company,sector`) CSV to bulk-correct attributes across the Library in one go, so that I don't have to edit each document individually. | CONFIRMED |
 | US-X-08 | As a researcher, I want documents to live in a global Library, not inside a single project, so that I can re-use the same documents across multiple projects without re-importing. | CONFIRMED |
-| US-X-09 | As a researcher, I want to clone an existing project (its document selection, keywords, domains, settings) into a new project that I can then modify, so that I can experiment with different analysis configurations without losing the original. | CONFIRMED |
-| US-X-10 | As a researcher, I want any chart that uses a coarse ML signal (sentiment, semantic similarity) to display an inline caveat about its precision, so that I don't accidentally over-cite an approximate result. | CONFIRMED (per design principle #8) |
+| US-X-09 | As a researcher, I want to clone an existing project (its document selection, keywords, axes, scoring rules, settings) into a new project that I can then modify, so that I can experiment with different analysis configurations without losing the original. | CONFIRMED |
+| US-X-10 | As a researcher, I want any chart that uses a coarse ML signal (sentiment, semantic similarity, context inference) to display an inline caveat about its precision, so that I don't accidentally over-cite an approximate result. | CONFIRMED (per design principle #8) |
+| US-X-11 | As a researcher, I want positive keywords and counter-keywords to live in the same Keyword List, distinguished by a polarity flag rather than maintained as two separate lists, so that the relationship between them is visible (the counter-keyword *for SDG 13* sits next to the positive keywords *for SDG 13*). | CONFIRMED |
+| US-X-12 | As a researcher, I want Tag Axes to be first-class entities I can mix and match per project (some come with the Keyword List I picked, others I activate independently), so that the same SDG keyword list can be combined with different lenses (Function, Pillar, Sector) without me forking the keyword list. | CONFIRMED |
+| US-X-13 | As a sustainability researcher, I want the SDG keyword list, the Wedding Cake Pillar axis, the Function axis, and the 5-level Wedding Cake Score to be pre-loaded out of the box, so that I can open the app and run a meaningful first analysis without learning the configuration model. | CONFIRMED (per principle #9) |
 
 ---
 
-## Resolved decisions (was: Open questions)
+## Resolved decisions
 
 These were the design questions that blocked the workflow design. They
 are now decided. If a decision needs to change, edit it here and tag the
@@ -286,24 +395,30 @@ in the charts is that the design plan)"*
 **Affects:** US-B-04 (filter the comparison), US-C-01 (per-company trend),
 US-X-06/US-X-07 (manual + bulk attribute editing).
 
-### 2. Domain list scope (was: persistent or per-analysis?)
+### 2. ~~Domain list scope~~ → Tag Axis (REVISED 2026-05-11)
 
-**Decision:** Domain lists are **global, named entities** (sit alongside
-Keyword lists in the global library). Each Project picks **exactly one**
-Domain list. Cardinality: one Domain list ↔ many Projects; one Project ↔
-one Domain list.
+**Original decision (superseded):** Domain lists are global, named
+entities; one Domain list per Project.
 
-To re-analyse the same documents through a different lens: clone the
-project and swap the Domain list (US-X-09 + US-E-03).
+**Revised decision:** "Domain list" was the wrong model. The correct
+abstraction is a **Tag Axis** — a dimension along which keyword
+mentions can be classified. Some axes are *keyword-attached* (values
+defined by keyword definition, e.g., SDG values 1–17); others are
+*document-context* (values inferred from where the keyword appears,
+e.g., the Function axis from section headings). Projects activate one
+or more Tag Axes. The earlier "one Domain list per Project" rule
+becomes "one or more Tag Axes per Project, typically including the
+Keyword-attached axis that comes with the active Keyword List".
 
-Rationale (from the user): *"Domains I believe are independent to
-keywords, are discipline (focus/lens used for the study) specific, and
-are created globally and associated with a project. I would say one to
-many mapping … They can always clone an existing project and change the
-domain mapping if they want to investigate different domains."*
+This change was driven by the methodology document, which makes clear
+that the researchers' workflow uses *both* a hierarchical SDG
+classification (keyword-attached) and an orthogonal Function
+classification (context-inferred), simultaneously.
 
-**Affects:** US-E-01 through US-E-05; US-X-09 (project cloning);
-data model.
+**Affects:** US-E-01 through US-E-05 (rewritten); US-X-12 (new); the
+data model section (Tag Axis replaces Domain list); the IA design (the
+top-level "Domains" page becomes a "Tag Axes" page or folds into
+Settings).
 
 ### 3. Synonym discovery UX
 
@@ -316,63 +431,113 @@ data model.
   about).
 - Accepted synonyms are stored in a **per-keyword synonym list** (a child
   of the keyword), **not** flattened into the keyword list itself.
-  Provenance is preserved: reports can show "matches for *climate* (and
-  3 accepted synonyms)".
+  Provenance is preserved.
 - Synonyms can be added to **both built-in framework keywords and custom
-  keywords**. Synonyms are user metadata layered on top of the framework
-  definition; they don't violate the toggle-only rule for built-in
-  keywords (the framework's keyword text stays unchanged).
+  keywords** (synonyms are user metadata layered on top of the framework
+  definition).
 - A separate "Synonym Discovery Report" page shows candidates across all
   keywords in one place for end-to-end review.
 
-Rationale (synthesis from the user's question): the user explicitly liked
-the per-keyword synonym list framing and was undecided between
-"flatten into keyword list" vs "attach as child list". My recommendation
-goes with the attached child list because it preserves provenance, lets
-users toggle synonym-matching on/off independently of keyword-matching,
-and keeps the toggle-only invariant for built-in frameworks intact.
-
-**Affects:** US-A-04 (synonym-aware coverage counts), US-D-04 through
-US-D-08; data model (per-keyword synonym list entity).
+**Affects:** US-A-04, US-D-04 through US-D-09; data model.
 
 ### 4. Year metadata UX
 
 **Decision:**
-- `Document.year` is `number | null` (not 0000-as-sentinel — using a
-  sentinel value means every chart, filter, and aggregation has to
-  remember to exclude it, and someone always forgets).
-- Auto-detection from filename on import (`Acme_2022_Annual.pdf` →
-  `2022`).
+- `Document.year` is `number | null` (not 0000-as-sentinel).
+- Auto-detection from filename on import.
 - Per-document edit UI for one-at-a-time correction (US-X-06).
 - Bulk-correction by uploading a CSV with `filename,year` columns
-  (US-X-07). Same mechanism extends to other attributes
-  (`filename,year,company,sector`).
+  (US-X-07).
 - On charts: documents with `year = null` always appear in a separate
   "Year unknown" bucket, never silently dropped (US-C-04).
-
-Rationale: the user proposed `0000` as a missing-year sentinel that
-keeps the field type `number`. Pushed back because sentinels are a
-known footgun in data work (every consumer has to remember to filter
-them; they show up in min/max/sort operations as real values; they
-break range filters). `number | null` is what TypeScript and SQL
-both support natively, and the UI shows "—" or "Year unknown".
 
 **Affects:** US-C-01, US-C-04, US-X-06, US-X-07; Document data model.
 
 ### 5. Sentiment honesty
 
 **Decision:** Adopted as design principle #8 — every ML-derived signal
-(sentiment, embedding similarity, semantic domain mapping, synonym
+(sentiment, embedding similarity, semantic context inference, synonym
 suggestions) must carry an inline caveat appropriate to its precision.
 
-Sentiment specifically: label as "approximate sentiment signal — treat
-as a hint, not a fact. Useful for spotting *changes* in tone over
-time more than for absolute claims about any single document."
+**Affects:** US-C-02, US-D-02, US-E-05, US-F-01–F-03, US-X-10.
 
-Rationale (from the user): *"Just be honest, say sentiment at this scale
-is coarse, treat with care, it's just a 'signal' not a fact or
-something like that."*
+### 6. Counter-keywords (NEW 2026-05-11)
 
-**Affects:** US-C-02 (sentiment over time), US-E-04 (semantic domain
-mapping), US-D-02 (semantic synonym suggestions), US-X-10
-(general caveat pattern).
+**Decision:** Counter-keywords are a first-class concept, modelled as a
+**polarity** field on each Keyword (`positive` or `counter`), not as a
+separate Keyword List. The Universities keyword list (XLSX shared
+2026-05-11) ships with both an SDG sheet (positive) and a Non-SDG
+sheet (counter, 67 entries like *"Carbon offset reliance (without
+reduction)"*) — both kinds of keywords carry the same SDG tag, so
+keeping them in the same list under the same SDG axis preserves the
+relationship.
+
+The user confirmed researchers actively use the Non-SDG sheet
+(2026-05-11), so this is not aspirational — it's required for parity
+with the existing methodology.
+
+**Affects:** US-A-05 (polarity filter on Coverage), US-C-05 (positive-
+vs-counter trend), US-D-09 (counter-keyword discovery), US-X-11 (data-
+model story); data model (Keyword.polarity).
+
+### 7. 2D cross-tabulation as a primary deliverable (NEW 2026-05-11)
+
+**Decision:** The methodology document describes a per-document
+table/matrix of *Core Function × SDG Pillar* (or × SDG). This 2D
+cross-tabulation is the primary visualisation of workflow E (Map),
+*not* a separate workflow.
+
+The user clarified (2026-05-11) that the eventual deliverable is a
+**trend over time** showing whether sustainability reporting has
+increased or decreased — meaning workflow C (Track) carries the
+headline. The 2D cross-tab is intermediate input that produces the
+per-document scores which then drive the trend.
+
+**Affects:** US-E-02, US-E-03 (cross-tab views), US-C-05–C-07 (trend
+deliverables), US-H-01–H-04 (scoring lives between Map and Track).
+
+### 8. Custom Scoring Rules (NEW 2026-05-11)
+
+**Decision:** Scoring Rules are user-definable entities. The app ships
+with the **5-level Wedding Cake Score** as the default rule (Level
+N = N of the four Functions deliver Economy + Society + Biosphere SDGs
+simultaneously). Users can define their own rules for non-sustainability
+domains via a simple no-code rule syntax.
+
+The structure must generalise to other frameworks (cybersecurity, etc.)
+even though the current sustainability research is the only validated
+use case. This is design principle #9 in concrete form.
+
+**Affects:** US-B-05, US-H-01–H-05, US-X-13; data model (Scoring Rule
+entity).
+
+### 9. Track is the headline workflow (NEW 2026-05-11)
+
+**Decision:** Workflow C (Track) is the deliverable-producing workflow
+for the sustainability research use case. Specifically, US-C-07
+(paper-ready export — chart PNG + methodology blurb + data CSV) is the
+critical feature for the paper deliverable the user described.
+
+The remaining workflows feed Track: Coverage / Map produce per-document
+data, Score reduces it to a single number, Track plots that number over
+time.
+
+**Affects:** US-C-01 through US-C-07; build prioritisation in the IA
+doc (Track moves earlier in the build order).
+
+### 10. Sustainability defaults pre-loaded (NEW 2026-05-11)
+
+**Decision:** The app ships with the SDG keyword list (positive +
+counter-keywords from the Universities XLSX), the Wedding Cake Pillar
+axis (Biosphere / Society / Economy / Partnership), the Function axis
+(Teaching / Research / Engagement / Operations), and the 5-level
+Wedding Cake Score pre-loaded as a Scoring Rule. A sustainability
+researcher opens the app, creates a project, picks documents, and
+sees a meaningful first analysis — zero configuration required.
+
+For non-sustainability researchers, all four pre-loaded items can be
+ignored; they pick or import their own keyword list, define their own
+axes, and write their own scoring rule.
+
+**Affects:** US-X-13, US-H-05; principle #9; first-run experience in
+the IA doc.
