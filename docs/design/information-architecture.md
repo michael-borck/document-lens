@@ -73,7 +73,7 @@ graph LR
 | **Projects** | List your studies. Open one to start analysing. | "What am I working on?" |
 | **Library** | All your documents in one place. Import, edit attributes (year, company, sector), bulk-correct. | "What documents do I have?" |
 | **Keywords** | Built-in frameworks (with positive + counter keywords) and your custom keyword lists. Edit, copy, import from Excel. Each keyword list declares the Lenses its keywords carry tags for. | "What am I looking for?" |
-| **Lenses** | Tag axes — the dimensions you classify keyword mentions along. Built-in lenses: SDG, Wedding Cake Pillar (derives from SDG), Function (Teaching/Research/Engagement/Operations, context-inferred). Custom lenses for non-sustainability work. | "What lenses do I view through?" |
+| **Lenses** | Tag axes — the dimensions you classify keyword mentions along. Built-in lenses: SDG, Wedding Cake Pillar (derives from SDG), Function (Teaching/Research/Engagement/Operations, classified per section by embedding similarity — deterministic, batch-friendly). Custom lenses for non-sustainability work. | "What lenses do I view through?" |
 | **Settings** | Backend status, app preferences, scoring rule editor, data management. | "App config." |
 | **Help** | In-app docs, tour, FAQ. | "Show me how." |
 
@@ -150,7 +150,7 @@ Setup
 │  └─ Active lenses:
 │      • SDG (keyword-attached, from SDG list)
 │      • Pillar (derived from SDG)
-│      • Function (context-inferred — Teaching/Research/Engagement/Operations)
+│      • Function (embedding-classified per section — Teaching/Research/Engagement/Operations)
 └─ Scoring rule              [Change]
    └─ Active rule: 5-level Wedding Cake Score (default)
 ```
@@ -236,7 +236,7 @@ active lenses.
 | **Primary viz (one-axis mode)** | **Stacked bar** (one bar per document, segments = lens values) for per-document view; **donut** for project aggregate. |
 | **Primary viz (two-axis mode)** | **2D matrix heatmap** for one selected document — rows = values of axis 1 (e.g., SDG), columns = values of axis 2 (e.g., Function), cells = match count or coverage %. View toggle between per-document and project-aggregate. |
 | **Filters** | Documents, Lens-1 (rows), Lens-2 (cols, only in two-axis mode), Polarity (Positive / Counter / Both), Highlight one value across the matrix |
-| **Caveat banner** | *"Lens classifications use semantic similarity (for keyword-attached lenses) and section-heading inference (for context lenses). Treat as approximate signals, not precise category assignments."* |
+| **Caveat banner** | *"Lens classifications use semantic similarity (sentence embeddings). Same model gives the same answer every time, but the model is approximate — treat as a strong signal, not a precise category assignment."* |
 | **Empty state** | "Add at least one Lens in Setup to enable Map" |
 | **Export** | CSV (long-form table), Excel (matrix), PNG |
 | **Help panel** | Explains the difference between keyword-attached and context-inferred lenses; how to interpret the 2D matrix |
@@ -415,8 +415,12 @@ Built-in lenses pre-loaded for sustainability work:
 - **SDG** (keyword-attached, from SDG keyword list) — values 1–17
 - **Pillar** (keyword-attached, derived from SDG) — values
   Biosphere / Society / Economy / Partnership
-- **Function** (document-context, inferred from section headings) —
-  values Teaching / Research / Engagement / Operations
+- **Function** (document-context, classified per section via
+  embedding similarity to function descriptions) — values
+  Teaching / Research / Engagement / Operations. Deterministic
+  (same model, same answer every run). Batch-friendly (no
+  per-document API cost). Wires to document-analyser's
+  `mapDomains` endpoint.
 
 User-defined lenses for non-sustainability work (e.g., a "NIST CSF
 Function" lens with values Identify / Protect / Detect / Respond /
@@ -461,8 +465,9 @@ Small chip in the top-right of the app shell. Three states:
 
 Inline yellow banner at the top of any workflow that uses an ML
 signal:
-- **Map** — semantic similarity for keyword-attached lenses,
-  section-heading inference for context lenses
+- **Map** — semantic similarity (sentence embeddings) for both
+  keyword-attached and context lenses. Deterministic per model
+  version, but the model is approximate.
 - **Score** — the scoring rule reflects what the document *says*, not
   what the organisation *does* (a content-disclosure caveat)
 - **Audit** — section-assignment inference is approximate
@@ -535,6 +540,11 @@ Key points:
   description of each — the user just clicks "Use defaults".
 - Subsequent project creation is non-wizard (just a "+ New project"
   button + dialog) — wizard is empty-state-only.
+- **Wizard remains opt-in for repeat use**: the "+ New project"
+  dialog includes a small "[Use guided setup]" link that re-runs
+  the wizard for users who want it. Also accessible via Help menu
+  ("Run new-project setup wizard"). Discoverable but not in the
+  way of fast project creation.
 - The "Try the Coverage tab" banner shows for the first project
   only and dismisses on first click.
 
@@ -655,67 +665,97 @@ foundational so it lands in Phase 1 alongside the shell.
 
 ---
 
-## Open IA questions
+## Resolved IA decisions
 
-These need decisions before Phase 1 starts.
+All seven open IA questions resolved 2026-05-11. Recorded here so
+future contributors can see why each decision was made.
 
-1. **Where does "Function" lens inference happen?** The Function
-   axis is document-context (Teaching/Research/Engagement/
-   Operations inferred from where the keyword appears). The
-   inference can be: (a) section-heading-based (cheap, brittle —
-   relies on standardised headings), (b) semantic-similarity-based
-   (uses embeddings; more robust; more compute), or (c) LLM-based
-   (most flexible but cost/latency). Recommendation: **start with
-   (a) section-heading-based** plus a simple ruleset; surface the
-   limitations honestly via the ML caveat banner; upgrade to (b) or
-   (c) only if the limitations bite.
+### IA-1. Function lens inference uses sentence embeddings (not LLM, not section headings)
 
-2. **Scoring rule definition syntax.** US-H-03 wants a "simple
-   syntax (without writing code)". Options: form-based UI ("when
-   N of [Function] deliver all of [Pillar values] then Level N"),
-   a simple DSL (mini-expression-language), or a YAML schema.
-   Recommendation: **form-based UI** for the v1 — covers the
-   5-level Wedding Cake Score and similar rubric-style rules
-   without exposing the user to syntax.
+**Decision:** Embedding-based semantic classification per section.
+Wires to document-analyser's existing `mapDomains` endpoint.
 
-3. **Counter-keyword ergonomics in the Coverage heatmap.** Both
-   polarities visible at once means two colour scales — do we
-   render them as overlay (one cell shows both intensities split)
-   or as two side-by-side small heatmaps (clearer but more
-   horizontal real estate)? Recommendation: **side-by-side small
-   heatmaps when "Both" is selected**, single heatmap when one
-   polarity is selected.
+For each section in a document: embed the section text, compare to
+embeddings of the four Function descriptions, assign the section to
+its closest function (or top-N if multi-function). Apply the function
+tag to all keyword mentions in that section.
 
-4. **Lenses page top-level vs Settings.** Currently drawn as a
-   top-level entry. An alternative is to put Lenses under Settings
-   (since most users use only the pre-loaded built-ins). But that
-   makes lens management feel hidden when researchers DO want to
-   define a custom lens for non-sustainability work.
-   Recommendation: **keep top-level**.
+**Why:** the user explicitly raised determinism + batch scale
+concerns. Embeddings give same answer every run (per model version),
+no per-call cost, fast at corpus scale. Section-heading inference
+would be brittle on the 50+ varying-format annual reports the
+researchers analyse. LLMs are non-deterministic and have cost +
+latency at batch scale.
 
-5. **Wizard skip path for power users.** The wizard is helpful for
-   first-run but annoying for someone creating their nth project.
-   Drawn: wizard for empty-state only, plain "+ New project" dialog
-   afterwards. Alternative: always wizard with a "skip" link.
-   Recommendation: **first-run only**.
+LLM-based inference can be added later as an *optional* upgrade for
+users who want richer reasoning per section, but embeddings are the
+right default.
 
-6. **Workflow tab order.** Drawn as Setup / Coverage / Map / Score
-   / Track / Compare / Audit / Discover / Read — roughly methodology
-   order with Track positioned after the workflows that produce its
-   inputs. Alternative: put Track third (after Setup and Coverage)
-   to make the headline deliverable maximally visible, even though
-   it depends on Map and Score for some measures. Recommendation:
-   **drawn order** (methodology-aligned), but happy to swap if
-   prominence of Track matters more.
+### IA-2. Scoring rule editor is form-based, with configurable level count
 
-7. **Lens declaration vs inference per keyword list.** Built-in
-   keyword lists declare their lenses (e.g., the SDG list declares
-   SDG + Pillar). For *imported* keyword lists from Excel, do we
-   ask the user to declare lenses on import, or auto-infer from
-   column headers (e.g., a column called "SDG" implies an SDG
-   lens)? Recommendation: **auto-infer with confirmation** — show
-   a preview "We detected these lenses from your Excel headers,
-   confirm or edit".
+**Decision:** Form-based UI for v1. Drop-downs and pickers; no
+syntax. Editor explicitly asks the user how many output levels their
+rule produces and lets them label each level (numeric like 0–4, or
+text like Bronze/Silver/Gold).
+
+The 5-level Wedding Cake Score is one *example* shape — the editor
+supports rules with any number of levels, any labels, any combining
+logic. Tag-axis values (e.g., Pillar count) are equally configurable
+when defining a custom Lens.
+
+If users hit form-UI ceilings later, a DSL escape hatch can ship in
+a future version.
+
+### IA-3. Counter-keyword display uses side-by-side small heatmaps when "Both" selected
+
+**Decision:** Two adjacent small heatmaps in Coverage when polarity
+= Both — one for positive matches, one for counter matches. Single
+heatmap when polarity is restricted to one side.
+
+**Why:** researchers look at counter-keywords because they're
+suspicious about the positives. Side-by-side makes the comparison
+eye-trackable. Overlay (e.g., split-cell colours) confuses two
+signals into one cell.
+
+### IA-4. Lenses are a top-level page; Projects remain the unit of analysis
+
+**Decision:** Lenses sit at the top level (peer to Keywords). The
+Project entity is unchanged — it's still a selection of Library
+documents + an active Keyword List + activated Lenses + an active
+Scoring Rule + cached results.
+
+Lens definitions persist globally; the *which lenses are active*
+setting persists per project. Many projects can activate the same
+Lens (1:N).
+
+### IA-5. Wizard auto-runs first time only, opt-in re-run via dialog link + Help menu
+
+**Decision:** First project creation triggers the wizard
+automatically. Subsequent project creation goes through a plain
+"+ New project" dialog. The dialog includes a small "[Use guided
+setup]" link to re-run the wizard for users who want it. Also
+accessible via Help menu.
+
+### IA-6. Workflow tab order is methodology-aligned
+
+**Decision:** Setup / Coverage / Map / Score / Track / Compare /
+Audit / Discover / Read.
+
+**Why:** Track sits *after* the workflows that produce its inputs
+(Coverage, Map, Score). Putting Track earlier would lead to "no
+data" empty states on a primary tab. Methodology-aligned order is a
+learning-by-doing flow that gets users to Track once Coverage and
+Map have populated the data.
+
+### IA-7. Excel keyword list import auto-infers lenses from column headers, with confirmation
+
+**Decision:** On Excel import, scan column headers for known lens
+patterns ("SDG", "Pillar", "Function", etc.) and offer the user a
+confirmation dialog: *"We detected these lenses from your Excel
+headers — confirm or edit."*
+
+User can edit the lens mapping before completing the import, or
+declare additional lenses not auto-detected.
 
 ---
 
