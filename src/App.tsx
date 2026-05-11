@@ -1,304 +1,65 @@
-import { Routes, Route, Link } from 'react-router-dom'
-import { useEffect, useState, lazy, Suspense } from 'react'
-import { RefreshCw, Settings as SettingsIcon, X, Loader2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { Layout } from './components/Layout'
-import { WelcomeDialog } from './components/WelcomeDialog'
-import { Toaster } from './components/Toaster'
-import { seedFrameworkKeywords } from './services/keywords'
-import type { BackendStatus } from './types/electron'
+import { Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense } from 'react'
+import { Loader2 } from 'lucide-react'
+import { AppShell } from '@/components/shell/AppShell'
 
-// Route-level code splitting: each page becomes its own chunk so the heavy
-// chart/markdown/xlsx deps don't ship in the initial bundle.
-const ProjectList = lazy(() => import('./pages/ProjectList').then(m => ({ default: m.ProjectList })))
-const ProjectDashboard = lazy(() => import('./pages/ProjectDashboard').then(m => ({ default: m.ProjectDashboard })))
-const DocumentView = lazy(() => import('./pages/DocumentView').then(m => ({ default: m.DocumentView })))
-const KeywordSearch = lazy(() => import('./pages/KeywordSearch').then(m => ({ default: m.KeywordSearch })))
-const NgramAnalysis = lazy(() => import('./pages/NgramAnalysis').then(m => ({ default: m.NgramAnalysis })))
-const Visualizations = lazy(() => import('./pages/Visualizations').then(m => ({ default: m.Visualizations })))
-const DocumentLibrary = lazy(() => import('./pages/DocumentLibrary').then(m => ({ default: m.DocumentLibrary })))
+// Top-level pages
+const Projects = lazy(() => import('./pages/Projects').then(m => ({ default: m.Projects })))
+const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })))
+const Keywords = lazy(() => import('./pages/Keywords').then(m => ({ default: m.Keywords })))
+const Lenses = lazy(() => import('./pages/Lenses').then(m => ({ default: m.Lenses })))
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
-const KeywordLists = lazy(() => import('./pages/KeywordLists').then(m => ({ default: m.KeywordLists })))
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 
-type LocalPhase = 'checking' | 'starting' | 'ready' | 'unreachable' | 'crashed'
+// Project workspace + 9 workflow tabs
+const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace').then(m => ({ default: m.ProjectWorkspace })))
+const Setup = lazy(() => import('./pages/workflow/Setup').then(m => ({ default: m.Setup })))
+const Coverage = lazy(() => import('./pages/workflow/Coverage').then(m => ({ default: m.Coverage })))
+const Map = lazy(() => import('./pages/workflow/Map').then(m => ({ default: m.Map })))
+const Score = lazy(() => import('./pages/workflow/Score').then(m => ({ default: m.Score })))
+const Track = lazy(() => import('./pages/workflow/Track').then(m => ({ default: m.Track })))
+const Compare = lazy(() => import('./pages/workflow/Compare').then(m => ({ default: m.Compare })))
+const Audit = lazy(() => import('./pages/workflow/Audit').then(m => ({ default: m.Audit })))
+const Discover = lazy(() => import('./pages/workflow/Discover').then(m => ({ default: m.Discover })))
+const Read = lazy(() => import('./pages/workflow/Read').then(m => ({ default: m.Read })))
 
-interface Status {
-  phase: LocalPhase
-  mode?: BackendStatus['mode']
-  lastError?: string
-}
-
-const isMac = typeof navigator !== 'undefined' &&
-  /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || '')
-
-function App() {
-  const [status, setStatus] = useState<Status>({ phase: 'checking' })
-  const [retrying, setRetrying] = useState(false)
-  const [dismissedReady, setDismissedReady] = useState(false)
-  // Show a "checking..." hint after a short delay if the initial probe is slow
-  const [showCheckingHint, setShowCheckingHint] = useState(false)
-
-  useEffect(() => {
-    initializeApp()
-
-    // Main process is the source of truth — it already polls /health every
-    // 5s internally and emits phase-changed on transitions. The renderer
-    // just subscribes and pulls an initial snapshot.
-    const unsubscribe = window.electron?.onBackendStatusChanged?.((s) => {
-      setStatus({ phase: s.phase as LocalPhase, mode: s.mode, lastError: s.lastError })
-    })
-
-    window.electron?.getBackendStatus?.().then((s) => {
-      setStatus({ phase: s.phase as LocalPhase, mode: s.mode, lastError: s.lastError })
-    }).catch(() => {
-      setStatus({ phase: 'unreachable' })
-    })
-
-    return () => {
-      unsubscribe?.()
-    }
-  }, [])
-
-  // After 1s, surface a "checking" indicator so the user knows we're alive
-  useEffect(() => {
-    if (status.phase !== 'checking') {
-      setShowCheckingHint(false)
-      return
-    }
-    const t = setTimeout(() => setShowCheckingHint(true), 1000)
-    return () => clearTimeout(t)
-  }, [status.phase])
-
-  const refreshStatus = async () => {
-    try {
-      const s = await window.electron?.getBackendStatus?.()
-      if (s) setStatus({ phase: s.phase as LocalPhase, mode: s.mode, lastError: s.lastError })
-    } catch { /* ignore */ }
-  }
-
-  const initializeApp = async () => {
-    try {
-      await seedFrameworkKeywords()
-    } catch (error) {
-      console.error('Failed to initialize app:', error)
-    }
-  }
-
-  const handleRetry = async () => {
-    setRetrying(true)
-    await refreshStatus()
-    setRetrying(false)
-  }
-
-  // Dismiss the "Ready" pill automatically after it appears
-  useEffect(() => {
-    if (status.phase === 'ready' && !dismissedReady) {
-      const t = setTimeout(() => setDismissedReady(true), 2400)
-      return () => clearTimeout(t)
-    }
-    if (status.phase !== 'ready' && dismissedReady) {
-      setDismissedReady(false)
-    }
-  }, [status.phase, dismissedReady])
-
+function PageLoader() {
   return (
-    <div className="min-h-screen bg-background">
-      {/* Window drag strip — macOS only (Win/Linux keep the native title bar).
-          70px left inset reserves space for the traffic-light buttons on
-          hiddenInset. Everything above the first interactive element here is
-          a drag handle. */}
-      {isMac && (
-        <div
-          className="app-drag fixed top-0 left-0 right-0 h-7 z-50 pointer-events-auto"
-          style={{ paddingLeft: 70 }}
-          aria-hidden="true"
-        />
-      )}
-
-      <div className={isMac ? 'pt-7' : undefined}>
-        <WelcomeDialog />
-        <Toaster />
-        <StatusStrip
-          status={status}
-          retrying={retrying}
-          onRetry={handleRetry}
-          dismissedReady={dismissedReady}
-          showCheckingHint={showCheckingHint}
-        />
-
-      <Suspense fallback={
-        <div className="flex items-center justify-center py-16">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      }>
-        <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<ProjectList />} />
-            <Route path="project/:projectId" element={<ProjectDashboard />} />
-            <Route path="project/:projectId/document/:documentId" element={<DocumentView />} />
-            <Route path="project/:projectId/search" element={<KeywordSearch />} />
-            <Route path="project/:projectId/ngrams" element={<NgramAnalysis />} />
-            <Route path="project/:projectId/visualize" element={<Visualizations />} />
-            <Route path="library" element={<DocumentLibrary />} />
-            <Route path="keywords" element={<KeywordLists />} />
-            <Route path="settings" element={<Settings />} />
-          </Route>
-          <Route path="help/:section?" element={<Help />} />
-        </Routes>
-      </Suspense>
-      </div>
+    <div className="flex items-center justify-center py-16">
+      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
     </div>
   )
 }
 
-// ---------------------------------------------------------------------------
-// Status Strip — The Quarterly's editorial status bar
-// ---------------------------------------------------------------------------
-
-interface StripProps {
-  status: Status
-  retrying: boolean
-  onRetry: () => void
-  dismissedReady: boolean
-  showCheckingHint: boolean
-}
-
-function StatusStrip({ status, retrying, onRetry, dismissedReady, showCheckingHint }: StripProps) {
-  const { phase, mode, lastError } = status
-
-  // Hide entirely when ready + auto-dismissed, or while still checking and hint hasn't kicked in yet
-  if (phase === 'checking' && !showCheckingHint) return null
-  if (phase === 'ready' && dismissedReady) return null
-
-  // Slow initial check — show a minimal "Checking..." pill so the user knows we're alive
-  if (phase === 'checking') {
-    return (
-      <div className="border-b border-border bg-card">
-        <div className="max-w-screen-2xl mx-auto px-6 py-2.5 flex items-center gap-3">
-          <RefreshCw className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
-          <span className="label-masthead">Status · Checking</span>
-          <span className="text-xs text-muted-foreground font-display italic">
-            Contacting the analysis engine…
-          </span>
-        </div>
-      </div>
-    )
-  }
-
-  const isDev = mode === 'dev-auto' || mode === 'dev-external'
-
-  // Phase → visual tokens
-  const config = {
-    starting: {
-      label: 'Starting',
-      dot: 'bg-brass animate-pulse',
-      bg: 'bg-card',
-      border: 'border-brass/40',
-      text: 'text-foreground',
-      headline: 'Preparing the analysis engine',
-      detail: mode === 'embedded'
-        ? 'First launch can take up to a minute while Python initialises.'
-        : mode === 'dev-auto'
-          ? 'Auto-starting document-analyser from ../document-analyser — hold a moment.'
-          : 'Waiting for the document-analyser API on :8765.',
-    },
-    ready: {
-      label: 'Ready',
-      dot: 'bg-green-700',
-      bg: 'bg-card',
-      border: 'border-green-800/30',
-      text: 'text-foreground',
-      headline: 'Analysis engine online',
-      detail: 'All features available.',
-    },
-    unreachable: {
-      label: 'Unreachable',
-      dot: 'bg-brass',
-      bg: 'bg-card',
-      border: 'border-brass/50',
-      text: 'text-foreground',
-      headline: 'Lost contact with the analysis engine',
-      detail: isDev
-        ? 'Dev backend stopped responding. Check the uvicorn terminal. Existing analyses, keyword search, n-grams, visualisations and export still work.'
-        : 'New PDF imports and analysis are paused. Existing analyses, keyword search, n-grams, visualisations and export still work.',
-    },
-    crashed: {
-      label: 'Offline',
-      dot: 'bg-primary',
-      bg: 'bg-card',
-      border: 'border-primary/40',
-      text: 'text-foreground',
-      headline: isDev ? 'Dev backend is not running' : 'Analysis engine stopped',
-      detail: isDev
-        ? 'Start it manually: cd ../document-analyser && document-analyser serve --port 8765 — or restart this app and Electron will auto-start it. Existing data, keyword search, visualisations and export still work.'
-        : 'Restart the app to relaunch the analysis engine. Existing data, keyword search, visualisations and export still work.',
-    },
-  }[phase as Exclude<LocalPhase, 'checking'>]
-
+function App() {
   return (
-    <div className={cn('border-b', config.border, config.bg)}>
-      <div className="max-w-screen-2xl mx-auto px-6 py-2.5 flex items-center gap-4">
-        {/* Status dot + small-caps label */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className={cn('h-2 w-2 rounded-full', config.dot)} />
-          <span className="label-masthead">Status · {config.label}</span>
-        </div>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route element={<AppShell />}>
+          {/* Top-level destinations */}
+          <Route index element={<Projects />} />
+          <Route path="library" element={<Library />} />
+          <Route path="keywords" element={<Keywords />} />
+          <Route path="lenses" element={<Lenses />} />
+          <Route path="settings" element={<Settings />} />
+          <Route path="help" element={<Help />} />
 
-        {/* Vertical rule */}
-        <span className="h-4 w-px bg-border shrink-0" />
-
-        {/* Headline + detail */}
-        <div className={cn('flex-1 min-w-0 flex items-baseline gap-3', config.text)}>
-          <span className="font-display text-[15px] font-medium truncate">
-            {config.headline}
-          </span>
-          <span className="text-xs text-muted-foreground truncate hidden md:inline font-display italic">
-            {config.detail}
-          </span>
-        </div>
-
-        {/* Error detail — tiny mono, only if present */}
-        {lastError && phase !== 'ready' && (
-          <code className="hidden lg:inline text-[10px] font-mono text-muted-foreground truncate max-w-xs">
-            {lastError}
-          </code>
-        )}
-
-        {/* Actions */}
-        <div className="flex items-center gap-3 shrink-0">
-          {phase !== 'ready' && (
-            <button
-              onClick={onRetry}
-              disabled={retrying || phase === 'starting'}
-              className="flex items-center gap-1.5 label-masthead hover:text-foreground transition-colors disabled:opacity-40"
-              title="Check backend status"
-            >
-              <RefreshCw className={cn('h-3 w-3', retrying && 'animate-spin')} />
-              {retrying ? 'Checking' : 'Retry'}
-            </button>
-          )}
-          {(phase === 'crashed' || phase === 'unreachable') && (
-            <Link
-              to="/settings"
-              className="flex items-center gap-1.5 label-masthead hover:text-foreground transition-colors"
-            >
-              <SettingsIcon className="h-3 w-3" />
-              Settings
-            </Link>
-          )}
-          {phase === 'ready' && (
-            <button
-              onClick={() => { /* ready auto-dismisses via effect */ }}
-              className="text-muted-foreground hover:text-foreground transition-colors"
-              title="Dismiss"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
+          {/* Project workspace — nested workflow tabs */}
+          <Route path="projects/:projectId" element={<ProjectWorkspace />}>
+            <Route index element={<Navigate to="setup" replace />} />
+            <Route path="setup" element={<Setup />} />
+            <Route path="coverage" element={<Coverage />} />
+            <Route path="map" element={<Map />} />
+            <Route path="score" element={<Score />} />
+            <Route path="track" element={<Track />} />
+            <Route path="compare" element={<Compare />} />
+            <Route path="audit" element={<Audit />} />
+            <Route path="discover" element={<Discover />} />
+            <Route path="read" element={<Read />} />
+          </Route>
+        </Route>
+      </Routes>
+    </Suspense>
   )
 }
 
