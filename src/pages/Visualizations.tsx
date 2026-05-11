@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import {
-  ArrowLeft,
   BarChart3,
   Cloud,
   TrendingUp,
@@ -15,7 +14,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { HelpButton } from '@/components/HelpButton'
 import {
   WordCloud,
   KeywordBarChart,

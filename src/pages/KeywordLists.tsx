@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Copy, Trash2, FileUp, ChevronRight, Search, ChevronDown, Pencil } from 'lucide-react'
+import { Plus, FileUp, ChevronRight, Search, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
@@ -19,7 +19,6 @@ import {
   updateKeywordList,
   parseKeywordsFromCSV,
   parseKeywordsFromExcel,
-  flattenKeywords,
   checkKeywordListNameExists,
   type KeywordList,
   type ParsedKeywordList,

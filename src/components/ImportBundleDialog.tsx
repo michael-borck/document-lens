@@ -99,7 +99,7 @@ export function ImportBundleDialog({
       setLoading(true)
       setError(null)
 
-      const previewData = await previewBundle(path, projectId)
+      const previewData = await previewBundle(path)
       setPreview(previewData)
       setPhase('preview')
     } catch (err) {

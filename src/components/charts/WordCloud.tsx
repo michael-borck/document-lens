@@ -37,8 +37,8 @@ export function WordCloud({
   onWordClick,
 }: WordCloudProps) {
   // Process words: sort by value, calculate sizes, layout into rows
-  const { rows, maxFontSize, minFontSize } = useMemo(() => {
-    if (words.length === 0) return { rows: [], maxFontSize: 48, minFontSize: 14 }
+  const { rows } = useMemo(() => {
+    if (words.length === 0) return { rows: [] }
 
     // Sort by value descending
     const sorted = [...words].sort((a, b) => b.value - a.value).slice(0, 100)
@@ -94,7 +94,7 @@ export function WordCloud({
       rows.push(currentRow)
     }
 
-    return { rows, maxFontSize, minFontSize }
+    return { rows }
   }, [words, width])
 
   if (words.length === 0) {

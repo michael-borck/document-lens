@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Check, ChevronDown, Search, X } from 'lucide-react'
+import { Check, ChevronDown, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -23,7 +23,6 @@ import {
   getKeywordsByCategory,
   flattenKeywords,
   type KeywordList,
-  type ParsedKeywordList,
 } from '@/services/keywords'
 import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
 import { useProjectStore } from '@/stores/projectStore'

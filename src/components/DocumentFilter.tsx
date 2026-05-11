@@ -6,7 +6,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Filter, FileText, Check, ChevronDown } from 'lucide-react'
+import { Filter, FileText, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -73,10 +73,6 @@ export function DocumentFilter({
 
   const handleSelectAll = () => {
     setLocalSelection(new Set(documents.map((d) => d.id)))
-  }
-
-  const handleQuickAll = () => {
-    onChange(null)
   }
 
   return (

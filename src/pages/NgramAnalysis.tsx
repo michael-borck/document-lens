@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
-  ArrowLeft,
   Search,
   Download,
   ChevronDown,
@@ -14,7 +13,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { HelpButton } from '@/components/HelpButton'
 import {
   analyzeNgrams,
   getNgramContexts,
@@ -58,7 +56,7 @@ export function NgramAnalysis() {
   const [expandedPhrases, setExpandedPhrases] = useState<Set<string>>(new Set())
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
   const [searchFilter, setSearchFilter] = useState('')
-  const [selectedPhrase, setSelectedPhrase] = useState<string | null>(null)
+  const [, setSelectedPhrase] = useState<string | null>(null)
   const [phraseContexts, setPhraseContexts] = useState<Record<string, string[]>>({})
 
   useEffect(() => {

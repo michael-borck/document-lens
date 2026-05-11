@@ -7,7 +7,6 @@
 
 import JSZip from 'jszip'
 import { v4 as uuidv4 } from 'uuid'
-import type { DocumentRecord } from './documents'
 import type { AnalysisProfile, ProfileConfig } from './profiles'
 
 // ============================================================================
@@ -157,8 +156,7 @@ export async function readBundleFile(bundlePath: string): Promise<{
  * Get preview of bundle contents before importing
  */
 export async function previewBundle(
-  bundlePath: string,
-  targetProjectId: string
+  bundlePath: string
 ): Promise<ImportPreview> {
   const { zip, manifest } = await readBundleFile(bundlePath)
 

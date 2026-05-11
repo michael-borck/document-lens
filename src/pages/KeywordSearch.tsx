@@ -1,18 +1,16 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Search, Download, ChevronDown, ChevronRight, FileText, X } from 'lucide-react'
+import { Search, Download, ChevronDown, ChevronRight, FileText, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { KeywordSelector } from '@/components/KeywordSelector'
-import { HelpButton } from '@/components/HelpButton'
 import {
   searchKeywordsLocal,
   buildHierarchicalAggregations,
   type BatchKeywordSearchResult,
   type HierarchicalSearchResult,
-  type TierAggregation,
 } from '@/services/analysis'
 import {
   getKeywordList,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import {
   FileText,
@@ -23,7 +23,6 @@ import {
   type DocumentStatus,
   getDocumentStatus,
   reExtractDocument,
-  checkPdfExists,
 } from '@/services/documents'
 import { analyzeDocument } from '@/services/analysis'
 import { toast } from '@/stores/toastStore'

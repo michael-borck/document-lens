@@ -4,7 +4,6 @@
  * Handles n-gram extraction, aggregation across documents, and caching results.
  */
 
-import { v4 as uuidv4 } from 'uuid'
 import { api } from './api'
 import type { DocumentRecord } from './documents'
 
