@@ -106,22 +106,27 @@ export function downloadCsv<T extends Record<string, any>>(data: T[], filename: 
 
  
 export function downloadExcel(
-  sheets: Array<{ name: string; data: any[] }>,
+  sheets: Array<{ name: string; data: object[] }>,
   filename: string
 ): void {
   const workbook = XLSX.utils.book_new()
 
   for (const sheet of sheets) {
     if (sheet.data.length === 0) continue
-    const worksheet = XLSX.utils.json_to_sheet(sheet.data)
-    
+    // Internal cast to indexable record for dynamic key access in the
+    // auto-sizing pass below. XLSX serializes any plain object regardless
+    // of declared type, so the boundary type stays as `object[]` to keep
+    // callers from having to add string index signatures to row types.
+    const rows = sheet.data as Array<Record<string, unknown>>
+    const worksheet = XLSX.utils.json_to_sheet(rows)
+
     // Auto-size columns
     const maxWidths: number[] = []
-    const headers = Object.keys(sheet.data[0])
+    const headers = Object.keys(rows[0])
     headers.forEach((h, i) => {
       maxWidths[i] = Math.min(50, Math.max(
         h.length,
-        ...sheet.data.map((row) => String(row[h] || '').length)
+        ...rows.map((row) => String(row[h] || '').length)
       ))
     })
     worksheet['!cols'] = maxWidths.map((w) => ({ wch: w }))

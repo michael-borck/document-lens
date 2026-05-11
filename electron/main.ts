@@ -226,7 +226,7 @@ ipcMain.handle('app:getVersion', () => {
 })
 
 ipcMain.handle('app:getPath', (_, name: string) => {
-  return app.getPath(name as any)
+  return app.getPath(name as Parameters<typeof app.getPath>[0])
 })
 
 // Auto-updater handlers

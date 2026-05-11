@@ -306,7 +306,14 @@ export function ProjectDashboard() {
     
     if (pdfFiles.length > 0) {
       // Note: In Electron, we can get the file path from the File object
-      const filePaths = pdfFiles.map((f) => (f as any).path).filter(Boolean)
+      // Electron extends the renderer's File object with an absolute `path`
+      // property when the file came from a drag-drop. Not in the standard
+      // File type, so we cast through a local intersection. The type
+      // predicate narrows away the optional-path case so the result is
+      // typed as string[].
+      const filePaths = pdfFiles
+        .map((f) => (f as File & { path?: string }).path)
+        .filter((p): p is string => Boolean(p))
       if (filePaths.length > 0) {
         handleImportFiles(filePaths)
       }

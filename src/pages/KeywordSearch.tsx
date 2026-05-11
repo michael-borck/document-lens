@@ -23,6 +23,8 @@ import { toast } from '@/stores/toastStore'
 import { useDebouncedValue } from '@/lib/useDebouncedValue'
 import type { DocumentRecord } from '@/services/documents'
 
+type SortBy = 'matches' | 'name' | 'year'
+
 export function KeywordSearch() {
   const { projectId } = useParams<{ projectId: string }>()
   const loadProject = useProjectStore(s => s.loadProject)
@@ -42,7 +44,7 @@ export function KeywordSearch() {
 
   // View state
   const [expandedDocs, setExpandedDocs] = useState<Set<string>>(new Set())
-  const [sortBy, setSortBy] = useState<'matches' | 'name' | 'year'>('matches')
+  const [sortBy, setSortBy] = useState<SortBy>('matches')
   const [filterKeyword, setFilterKeyword] = useState('')
   const [viewBy, setViewBy] = useState<string>('keywords') // 'keywords' or a tier name
 
@@ -462,7 +464,7 @@ export function KeywordSearch() {
               <span className="text-sm">Sort by:</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
+                onChange={(e) => setSortBy(e.target.value as SortBy)}
                 className="text-sm border rounded px-2 py-1"
               >
                 <option value="matches">Most Matches</option>

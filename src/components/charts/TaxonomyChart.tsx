@@ -55,9 +55,30 @@ interface TreemapDataItem {
   fill: string
 }
 
-const TreemapTooltipContent = ({ active, payload }: any) => {
+// Minimal local types for Recharts custom-component callbacks. Local to
+// avoid coupling to recharts' internal type names (which change between
+// versions); only the fields we actually read are listed.
+interface TreemapTooltipProps {
+  active?: boolean
+  payload?: Array<{ payload: TreemapDataItem }>
+}
+
+// All fields are optional because Recharts injects them at render time —
+// our component is passed as <TreemapContent /> with empty initial props
+// and Recharts clones it with the per-cell layout values.
+interface TreemapContentProps {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  name?: string
+  matches?: number
+  fill?: string
+}
+
+const TreemapTooltipContent = ({ active, payload }: TreemapTooltipProps) => {
   if (!active || !payload?.[0]) return null
-  const data = payload[0].payload as TreemapDataItem
+  const data = payload[0].payload
   return (
     <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
       <div className="font-medium">{data.name}</div>
@@ -70,9 +91,15 @@ const TreemapTooltipContent = ({ active, payload }: any) => {
   )
 }
 
-const TreemapContent = (props: any) => {
+const TreemapContent = (props: TreemapContentProps) => {
   const { x, y, width, height, name, matches } = props
-  if (width < 40 || height < 30) return null
+  if (
+    x === undefined || y === undefined ||
+    width === undefined || height === undefined ||
+    width < 40 || height < 30
+  ) {
+    return null
+  }
 
   return (
     <g>
