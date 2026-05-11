@@ -155,7 +155,7 @@ app.whenReady().then(async () => {
   })
 
   // Start backend. In production we spawn the bundled PyInstaller executable.
-  // In dev we auto-spawn uvicorn from ../document-lens if present, otherwise
+  // In dev we auto-spawn uvicorn from ../document-analyser if present, otherwise
   // probe for an externally-started backend. Failures are non-fatal — local
   // features (keyword search, visualizations, export) still work.
   try {

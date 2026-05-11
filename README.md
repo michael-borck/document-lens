@@ -178,6 +178,31 @@ document-lens/
 └── build/            # Build configuration
 ```
 
+### Backend Architecture
+
+Document Lens does not implement document analysis itself — it embeds the
+[`document-analyser`](https://pypi.org/project/document-analyser/) Python
+package as a child process and talks to it over local HTTP.
+
+- **Production builds** ship a PyInstaller bundle of `document-analyser`
+  inside `resources/backend/`. The Electron main process spawns it on app
+  launch and tears it down on quit.
+- **Development** auto-spawns `uvicorn` from a sibling `../document-analyser`
+  source checkout if one exists; otherwise falls back to probing an
+  externally-started backend (so contributors can run the Python service
+  manually for faster iteration).
+- **Port: `127.0.0.1:8765`** — deliberately offset from the
+  `document-analyser` package's documented default of `8000`. This isolates
+  the embedded backend from any system-wide `document-analyser` instance the
+  user may have running, and avoids port conflicts on shared machines. The
+  port is fixed (`electron/backend-manager.ts:9`) and not user-configurable
+  by design — the value is an Electron-app implementation detail, not a
+  user setting.
+- **Backend failures are non-fatal.** Local features (keyword search,
+  visualizations, export, the document library) work without the backend
+  reachable; only document import and the analysis endpoints require it.
+  The status strip surfaces backend health.
+
 ## Supported formats
 
 | Format | Extensions |

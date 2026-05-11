@@ -289,7 +289,7 @@ export function KeywordLists() {
       }
 
       let keywords = excelPreview.keywords
-      let listType = excelPreview.listType
+      const listType = excelPreview.listType
 
       // Update tier names if user changed them
       if (listType === 'hierarchical' && excelTierNames.length > 0) {

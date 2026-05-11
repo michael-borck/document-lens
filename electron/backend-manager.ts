@@ -90,8 +90,8 @@ export class BackendManager extends EventEmitter {
   /**
    * Start the backend.
    *   Production: spawn the bundled PyInstaller executable.
-   *   Development: try to auto-spawn uvicorn from ../document-lens; else fall
-   *   back to probing an externally-started backend.
+   *   Development: try to auto-spawn uvicorn from ../document-analyser; else
+   *   fall back to probing an externally-started backend.
    */
   async start(): Promise<void> {
     this.startedAt = Date.now()
