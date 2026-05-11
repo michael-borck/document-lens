@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
-import { listDocuments } from '@/services/documents'
+import { listDocuments, updateDocumentAttributes } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
 import { cn } from '@/lib/utils'
+import { InlineEditableCell } from '@/components/InlineEditableCell'
 
 export function Library() {
   const [docs, setDocs] = useState<Document[] | null>(null)
@@ -88,7 +89,7 @@ export function Library() {
           }
         />
       ) : (
-        <DocumentTable documents={docs} onChange={refresh} />
+        <DocumentTable documents={docs} onChange={() => { void refresh() }} />
       )}
     </div>
   )
@@ -123,39 +124,85 @@ function ImportProgressBar({ progress }: { progress: ImportProgress }) {
 
 function DocumentTable({
   documents,
+  onChange,
 }: {
   documents: Document[]
   onChange: () => void
 }) {
+  const handleEdit = async (
+    id: string,
+    field: 'title' | 'year' | 'company' | 'sector',
+    raw: string | null
+  ) => {
+    let patch: Record<string, string | number | null> = {}
+    if (field === 'year') {
+      patch = { year: raw === null ? null : Number(raw) }
+    } else {
+      patch = { [field]: raw }
+    }
+    await updateDocumentAttributes(id, patch)
+    onChange()
+  }
+
   return (
     <div className="border border-border rounded-md overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
             <th className="text-left font-medium px-4 py-2">Title</th>
-            <th className="text-left font-medium px-4 py-2 w-20">Year</th>
-            <th className="text-left font-medium px-4 py-2">Company</th>
+            <th className="text-left font-medium px-4 py-2 w-24">Year</th>
+            <th className="text-left font-medium px-4 py-2 w-44">Company</th>
+            <th className="text-left font-medium px-4 py-2 w-36">Sector</th>
             <th className="text-left font-medium px-4 py-2 w-32">Status</th>
-            <th className="text-right font-medium px-4 py-2 w-24">Pages</th>
+            <th className="text-right font-medium px-4 py-2 w-20">Pages</th>
             <th className="text-right font-medium px-4 py-2 w-24">Words</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
           {documents.map((doc) => (
             <tr key={doc.id} className="hover:bg-muted/30 transition-colors">
-              <td className="px-4 py-2.5">
+              <td className="px-4 py-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                  <span className="truncate" title={doc.filePath}>
-                    {doc.title || doc.filename}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <InlineEditableCell
+                      value={doc.title}
+                      onCommit={(next) => handleEdit(doc.id, 'title', next)}
+                      width={260}
+                      formatDisplay={(v) => (
+                        <span className="truncate block" title={doc.filePath}>
+                          {v ?? doc.filename}
+                        </span>
+                      )}
+                    />
+                  </div>
                 </div>
               </td>
-              <td className="px-4 py-2.5 text-muted-foreground tabular-nums">
-                {doc.year ?? <span className="italic">—</span>}
+              <td className="px-4 py-2 text-muted-foreground">
+                <InlineEditableCell
+                  value={doc.year}
+                  numeric
+                  onCommit={(next) => handleEdit(doc.id, 'year', next)}
+                  width={70}
+                  className="tabular-nums"
+                  placeholder="—"
+                />
               </td>
-              <td className="px-4 py-2.5 text-muted-foreground truncate">
-                {doc.company ?? <span className="italic">—</span>}
+              <td className="px-4 py-2 text-muted-foreground">
+                <InlineEditableCell
+                  value={doc.company}
+                  onCommit={(next) => handleEdit(doc.id, 'company', next)}
+                  width={160}
+                  placeholder="Add company"
+                />
+              </td>
+              <td className="px-4 py-2 text-muted-foreground">
+                <InlineEditableCell
+                  value={doc.sector}
+                  onCommit={(next) => handleEdit(doc.id, 'sector', next)}
+                  width={120}
+                  placeholder="Add sector"
+                />
               </td>
               <td className="px-4 py-2.5">
                 <StatusBadge doc={doc} />
