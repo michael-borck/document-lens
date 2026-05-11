@@ -1,0 +1,1119 @@
+{
+  "positive": [
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Social equity",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Economic disadvantage",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Financial hardship",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Community support",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Inclusive growth",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Access to services",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Vulnerable populations",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Social protection policy",
+      "polarity": "positive",
+      "note": "May overlap with general equity or welfare language"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Food security",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Nutrition programs",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Agricultural innovation",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Sustainable food systems",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Rural development",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Research in food sciences",
+      "polarity": "positive",
+      "note": "Often embedded in research or rural engagement strategies"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health and wellbeing",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Mental health support",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Public health initiatives",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health equity",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health research",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Campus safety",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health promotion",
+      "polarity": "positive",
+      "note": "May be used in wellbeing or risk management contexts"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Educational access",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Lifelong learning",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Teaching excellence",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Graduate employability",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Inclusive education",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Equity in education",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Digital learning",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Academic outcomes",
+      "polarity": "positive",
+      "note": "Common in strategic plans; context determines SDG relevance"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Gender equity",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Women in leadership",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Gender inclusion",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Equal opportunity",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Diversity and inclusion",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Gender-sensitive policy",
+      "polarity": "positive",
+      "note": "May be diluted if used without measurable targets"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Water conservation",
+      "polarity": "positive",
+      "note": "Often appears in operations or campus planning"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Sustainable water use",
+      "polarity": "positive",
+      "note": "Often appears in operations or campus planning"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Campus water management",
+      "polarity": "positive",
+      "note": "Often appears in operations or campus planning"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Sanitation infrastructure",
+      "polarity": "positive",
+      "note": "Often appears in operations or campus planning"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Water quality monitoring",
+      "polarity": "positive",
+      "note": "Often appears in operations or campus planning"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Energy efficiency",
+      "polarity": "positive",
+      "note": "May overlap with cost-saving initiatives"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Renewable energy initiatives",
+      "polarity": "positive",
+      "note": "May overlap with cost-saving initiatives"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Sustainable energy use",
+      "polarity": "positive",
+      "note": "May overlap with cost-saving initiatives"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Carbon reduction strategies",
+      "polarity": "positive",
+      "note": "May overlap with cost-saving initiatives"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Green infrastructure",
+      "polarity": "positive",
+      "note": "May overlap with cost-saving initiatives"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Employment outcomes",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Workforce development",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Economic impact",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Innovation and entrepreneurship",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Strategic industry partnerships",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Graduate pathways",
+      "polarity": "positive",
+      "note": "Requires attention to equity and job quality framing"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Research infrastructure",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Innovation hubs",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Technology transfer",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Industry collaboration",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Digital transformation",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Infrastructure investment",
+      "polarity": "positive",
+      "note": "May be commercial or inclusive depending on context"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Equity and inclusion",
+      "polarity": "positive",
+      "note": "Often embedded in diversity strategies"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Access for underrepresented groups",
+      "polarity": "positive",
+      "note": "Often embedded in diversity strategies"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Indigenous engagement",
+      "polarity": "positive",
+      "note": "Often embedded in diversity strategies"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Disability inclusion",
+      "polarity": "positive",
+      "note": "Often embedded in diversity strategies"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Multicultural initiatives",
+      "polarity": "positive",
+      "note": "Often embedded in diversity strategies"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Urban engagement",
+      "polarity": "positive",
+      "note": "May overlap with urban development goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Community partnerships",
+      "polarity": "positive",
+      "note": "May overlap with urban development goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Sustainable campus planning",
+      "polarity": "positive",
+      "note": "May overlap with urban development goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Disaster resilience",
+      "polarity": "positive",
+      "note": "May overlap with urban development goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Public space development",
+      "polarity": "positive",
+      "note": "May overlap with urban development goals"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Sustainability strategy",
+      "polarity": "positive",
+      "note": "Often operational; context determines depth of commitment"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Waste reduction",
+      "polarity": "positive",
+      "note": "Often operational; context determines depth of commitment"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Circular economy",
+      "polarity": "positive",
+      "note": "Often operational; context determines depth of commitment"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Procurement policy",
+      "polarity": "positive",
+      "note": "Often operational; context determines depth of commitment"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Environmental reporting",
+      "polarity": "positive",
+      "note": "Often operational; context determines depth of commitment"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Climate resilience",
+      "polarity": "positive",
+      "note": "Requires scrutiny of actual implementation vs. aspiration"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Carbon neutrality",
+      "polarity": "positive",
+      "note": "Requires scrutiny of actual implementation vs. aspiration"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Climate strategy",
+      "polarity": "positive",
+      "note": "Requires scrutiny of actual implementation vs. aspiration"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Emissions reduction",
+      "polarity": "positive",
+      "note": "Requires scrutiny of actual implementation vs. aspiration"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Environmental sustainability",
+      "polarity": "positive",
+      "note": "Requires scrutiny of actual implementation vs. aspiration"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Marine research",
+      "polarity": "positive",
+      "note": "Typically found in research-intensive institutions"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Coastal sustainability",
+      "polarity": "positive",
+      "note": "Typically found in research-intensive institutions"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Ocean health",
+      "polarity": "positive",
+      "note": "Typically found in research-intensive institutions"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Water ecosystems",
+      "polarity": "positive",
+      "note": "Typically found in research-intensive institutions"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Biodiversity conservation",
+      "polarity": "positive",
+      "note": "May be used in campus greening or research contexts"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Land management",
+      "polarity": "positive",
+      "note": "May be used in campus greening or research contexts"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Ecological restoration",
+      "polarity": "positive",
+      "note": "May be used in campus greening or research contexts"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Environmental stewardship",
+      "polarity": "positive",
+      "note": "May be used in campus greening or research contexts"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Governance",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Ethical leadership",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Institutional integrity",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Policy transparency",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Civic engagement",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Human rights",
+      "polarity": "positive",
+      "note": "Often abstract; requires evidence of implementation"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Strategic partnerships",
+      "polarity": "positive",
+      "note": "May be commercial or developmental depending on framing"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "International collaboration",
+      "polarity": "positive",
+      "note": "May be commercial or developmental depending on framing"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Global engagement",
+      "polarity": "positive",
+      "note": "May be commercial or developmental depending on framing"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Cross-sector alliances",
+      "polarity": "positive",
+      "note": "May be commercial or developmental depending on framing"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Capacity building",
+      "polarity": "positive",
+      "note": "May be commercial or developmental depending on framing"
+    }
+  ],
+  "counter": [
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Revenue maximisation",
+      "polarity": "counter",
+      "note": "May indicate prioritisation of financial goals over equity"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Fee-paying priority",
+      "polarity": "counter",
+      "note": "May indicate prioritisation of financial goals over equity"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Market segmentation",
+      "polarity": "counter",
+      "note": "May indicate prioritisation of financial goals over equity"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Premium service tiers",
+      "polarity": "counter",
+      "note": "May indicate prioritisation of financial goals over equity"
+    },
+    {
+      "sdg": 1,
+      "sdg_label": "SDG 1 – No Poverty",
+      "text": "Competitive advantage (without social context)",
+      "polarity": "counter",
+      "note": "May indicate prioritisation of financial goals over equity"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Commercial agriculture",
+      "polarity": "counter",
+      "note": "May conflict with sustainability if lacking equity framing"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Export-oriented food research",
+      "polarity": "counter",
+      "note": "May conflict with sustainability if lacking equity framing"
+    },
+    {
+      "sdg": 2,
+      "sdg_label": "SDG 2 – Zero Hunger",
+      "text": "Agribusiness partnerships (without sustainability framing)",
+      "polarity": "counter",
+      "note": "May conflict with sustainability if lacking equity framing"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health commercialisation",
+      "polarity": "counter",
+      "note": "May deprioritise public health or wellbeing goals"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Private health partnerships",
+      "polarity": "counter",
+      "note": "May deprioritise public health or wellbeing goals"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Cost containment in health services",
+      "polarity": "counter",
+      "note": "May deprioritise public health or wellbeing goals"
+    },
+    {
+      "sdg": 3,
+      "sdg_label": "SDG 3 – Good Health and Well-being",
+      "text": "Health outsourcing",
+      "polarity": "counter",
+      "note": "May deprioritise public health or wellbeing goals"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Elite education",
+      "polarity": "counter",
+      "note": "Often signals exclusivity or reputational focus"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Prestige rankings",
+      "polarity": "counter",
+      "note": "Often signals exclusivity or reputational focus"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Competitive admissions",
+      "polarity": "counter",
+      "note": "Often signals exclusivity or reputational focus"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "International student revenue",
+      "polarity": "counter",
+      "note": "Often signals exclusivity or reputational focus"
+    },
+    {
+      "sdg": 4,
+      "sdg_label": "SDG 4 – Quality Education",
+      "text": "Brand positioning",
+      "polarity": "counter",
+      "note": "Often signals exclusivity or reputational focus"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Gender-neutral policy (used to avoid equity commitments)",
+      "polarity": "counter",
+      "note": "May obscure equity issues if used without safeguards"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Merit-only hiring (without equity safeguards)",
+      "polarity": "counter",
+      "note": "May obscure equity issues if used without safeguards"
+    },
+    {
+      "sdg": 5,
+      "sdg_label": "SDG 5 – Gender Equality",
+      "text": "Gender-blind reporting",
+      "polarity": "counter",
+      "note": "May obscure equity issues if used without safeguards"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Water extraction",
+      "polarity": "counter",
+      "note": "May conflict with SDG 6 if lacking conservation framing"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Infrastructure cost recovery",
+      "polarity": "counter",
+      "note": "May conflict with SDG 6 if lacking conservation framing"
+    },
+    {
+      "sdg": 6,
+      "sdg_label": "SDG 6 – Clean Water and Sanitation",
+      "text": "Water commodification",
+      "polarity": "counter",
+      "note": "May conflict with SDG 6 if lacking conservation framing"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Fossil fuel partnerships",
+      "polarity": "counter",
+      "note": "Requires scrutiny for climate alignment"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Energy cost efficiency (without sustainability)",
+      "polarity": "counter",
+      "note": "Requires scrutiny for climate alignment"
+    },
+    {
+      "sdg": 7,
+      "sdg_label": "SDG 7 – Affordable and Clean Energy",
+      "text": "Non-renewable energy investment",
+      "polarity": "counter",
+      "note": "Requires scrutiny for climate alignment"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Casualisation of workforce",
+      "polarity": "counter",
+      "note": "May undermine SDG 8 if wellbeing is not addressed"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Outsourcing",
+      "polarity": "counter",
+      "note": "May undermine SDG 8 if wellbeing is not addressed"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Productivity maximisation (without wellbeing)",
+      "polarity": "counter",
+      "note": "May undermine SDG 8 if wellbeing is not addressed"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Cost-cutting measures",
+      "polarity": "counter",
+      "note": "May undermine SDG 8 if wellbeing is not addressed"
+    },
+    {
+      "sdg": 8,
+      "sdg_label": "SDG 8 – Decent Work and Economic Growth",
+      "text": "Short-term contracts",
+      "polarity": "counter",
+      "note": "May undermine SDG 8 if wellbeing is not addressed"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Commercialisation of research",
+      "polarity": "counter",
+      "note": "May conflict with inclusive innovation goals"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "IP monetisation",
+      "polarity": "counter",
+      "note": "May conflict with inclusive innovation goals"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Industry-first innovation",
+      "polarity": "counter",
+      "note": "May conflict with inclusive innovation goals"
+    },
+    {
+      "sdg": 9,
+      "sdg_label": "SDG 9 – Industry, Innovation and Infrastructure",
+      "text": "Infrastructure expansion (without environmental assessment)",
+      "polarity": "counter",
+      "note": "May conflict with inclusive innovation goals"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Selective excellence",
+      "polarity": "counter",
+      "note": "May exclude vulnerable groups if not balanced"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Targeting high-performing cohorts",
+      "polarity": "counter",
+      "note": "May exclude vulnerable groups if not balanced"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Competitive scholarship models",
+      "polarity": "counter",
+      "note": "May exclude vulnerable groups if not balanced"
+    },
+    {
+      "sdg": 10,
+      "sdg_label": "SDG 10 – Reduced Inequalities",
+      "text": "Performance-based funding (without equity safeguards)",
+      "polarity": "counter",
+      "note": "May exclude vulnerable groups if not balanced"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Urban expansion",
+      "polarity": "counter",
+      "note": "May conflict with community or sustainability goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Real estate development",
+      "polarity": "counter",
+      "note": "May conflict with community or sustainability goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Campus footprint growth",
+      "polarity": "counter",
+      "note": "May conflict with community or sustainability goals"
+    },
+    {
+      "sdg": 11,
+      "sdg_label": "SDG 11 – Sustainable Cities and Communities",
+      "text": "Infrastructure densification",
+      "polarity": "counter",
+      "note": "May conflict with community or sustainability goals"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Procurement efficiency",
+      "polarity": "counter",
+      "note": "May dilute sustainability if framed purely for cost"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Cost-driven supply chain",
+      "polarity": "counter",
+      "note": "May dilute sustainability if framed purely for cost"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Resource extraction",
+      "polarity": "counter",
+      "note": "May dilute sustainability if framed purely for cost"
+    },
+    {
+      "sdg": 12,
+      "sdg_label": "SDG 12 – Responsible Consumption and Production",
+      "text": "Waste externalisation",
+      "polarity": "counter",
+      "note": "May dilute sustainability if framed purely for cost"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Carbon offset reliance (without reduction)",
+      "polarity": "counter",
+      "note": "Requires scrutiny for actual emissions reduction"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Climate neutrality by outsourcing",
+      "polarity": "counter",
+      "note": "Requires scrutiny for actual emissions reduction"
+    },
+    {
+      "sdg": 13,
+      "sdg_label": "SDG 13 – Climate Action",
+      "text": "Emissions trading (without internal reduction)",
+      "polarity": "counter",
+      "note": "Requires scrutiny for actual emissions reduction"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Marine resource exploitation",
+      "polarity": "counter",
+      "note": "May conflict with SDG 14 if lacking ecological safeguards"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Coastal development",
+      "polarity": "counter",
+      "note": "May conflict with SDG 14 if lacking ecological safeguards"
+    },
+    {
+      "sdg": 14,
+      "sdg_label": "SDG 14 – Life Below Water",
+      "text": "Blue economy (without conservation framing)",
+      "polarity": "counter",
+      "note": "May conflict with SDG 14 if lacking ecological safeguards"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Land acquisition",
+      "polarity": "counter",
+      "note": "May undermine conservation goals"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Biodiversity offsetting",
+      "polarity": "counter",
+      "note": "May undermine conservation goals"
+    },
+    {
+      "sdg": 15,
+      "sdg_label": "SDG 15 – Life on Land",
+      "text": "Forestry partnerships (without conservation)",
+      "polarity": "counter",
+      "note": "May undermine conservation goals"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Risk management (used to avoid transparency)",
+      "polarity": "counter",
+      "note": "May signal weak institutional accountability"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Governance efficiency (without accountability)",
+      "polarity": "counter",
+      "note": "May signal weak institutional accountability"
+    },
+    {
+      "sdg": 16,
+      "sdg_label": "SDG 16 – Peace, Justice and Strong Institutions",
+      "text": "Strategic silence on human rights",
+      "polarity": "counter",
+      "note": "May signal weak institutional accountability"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Exclusive partnerships",
+      "polarity": "counter",
+      "note": "May conflict with SDG 17 if lacking inclusivity"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Commercial alliances",
+      "polarity": "counter",
+      "note": "May conflict with SDG 17 if lacking inclusivity"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "Competitive collaboration",
+      "polarity": "counter",
+      "note": "May conflict with SDG 17 if lacking inclusivity"
+    },
+    {
+      "sdg": 17,
+      "sdg_label": "SDG 17 – Partnerships for the Goals",
+      "text": "IP protectionism",
+      "polarity": "counter",
+      "note": "May conflict with SDG 17 if lacking inclusivity"
+    }
+  ]
+}

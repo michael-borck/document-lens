@@ -1,7 +1,8 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/shell/AppShell'
+import { seedSustainabilityDefaults } from '@/services/seed'
 
 // Top-level pages
 const Projects = lazy(() => import('./pages/Projects').then(m => ({ default: m.Projects })))
@@ -32,6 +33,15 @@ function PageLoader() {
 }
 
 function App() {
+  // Seed the SDG keyword list, the SDG/Pillar/Function lenses, and the
+  // 5-level Wedding Cake Score on first launch (idempotent — no-ops if
+  // the defaults are already in place). Per design principle #9.
+  useEffect(() => {
+    seedSustainabilityDefaults().catch((err) => {
+      console.error('[seed] Failed to seed sustainability defaults:', err)
+    })
+  }, [])
+
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
