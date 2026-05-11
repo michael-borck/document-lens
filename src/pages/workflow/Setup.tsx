@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -14,12 +14,15 @@ import {
   setProjectKeywordList,
   setProjectLenses,
   updateProject,
+  removeDocumentFromProject,
 } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
 import { listLenses } from '@/services/lenses'
 import { listScoringRules } from '@/services/scoring-rules'
+import { getDocument } from '@/services/documents'
+import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { KeywordList, Lens, ScoringRule } from '@/types/data'
+import type { KeywordList, Lens, ScoringRule, Document } from '@/types/data'
 
 export function Setup() {
   const vm = useOutletContext<ProjectViewModel>()
@@ -68,7 +71,7 @@ export function Setup() {
       </header>
 
       <div className="space-y-8">
-        <DocumentsSection documentCount={vm.documentCount} />
+        <DocumentsSection vm={vm} />
         <KeywordsSection
           allLists={allLists}
           activeListId={vm.keywordList?.id ?? null}
@@ -111,25 +114,81 @@ function SectionHeader({
   )
 }
 
-function DocumentsSection({ documentCount }: { documentCount: number }) {
+function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [docs, setDocs] = useState<Document[]>([])
+
+  // Load the document objects for each id in the project. Lightweight per-id
+  // lookups so the heavier listDocuments() doesn't run on the Setup tab.
+  useEffect(() => {
+    Promise.all(vm.project.documentIds.map((id) => getDocument(id))).then((rows) => {
+      setDocs(rows.filter((d): d is Document => d !== null))
+    })
+  }, [vm.project.documentIds])
+
+  const handleRemove = async (documentId: string) => {
+    await removeDocumentFromProject(vm.project.id, documentId)
+    await vm.refresh()
+  }
+
   return (
     <section>
       <SectionHeader
         icon={<FileText className="h-5 w-5" />}
         title="Documents"
-        count={`${documentCount} selected`}
+        count={`${vm.documentCount} attached`}
       />
-      <div className="border border-dashed border-border rounded-md p-6 text-sm text-muted-foreground">
-        {documentCount === 0
-          ? 'No documents yet. Document import lands in Phase 2 — for now, the rest of Setup can be configured against the seeded sustainability defaults.'
-          : `${documentCount} document${documentCount === 1 ? '' : 's'} attached. Document picker UI coming in Phase 2.`}
-        <div className="mt-4">
-          <Button variant="outline" disabled className="gap-2">
+      <div className="border border-border rounded-md">
+        {docs.length === 0 ? (
+          <div className="p-6 text-sm text-muted-foreground">
+            No documents attached. Pick from the Library to start analysing.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {docs.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors"
+              >
+                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {doc.title || doc.filename}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {[doc.year, doc.company, doc.sector].filter(Boolean).join(' · ') || doc.filename}
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemove(doc.id)}
+                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                  title="Remove from project"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="border-t border-border p-3">
+          <Button
+            variant="outline"
+            onClick={() => setPickerOpen(true)}
+            className="gap-2"
+          >
             <Plus className="h-4 w-4" />
             Add documents from Library
           </Button>
         </div>
       </div>
+      <AddDocumentsDialog
+        projectId={vm.project.id}
+        alreadyAddedIds={new Set(vm.project.documentIds)}
+        open={pickerOpen}
+        onOpenChange={setPickerOpen}
+        onAdded={vm.refresh}
+      />
     </section>
   )
 }
