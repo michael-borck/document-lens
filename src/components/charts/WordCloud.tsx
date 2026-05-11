@@ -120,7 +120,6 @@ export function WordCloud({
     }> = []
 
     let y = 40 // Start with some top padding
-    const padding = 20
 
     for (const row of rows) {
       // Calculate total row width for centering

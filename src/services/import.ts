@@ -7,7 +7,7 @@
 
 import JSZip from 'jszip'
 import { v4 as uuidv4 } from 'uuid'
-import type { AnalysisProfile, ProfileConfig } from './profiles'
+import type { ProfileConfig } from './profiles'
 
 // ============================================================================
 // Types

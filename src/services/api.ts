@@ -19,7 +19,7 @@ class ApiClient {
   private async initializeUrl() {
     try {
       this.baseUrl = await getBackendUrl()
-    } catch (error) {
+    } catch (_error) {
       console.warn('[API] Could not get backend URL, using default:', this.baseUrl)
     }
     this.urlInitialized = true

@@ -40,7 +40,7 @@ function getCurrentStep(pathname: string): string {
 export function ProjectContextBar() {
   const { projectId } = useParams<{ projectId: string }>()
   const location = useLocation()
-  const { project, profile, resolvedKeywords, profileLoading } = useProjectStore()
+  const { project, resolvedKeywords, profileLoading } = useProjectStore()
   const [showProfileEditor, setShowProfileEditor] = useState(false)
   const [showKeywordPicker, setShowKeywordPicker] = useState(false)
 

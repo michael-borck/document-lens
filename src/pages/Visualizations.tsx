@@ -45,7 +45,6 @@ import {
   getEnabledKeywords,
   type ParsedAnalysisProfile,
 } from '@/services/profiles'
-import { type HierarchicalKeywords } from '@/services/keywords'
 import { useProjectStore } from '@/stores/projectStore'
 import { ProjectContextBar } from '@/components/ProjectContextBar'
 

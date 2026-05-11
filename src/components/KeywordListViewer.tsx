@@ -3,13 +3,12 @@ import { Copy, Trash2, ChevronDown, ChevronRight, Check, Search, Pencil, Layers 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import {
   getKeywordsByCategory,
   flattenKeywords,
   updateKeywordList,
   type ParsedKeywordList,
-  type HierarchyNode,
 } from '@/services/keywords'
 import { HierarchicalKeywordViewer } from '@/components/HierarchicalKeywordViewer'
 

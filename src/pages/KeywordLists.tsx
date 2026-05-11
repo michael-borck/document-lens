@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Plus, FileUp, ChevronRight, Search, ChevronDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -38,7 +37,6 @@ export function KeywordLists() {
   // Modal states
   const [showNewList, setShowNewList] = useState(false)
   const [showDuplicate, setShowDuplicate] = useState<KeywordList | null>(null)
-  const [showImport, setShowImport] = useState(false)
   const [showEdit, setShowEdit] = useState<KeywordList | null>(null)
   const [showExcelPreview, setShowExcelPreview] = useState(false)
   const [excelPreview, setExcelPreview] = useState<ExcelImportPreview | null>(null)

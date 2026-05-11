@@ -111,7 +111,7 @@ const TreemapContent = (props: any) => {
   )
 }
 
-export function TaxonomyTreemap({ tierAggregation, tierName, height = 400 }: TaxonomyTreemapProps) {
+export function TaxonomyTreemap({ tierAggregation, tierName: _tierName, height = 400 }: TaxonomyTreemapProps) {
   const data: TreemapDataItem[] = Object.entries(tierAggregation)
     .filter(([_, agg]) => agg.matchCount > 0)
     .map(([name, agg], i) => ({

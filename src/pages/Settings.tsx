@@ -231,7 +231,7 @@ export function Settings() {
       await api.healthCheck()
       setTestStatus('success')
       setTimeout(() => setTestStatus('idle'), 3000)
-    } catch (error) {
+    } catch (_error) {
       setTestStatus('error')
       setTimeout(() => setTestStatus('idle'), 3000)
     }

@@ -261,7 +261,7 @@ export async function importDocuments(
       status: 'importing'
     })
 
-    const result = await importDocument(projectId, filePath, (status) => {
+    const result = await importDocument(projectId, filePath, (_status) => {
       onProgress?.({
         total: filePaths.length,
         current: i + 1,

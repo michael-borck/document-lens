@@ -546,8 +546,6 @@ export function parseKeywordsFromExcel(
   }
 
   // Detect column count (ignoring trailing empty columns and note columns)
-  const firstRow = rows[0].map(c => String(c).trim())
-
   // Heuristic: look at all rows to find the max meaningful columns
   // A "note" column usually has longer text and appears last
   let maxCols = 0

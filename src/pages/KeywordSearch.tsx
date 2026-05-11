@@ -13,8 +13,6 @@ import {
   type HierarchicalSearchResult,
 } from '@/services/analysis'
 import {
-  getKeywordList,
-  parseKeywords,
   type HierarchicalKeywords,
 } from '@/services/keywords'
 import { exportKeywordResults } from '@/services/export'
@@ -245,12 +243,6 @@ export function KeywordSearch() {
   }, [results, sortBy])
 
   const debouncedFilterKeyword = useDebouncedValue(filterKeyword, 200)
-
-  const filteredKeywords = useMemo(() => {
-    if (!results || !debouncedFilterKeyword) return results?.keywords || []
-    const q = debouncedFilterKeyword.toLowerCase()
-    return results.keywords.filter(k => k.toLowerCase().includes(q))
-  }, [results, debouncedFilterKeyword])
 
   const highlightText = (text: string, keywords: string[]) => {
     if (!keywords.length) return text

@@ -9,7 +9,6 @@ import { api } from './api'
 import type { DocumentRecord } from './documents'
 import {
   type HierarchicalKeywords,
-  flattenHierarchy,
   aggregateAtTier,
 } from './keywords'
 
@@ -150,7 +149,7 @@ export async function analyzeDocuments(
     })
 
     try {
-      await analyzeDocument(doc, (status) => {
+      await analyzeDocument(doc, (_status) => {
         onProgress?.({
           total: documents.length,
           current: i + 1,
