@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
   ComposedChart,
@@ -11,7 +11,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts'
-import { Loader2, Play, AlertTriangle } from 'lucide-react'
+import { Loader2, Play, AlertTriangle, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -30,6 +30,8 @@ import {
   type TrackMeasure,
   type TrackGroup,
 } from '@/services/track'
+import { exportPaperBundle } from '@/services/bundle-export'
+import { toast } from '@/stores/toastStore'
 import { EmptyState } from '@/components/EmptyState'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Keyword, KeywordPolarity, Lens, LensValue } from '@/types/data'
@@ -305,9 +307,47 @@ export function Track() {
         <div className="mb-4 text-sm text-destructive border border-destructive/30 rounded-md p-3">{error}</div>
       )}
 
-      {result && <ResultsView result={result} />}
+      {result && (
+        <ResultsView
+          result={result}
+          exportable={{
+            project: vm.project,
+            keywordList: vm.keywordList,
+            scoringRule: vm.scoringRule,
+            topicLabel: buildTopicLabel(topicKind, topicKeywordId, topicLensId, topicValueId, keywords, allLenses, lensValuesByLens),
+            measure,
+            group,
+            polarity,
+            yearMin: yearMin ? Number(yearMin) : undefined,
+            yearMax: yearMax ? Number(yearMax) : undefined,
+          }}
+        />
+      )}
     </div>
   )
+}
+
+function buildTopicLabel(
+  kind: TopicKind,
+  keywordId: string,
+  lensId: string,
+  valueId: string,
+  keywords: Keyword[],
+  lenses: Lens[],
+  lensValuesByLens: Record<string, LensValue[]>
+): string {
+  if (kind === 'all') return 'All keywords'
+  if (kind === 'keyword') {
+    const kw = keywords.find((k) => k.id === keywordId)
+    return kw ? `Keyword: ${kw.text}` : 'Keyword (unknown)'
+  }
+  // lens-value
+  const lens = lenses.find((l) => l.id === lensId)
+  const value = (lensValuesByLens[lensId] ?? []).find((v) => v.id === valueId)
+  if (lens && value) {
+    return `${lens.name}: ${value.displayName ?? value.value}`
+  }
+  return 'Lens value (unknown)'
 }
 
 function Header() {
@@ -347,7 +387,21 @@ function buildTopic(
 // Results view: trend chart + year-unknown callout
 // ---------------------------------------------------------------------------
 
-function ResultsView({ result }: { result: TrackResult }) {
+interface ExportInputs {
+  project: ProjectViewModel['project']
+  keywordList: ProjectViewModel['keywordList']
+  scoringRule: ProjectViewModel['scoringRule']
+  topicLabel: string
+  measure: TrackMeasure
+  group: TrackGroup
+  polarity: KeywordPolarity
+  yearMin?: number
+  yearMax?: number
+}
+
+function ResultsView({ result, exportable }: { result: TrackResult; exportable: ExportInputs }) {
+  const chartContainerRef = useRef<HTMLDivElement | null>(null)
+  const [exporting, setExporting] = useState(false)
   const yearRange = result.yearRange
   // Build a unified year axis for the chart (in case some series are missing
   // certain years).
@@ -402,19 +456,66 @@ function ResultsView({ result }: { result: TrackResult }) {
 
   const showScatter = result.measure === 'score' && result.perDocument.length > 0
 
+  const handleExport = async () => {
+    if (!exportable.keywordList) return
+    setExporting(true)
+    try {
+      const out = await exportPaperBundle(
+        {
+          project: exportable.project,
+          keywordList: exportable.keywordList,
+          scoringRule: exportable.scoringRule,
+          chartContainer: chartContainerRef.current,
+          topicLabel: exportable.topicLabel,
+          measure: exportable.measure,
+          group: exportable.group,
+          polarity: exportable.polarity,
+          yearMin: exportable.yearMin,
+          yearMax: exportable.yearMax,
+        },
+        result
+      )
+      if ('cancelled' in out) {
+        // user dismissed the save dialog
+      } else {
+        toast.success(`Bundle saved to ${out.filePath}`)
+      }
+    } catch (err) {
+      toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setExporting(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
-        Measure: <strong>{measureLabel(result.measure)}</strong>
-        {' · '}{result.totalDocs} document{result.totalDocs === 1 ? '' : 's'} contributing
-        {yearRange && ` · ${yearRange.min}–${yearRange.max}`}
-        {result.scoreFallback && (
-          <> · <strong>fallback to v1 Pillar coverage</strong> (Function classification incomplete)</>
-        )}
-        {showScatter && (
-          <> · line = per-year average; dots = individual document scores</>
-        )}
-      </p>
+      <div className="flex items-start justify-between gap-4">
+        <p className="text-xs text-muted-foreground flex-1">
+          Measure: <strong>{measureLabel(result.measure)}</strong>
+          {' · '}{result.totalDocs} document{result.totalDocs === 1 ? '' : 's'} contributing
+          {yearRange && ` · ${yearRange.min}–${yearRange.max}`}
+          {result.scoreFallback && (
+            <> · <strong>fallback to v1 Pillar coverage</strong> (Function classification incomplete)</>
+          )}
+          {showScatter && (
+            <> · line = per-year average; dots = individual document scores</>
+          )}
+        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExport}
+          disabled={exporting}
+          className="gap-2 shrink-0"
+          title="Export chart + methodology + data as a ZIP for paper inclusion"
+        >
+          {exporting ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Exporting…</>
+          ) : (
+            <><Download className="h-3.5 w-3.5" /> Export paper bundle</>
+          )}
+        </Button>
+      </div>
 
       {result.yearUnknown.documentCount > 0 && (
         <div className="text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 flex items-start gap-2">
@@ -427,7 +528,7 @@ function ResultsView({ result }: { result: TrackResult }) {
         </div>
       )}
 
-      <div className="border border-border rounded-md p-4">
+      <div ref={chartContainerRef} className="border border-border rounded-md p-4">
         <ResponsiveContainer width="100%" height={360}>
           <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
