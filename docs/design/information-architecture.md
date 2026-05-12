@@ -757,6 +757,42 @@ headers — confirm or edit."*
 User can edit the lens mapping before completing the import, or
 declare additional lenses not auto-detected.
 
+### IA-8. Layered year/company detection + per-page text storage (NEW 2026-05-12)
+
+**Decision:** Auto-detection of year and company on import follows a
+layered strategy (see resolved decision 4 in user-stories.md for
+detail):
+- **Year:** filename regex first → backend PDF content inference
+  fallback → null.
+- **Company:** backend PDF content inference → null.
+- Both editable via the Library inline cells.
+
+Reverses an earlier IA non-goal ("No automatic year detection from
+PDF content"). Filename-only proved brittle on real-world corporate
+downloads; content fallback closes the gap without sacrificing the
+predictability of filename when it works.
+
+**Plus:** the import pipeline stores **per-page extracted text**
+alongside `full_text` in the new `document_pages` table — even
+though no UI currently displays it. Reason: the next-up Read
+workflow enhancement (US-G-03: page-aware concordance) and the
+future embedded PDF viewer (US-G-04) both need per-page text.
+Storing it now means users don't have to re-import their corpus
+when those land.
+
+Requires:
+- A small `document-analyser` tweak to expose the `inferred`
+  metadata block on the `/files/upload-path` response (5-line
+  change; logic already exists in `_infer_year` and `_infer_company`,
+  just not surfaced on this route).
+- Schema bump (SCHEMA_VERSION 1 → 2) for the new
+  `document_pages` table — DB wipe on first launch after the
+  bump (greenfield decision; no migration scripts).
+
+**Affects:** US-X-06 (inline correction is now the third resort, not
+the second); US-G-02 / US-G-03 / US-G-04 (depend on per-page text);
+import pipeline.
+
 ---
 
 ## What this IA explicitly does NOT do
@@ -767,10 +803,10 @@ To prevent scope creep:
   `.lens` bundle export.
 - **No multi-project comparison views.** Each project is
   self-contained; clone projects to share documents.
-- **No automatic year detection from PDF *content*.** Filename-only
-  by default; users correct manually or via CSV (US-X-07).
-- **No PDF annotation / highlighting.** Source files are read-only;
-  affordances are at the metadata layer.
+- **No PDF annotation / editing.** Source files are read-only;
+  affordances are at the metadata layer. (Read-only highlighting in
+  an embedded viewer for verification is a separate concept and is
+  planned via US-G-04 in Phase 5+.)
 - **No third-party scoring rule marketplace.** Custom rules live in
   the user's own app instance and travel with the project bundle.
 - **No automatic counter-keyword detection at import time.** Users

@@ -330,9 +330,14 @@ new view per document (probably a tab on DocumentView).
 |---|---|---|
 | US-G-01 | As a researcher, I want to read what a document actually says about a specific keyword in context (concordance view), so that I can quote, cite, or fact-check claims. | CONFIRMED |
 | US-G-02 | As a researcher, I want each match to link back to the page in the original PDF, so that I can verify and cite by page number. | CONFIRMED |
+| US-G-03 | As a researcher, I want each match in the concordance view to show its **page number** (when available) and surrounding context, so that I can scan all matches in one place and check the document's structure without leaving the app. | CONFIRMED |
+| US-G-04 | As a researcher, I want to view the original PDF inside the app with keyword matches highlighted, so that I don't have to switch context to verify a quote. (PDF only — DOCX/PPTX fall back to US-G-03's page-numbered concordance.) | CONFIRMED (low priority; Phase 5+) |
 
-**Wires to:** existing extracted text + page-anchor metadata; new
-concordance view (probably an extension of the existing DocumentView).
+**Wires to:** existing extracted text + per-page text array (added to
+schema 2026-05-12); concordance view extended with page numbers
+(US-G-03); embedded PDF.js viewer (US-G-04, deferred). Per-page text
+is stored at import time even before the viewer is built so users
+don't have to re-import their corpus when the viewer ships.
 
 ### H. Score — "How does this document rate on my chosen rubric?"
 
@@ -440,18 +445,41 @@ Settings).
 
 **Affects:** US-A-04, US-D-04 through US-D-09; data model.
 
-### 4. Year metadata UX
+### 4. Year + company auto-detection (REVISED 2026-05-12)
 
-**Decision:**
-- `Document.year` is `number | null` (not 0000-as-sentinel).
-- Auto-detection from filename on import.
-- Per-document edit UI for one-at-a-time correction (US-X-06).
-- Bulk-correction by uploading a CSV with `filename,year` columns
-  (US-X-07).
-- On charts: documents with `year = null` always appear in a separate
-  "Year unknown" bucket, never silently dropped (US-C-04).
+**Original decision (superseded):** Year auto-detection from filename
+only. No PDF content sniffing. Reason at the time: "deterministic,
+predictable, no surprises."
 
-**Affects:** US-C-01, US-C-04, US-X-06, US-X-07; Document data model.
+**Revised decision:** Layered detection. Filename first (deterministic
+and usually right when present), backend content inference as fallback
+(robust against generic filenames like `report.pdf` /
+`download-final.pdf`), null as the last resort (user edits inline).
+
+| Field | 1st choice | 2nd choice | 3rd choice |
+|---|---|---|---|
+| `year` | filename year (regex `19[9]\d\|20[0-3]\d`) | backend `inferred.probable_year` from PDF text patterns ("Annual Report 2024", "FY2024", "year ended ... 2024", copyright year) | `null` → user edits |
+| `company` | (none — no reliable filename signal) | backend `inferred.probable_company` from PDF text | `null` → user edits |
+| `sector` | (none) | (none) | `null` → user edits |
+
+Why the revision: real-world annual reports are routinely named
+generically by corporate websites (`AnnualReport.pdf`, `report-final-v3.pdf`,
+`asx-300-acmecorp.pdf`). Filename-only detection silently dropped the
+year on the first import the user actually tested. Layered detection
+keeps the predictability of filename when it works (modern downloads
+with year in name) and adds a content-based safety net.
+
+`Document.year` remains `number | null` (not 0000-as-sentinel) and the
+inline year edit on the Library page (US-X-06) is unchanged. Bulk-
+correction CSV (US-X-07) still on roadmap.
+
+Implementation requires a small `document-analyser` change to expose
+the `inferred` block on the `/files/upload-path` route (the inference
+logic exists in `_infer_year` / `_infer_company` but is only surfaced
+on the multipart `/files/upload` route).
+
+**Affects:** US-C-01, US-C-04, US-X-06, US-X-07; Document data model;
+import pipeline.
 
 ### 5. Sentiment honesty
 
