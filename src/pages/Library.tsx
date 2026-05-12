@@ -10,6 +10,7 @@ import type { Document } from '@/types/data'
 import { cn } from '@/lib/utils'
 import { InlineEditableCell } from '@/components/InlineEditableCell'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { BulkAttributesDialog } from '@/components/dialogs/BulkAttributesDialog'
 import { selectOne } from '@/services/db'
 
 export function Library() {
@@ -18,6 +19,7 @@ export function Library() {
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [sectorSuggestions, setSectorSuggestions] = useState<string[]>([])
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([])
+  const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
     refresh()
@@ -82,10 +84,21 @@ export function Library() {
           <p className="text-muted-foreground italic mt-1">What documents do you have?</p>
         </div>
         {docs.length > 0 && (
-          <Button onClick={handleImport} disabled={importing} className="gap-2">
-            <Upload className="h-4 w-4" />
-            {importing ? 'Importing…' : 'Import documents'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setBulkOpen(true)}
+              className="gap-2"
+              title="Update year / company / sector on many docs at once from a CSV"
+            >
+              <Upload className="h-4 w-4" />
+              Bulk attributes
+            </Button>
+            <Button onClick={handleImport} disabled={importing} className="gap-2">
+              <Upload className="h-4 w-4" />
+              {importing ? 'Importing…' : 'Import documents'}
+            </Button>
+          </div>
         )}
       </header>
 
@@ -111,6 +124,12 @@ export function Library() {
           companySuggestions={companySuggestions}
         />
       )}
+
+      <BulkAttributesDialog
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        onApplied={() => void refresh()}
+      />
     </div>
   )
 }
