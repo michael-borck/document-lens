@@ -178,9 +178,13 @@ async function importOne(
     //   3. null if neither — user edits inline on Library page.
     const year = detectYearFromFilename(filename) ?? response.inferred?.probable_year ?? null
 
-    // Company: no reliable filename signal, so just use the backend's
-    // content inference. null if not detected.
-    const company = response.inferred?.probable_company?.trim() || null
+    // Company: layered like year, but reversed defaults — filename
+    // extraction is good for short tickers / company-named downloads
+    // (bhp-annual-report-2024.pdf), backend content inference covers
+    // generic filenames (report.pdf, download.pdf).
+    const company = detectCompanyFromFilename(filename)
+      ?? response.inferred?.probable_company?.trim()
+      ?? null
 
     await runStatement(
       `UPDATE documents
@@ -266,13 +270,80 @@ function stripExtension(filename: string): string {
  * extension first so a `.pdf` doesn't pollute the match. Prefers the
  * first hit so `acme-2023-q3-fy2024.pdf` resolves to 2023 (the year
  * the document is about, typically named first).
- *
- * Matches resolved decision 4: filename-only year detection — no PDF
- * content sniffing, no fallback to creation_date metadata. The user
- * can fix wrong/missing years inline on the Library page.
  */
 function detectYearFromFilename(filename: string): number | null {
   const base = stripExtension(filename)
   const match = base.match(/(?:^|[^0-9])((?:19[9]\d|20[0-3]\d))(?:[^0-9]|$)/)
   return match ? parseInt(match[1], 10) : null
+}
+
+/**
+ * Tokens that mark a filename segment as boilerplate, not a company
+ * name. Compared lowercased.
+ */
+const COMPANY_NOISE_TOKENS = new Set([
+  // Document-type words
+  'annual', 'report', 'reports', 'reporting',
+  'sustainability', 'sustainable',
+  'integrated', 'integrate',
+  'corporate', 'governance',
+  'esg', 'csr',
+  // Period markers
+  'fy', 'fiscal', 'financial', 'year',
+  'q1', 'q2', 'q3', 'q4', 'h1', 'h2',
+  'half', 'quarter', 'interim',
+  'results', 'result',
+  // Versioning / status
+  'final', 'draft', 'preview', 'public',
+  'full', 'summary', 'short',
+  'version', 'rev', 'revision',
+  // Common download metadata
+  'pdf', 'download', 'copy', 'document',
+])
+
+/**
+ * Heuristic company-name extraction from filename. Strips known noise
+ * tokens (annual, report, sustainability, fy, version markers...),
+ * year tokens, and short numeric tokens, leaving what's typically the
+ * company name.
+ *
+ * CamelCase and digit-letter boundaries get split first so
+ * "Telstra2024AnnualReport.pdf" tokenises as
+ * ["Telstra", "2024", "Annual", "Report"] — "Telstra" survives.
+ *
+ * Original casing is preserved so "BHP" stays "BHP" rather than
+ * being title-cased to "Bhp" (uppercase tokens are commonly stock
+ * tickers / abbreviations and the original casing is usually right).
+ *
+ * Returns null when nothing meaningful remains after filtering.
+ * Backend content inference picks up the slack in those cases.
+ */
+function detectCompanyFromFilename(filename: string): string | null {
+  let text = stripExtension(filename)
+  // Split CamelCase: "AnnualReport" -> "Annual Report"
+  text = text.replace(/([a-z])([A-Z])/g, '$1 $2')
+  // Split runs of uppercase from a following CamelCase word: "BHPAnnual" -> "BHP Annual"
+  text = text.replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+  // Split letter-digit boundaries: "Telstra2024" -> "Telstra 2024"
+  text = text.replace(/([a-zA-Z])(\d)/g, '$1 $2')
+  text = text.replace(/(\d)([a-zA-Z])/g, '$1 $2')
+  // Replace common separators with spaces
+  text = text.replace(/[_\-.]+/g, ' ')
+
+  const tokens = text.split(/\s+/).filter(Boolean)
+  const kept = tokens.filter((t) => {
+    const lower = t.toLowerCase()
+    if (COMPANY_NOISE_TOKENS.has(lower)) return false
+    if (/^(?:19[9]\d|20[0-3]\d)$/.test(t)) return false  // year
+    if (/^v\d+$/i.test(t)) return false                   // version: v3, v12
+    if (/^\d+$/.test(t)) return false                     // pure numbers
+    if (t.length < 2) return false                        // single letters
+    return true
+  })
+
+  if (kept.length === 0) return null
+  // Cap at 4 tokens — names longer than that usually indicate the
+  // filename embedded a description, not the company.
+  const candidate = kept.slice(0, 4).join(' ').trim()
+  return candidate.length >= 2 ? candidate : null
 }

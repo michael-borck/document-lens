@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { listDocuments, updateDocumentAttributes, deleteDocument } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
+import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
 import { cn } from '@/lib/utils'
@@ -15,13 +16,25 @@ export function Library() {
   const [docs, setDocs] = useState<Document[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
+  const [sectorSuggestions, setSectorSuggestions] = useState<string[]>([])
+  const [companySuggestions, setCompanySuggestions] = useState<string[]>([])
 
   useEffect(() => {
     refresh()
+    listIndustries().then((rows) => setSectorSuggestions(rows.map((r) => r.name)))
   }, [])
 
   const refresh = async () => {
-    setDocs(await listDocuments())
+    const fresh = await listDocuments()
+    setDocs(fresh)
+    // Build company suggestions from the existing corpus so the user
+    // gets consistency without a maintained reference list (companies
+    // come from filenames + content inference; the right values are
+    // whatever's already been imported).
+    const companies = Array.from(
+      new Set(fresh.map((d) => d.company).filter((c): c is string => Boolean(c)))
+    ).sort((a, b) => a.localeCompare(b))
+    setCompanySuggestions(companies)
   }
 
   const handleImport = async () => {
@@ -91,7 +104,12 @@ export function Library() {
           }
         />
       ) : (
-        <DocumentTable documents={docs} onChange={() => { void refresh() }} />
+        <DocumentTable
+          documents={docs}
+          onChange={() => { void refresh() }}
+          sectorSuggestions={sectorSuggestions}
+          companySuggestions={companySuggestions}
+        />
       )}
     </div>
   )
@@ -127,9 +145,13 @@ function ImportProgressBar({ progress }: { progress: ImportProgress }) {
 function DocumentTable({
   documents,
   onChange,
+  sectorSuggestions,
+  companySuggestions,
 }: {
   documents: Document[]
   onChange: () => void
+  sectorSuggestions: string[]
+  companySuggestions: string[]
 }) {
   const [pendingDelete, setPendingDelete] = useState<{
     doc: Document
@@ -221,6 +243,7 @@ function DocumentTable({
                   onCommit={(next) => handleEdit(doc.id, 'company', next)}
                   width={160}
                   placeholder="Add company"
+                  suggestions={companySuggestions}
                 />
               </td>
               <td className="px-4 py-2 text-muted-foreground">
@@ -229,6 +252,7 @@ function DocumentTable({
                   onCommit={(next) => handleEdit(doc.id, 'sector', next)}
                   width={120}
                   placeholder="Add sector"
+                  suggestions={sectorSuggestions}
                 />
               </td>
               <td className="px-4 py-2.5">

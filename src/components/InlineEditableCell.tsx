@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useId } from 'react'
 import { cn } from '@/lib/utils'
 
 interface InlineEditableCellProps {
@@ -13,6 +13,13 @@ interface InlineEditableCellProps {
   className?: string
   /** Custom display formatter when not editing. */
   formatDisplay?: (value: string | number | null) => React.ReactNode
+  /**
+   * Optional list of suggested values rendered as a native <datalist>
+   * autocomplete. The user can pick one of these OR type freely; this
+   * is a hint, not a constraint. Values are de-duplicated and shown
+   * in the order given.
+   */
+  suggestions?: string[]
 }
 
 /**
@@ -28,11 +35,13 @@ export function InlineEditableCell({
   width = 80,
   className,
   formatDisplay,
+  suggestions,
 }: InlineEditableCellProps) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
   const [saving, setSaving] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
+  const datalistId = useId()
 
   useEffect(() => {
     if (editing) {
@@ -76,21 +85,31 @@ export function InlineEditableCell({
 
   if (editing) {
     return (
-      <input
-        ref={inputRef}
-        type={numeric ? 'number' : 'text'}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit()
-          else if (e.key === 'Escape') cancel()
-        }}
-        placeholder={placeholder}
-        disabled={saving}
-        style={{ width }}
-        className="text-sm tabular-nums px-1 py-0.5 border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-foreground/30"
-      />
+      <>
+        <input
+          ref={inputRef}
+          type={numeric ? 'number' : 'text'}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            else if (e.key === 'Escape') cancel()
+          }}
+          placeholder={placeholder}
+          disabled={saving}
+          list={suggestions && suggestions.length > 0 ? datalistId : undefined}
+          style={{ width }}
+          className="text-sm tabular-nums px-1 py-0.5 border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-foreground/30"
+        />
+        {suggestions && suggestions.length > 0 && (
+          <datalist id={datalistId}>
+            {Array.from(new Set(suggestions)).map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        )}
+      </>
     )
   }
 
