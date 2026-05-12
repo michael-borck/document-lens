@@ -149,7 +149,7 @@ export function Coverage() {
       )}
 
       {polarity === 'both' && positive && counter ? (
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <div className="space-y-8">
           <PolarityPanel title="Positive matches" matrix={positive} polarityHint="positive" byLens={byLens} />
           <PolarityPanel title="Counter matches" matrix={counter} polarityHint="counter" byLens={byLens} />
         </div>
@@ -188,7 +188,7 @@ function PolarityField({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="both">Both (side-by-side)</SelectItem>
+          <SelectItem value="both">Both (stacked)</SelectItem>
           <SelectItem value="positive">Positive only</SelectItem>
           <SelectItem value="counter">Counter only</SelectItem>
         </SelectContent>
