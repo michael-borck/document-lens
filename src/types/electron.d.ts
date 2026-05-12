@@ -29,7 +29,7 @@ export interface BackendStatus {
   running: boolean
   url: string | null
   pid?: number
-  mode: 'embedded' | 'dev-auto' | 'dev-external'
+  mode: 'embedded' | 'dev-auto'
   lastError?: string
   startedAt?: number
 }

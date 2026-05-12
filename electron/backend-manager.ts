@@ -30,7 +30,7 @@ export interface BackendStatus {
   running: boolean
   url: string | null
   pid?: number
-  mode: 'embedded' | 'dev-auto' | 'dev-external'
+  mode: 'embedded' | 'dev-auto'
   lastError?: string
   startedAt?: number
 }
@@ -42,9 +42,18 @@ export class BackendManager extends EventEmitter {
   private startupTimeout: number = 180000
   private healthCheckInterval: NodeJS.Timeout | null = null
   private phase: BackendPhase = 'not-started'
-  private mode: 'embedded' | 'dev-auto' | 'dev-external' = 'dev-external'
+  private mode: 'embedded' | 'dev-auto' = 'embedded'
   private lastError: string | undefined
   private startedAt: number | undefined
+  /**
+   * How many auto-restart attempts have been made since the last
+   * successful start. Reset to 0 each time the backend becomes ready.
+   * Capped at MAX_RESTART_ATTEMPTS to avoid spin loops.
+   */
+  private restartAttempts: number = 0
+  private restartTimer: NodeJS.Timeout | null = null
+  private static readonly MAX_RESTART_ATTEMPTS = 3
+  private static readonly RESTART_BACKOFF_MS = 2000
 
   /** Locate the Python dev backend repo (sibling directory) */
   private findDevBackendRepo(): string | null {
@@ -90,8 +99,11 @@ export class BackendManager extends EventEmitter {
   /**
    * Start the backend.
    *   Production: spawn the bundled PyInstaller executable.
-   *   Development: try to auto-spawn uvicorn from ../document-analyser; else
-   *   fall back to probing an externally-started backend.
+   *   Development: spawn uvicorn from a sibling ../document-analyser
+   *   checkout (always — never adopt an externally-started backend,
+   *   since that produces brittle behaviour when the external process
+   *   dies. Users always run with the embedded backend; developers
+   *   always run with the spawned dev-auto backend).
    */
   async start(): Promise<void> {
     this.startedAt = Date.now()
@@ -107,14 +119,17 @@ export class BackendManager extends EventEmitter {
       return this.startDevAuto(devRepo)
     }
 
-    // Fallback: assume someone started the backend themselves
-    this.mode = 'dev-external'
-    console.log(`[Backend] dev mode, no sibling repo found — probing ${BACKEND_URL}`)
-    this.setPhase('starting')
-    this.probeUntilReady().catch(() => {
-      this.setPhase('unreachable', 'No backend detected on ' + BACKEND_URL)
-    })
-    this.startHealthCheck()
+    // Dev mode but no sibling repo found. This is a developer setup
+    // error (production users always have the embedded backend bundled
+    // in the app); fail loudly rather than try to silently adopt some
+    // unrelated process that happens to answer on :8765.
+    this.mode = 'dev-auto'
+    console.error(
+      `[Backend] Dev mode but ../document-analyser sibling repo not found. ` +
+      `Backend will not be available. Clone document-analyser as a sibling ` +
+      `directory or build the app for production to use the embedded backend.`
+    )
+    this.setPhase('crashed', 'Dev backend repo not found at ../document-analyser')
   }
 
   private async startEmbedded(): Promise<void> {
@@ -142,26 +157,24 @@ export class BackendManager extends EventEmitter {
     try {
       await this.waitForReady()
       this.setPhase('ready')
+      this.restartAttempts = 0
       this.startHealthCheck()
     } catch (error) {
       this.setPhase('crashed', error instanceof Error ? error.message : String(error))
+      this.scheduleRestart()
       throw error
     }
   }
 
   private async startDevAuto(repoPath: string): Promise<void> {
-    // First: is something already serving /health on our port? If so, adopt it.
-    try {
-      await this.healthCheck()
-      console.log('[Backend] Dev: existing backend already healthy on :' + this.port + ', adopting')
-      this.mode = 'dev-external'
-      this.setPhase('ready')
-      this.startHealthCheck()
-      return
-    } catch {
-      // Nothing healthy yet — proceed to spawn
-    }
-
+    // No "adopt existing healthy backend" probe — adoption isn't a
+    // supported workflow (users are always on the embedded backend),
+    // and adopting a process we don't own means we can't restart it
+    // when it dies.
+    //
+    // If something else is already on :8765 the spawn below will fail;
+    // that's the right outcome, not silently adopting an unknown
+    // process.
     console.log('[Backend] Dev auto-start from:', repoPath)
 
     // Prefer the repo's .venv python; fall back to `uv run` or system python3
@@ -208,11 +221,42 @@ export class BackendManager extends EventEmitter {
     try {
       await this.waitForReady()
       this.setPhase('ready')
+      this.restartAttempts = 0
       this.startHealthCheck()
     } catch (error) {
       this.setPhase('crashed', error instanceof Error ? error.message : String(error))
+      this.scheduleRestart()
       // Don't throw — dev mode should keep the UI usable
     }
+  }
+
+  /**
+   * After an unexpected crash, attempt to restart the backend with a
+   * short backoff. Caps at MAX_RESTART_ATTEMPTS so a wedged backend
+   * doesn't spin forever — after that, the UI shows 'crashed' and the
+   * user can quit + relaunch the app.
+   */
+  private scheduleRestart(): void {
+    if (this.restartTimer) return
+    if (this.restartAttempts >= BackendManager.MAX_RESTART_ATTEMPTS) {
+      console.error(
+        `[Backend] Reached max restart attempts (${BackendManager.MAX_RESTART_ATTEMPTS}); giving up. ` +
+        `Quit and relaunch the app to try again.`
+      )
+      return
+    }
+    this.restartAttempts++
+    const delay = BackendManager.RESTART_BACKOFF_MS * this.restartAttempts
+    console.log(
+      `[Backend] Scheduling restart attempt ${this.restartAttempts}/${BackendManager.MAX_RESTART_ATTEMPTS} ` +
+      `in ${delay}ms`
+    )
+    this.restartTimer = setTimeout(() => {
+      this.restartTimer = null
+      this.start().catch((err) => {
+        console.error('[Backend] Restart attempt failed:', err)
+      })
+    }, delay)
   }
 
   private wireChildProcess(): void {
@@ -228,12 +272,14 @@ export class BackendManager extends EventEmitter {
       this.process = null
       if (wasRunning) {
         this.setPhase('crashed', `Process exited (code ${code ?? 'null'})`)
+        this.scheduleRestart()
       }
     })
     this.process?.on('error', (error) => {
       console.error('[Backend] spawn error:', error)
       this.process = null
       this.setPhase('crashed', error.message)
+      this.scheduleRestart()
     })
   }
 
