@@ -5,7 +5,7 @@ interface EmptyStateProps {
   /** A short headline phrased as a state ("No projects yet"). */
   title: string
   /** One-sentence guidance explaining what to do next. */
-  description?: string
+  description?: ReactNode
   /** Optional icon element rendered above the title. */
   icon?: ReactNode
   /** Optional CTA — typically a Button. */
