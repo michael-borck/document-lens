@@ -10,8 +10,13 @@ let db: Database.Database | null = null
  * database will be wiped and recreated on first launch with the new
  * version. We don't ship migration scripts — no users, no real data to
  * preserve (per "greenfield schema" decision, 2026-05-11).
+ *
+ * History:
+ *   1: initial v2 schema (16 tables)
+ *   2: add document_pages (per-page extracted text for future
+ *      page-aware concordance and PDF viewer — IA-8, 2026-05-12)
  */
-const SCHEMA_VERSION = 1
+const SCHEMA_VERSION = 2
 
 const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -47,6 +52,19 @@ CREATE TABLE IF NOT EXISTS documents (
 CREATE INDEX IF NOT EXISTS idx_documents_year ON documents(year);
 CREATE INDEX IF NOT EXISTS idx_documents_company ON documents(company);
 CREATE INDEX IF NOT EXISTS idx_documents_status ON documents(status);
+
+-- Per-page extracted text. Wired at import time even though no UI
+-- currently displays it — page-aware concordance (US-G-03) and the
+-- embedded PDF viewer (US-G-04) both need this, and storing it now
+-- means users don't have to re-import their corpus when those land.
+-- See IA-8 in docs/design/information-architecture.md.
+CREATE TABLE IF NOT EXISTS document_pages (
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  page_number INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  PRIMARY KEY (document_id, page_number)
+);
+CREATE INDEX IF NOT EXISTS idx_document_pages_doc ON document_pages(document_id);
 
 -- Lenses (Tag Axes). The dimensions along which keyword mentions are
 -- classified (SDG, Pillar, Function, etc.).

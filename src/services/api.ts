@@ -160,14 +160,17 @@ class ApiClient {
       throw new ApiError(500, 'No file results returned from API')
     }
 
-    // Map to the expected response format
+    // Map to the expected response format. The backend's per-file
+    // result includes `inferred` (probable_year / probable_company /
+    // etc. from infer_metadata_from_content) since
+    // document-analyser 0.2.2 — pass it through.
     return {
       filename: fileResult.filename,
       content_type: fileResult.content_type,
       size: fileResult.size,
       extracted_text: fileResult.extracted_text,
       metadata: fileResult.metadata,
-      inferred: undefined
+      inferred: fileResult.inferred,
     }
   }
 
@@ -414,6 +417,20 @@ export interface FileResult {
     modification_date?: string
   }
   analysis?: Record<string, unknown>
+  /** Backend's content-based inference. Present on document-analyser >= 0.2.2. */
+  inferred?: {
+    probable_year?: number | null
+    probable_company?: string | null
+    probable_industry?: string | null
+    document_type?: string | null
+    confidence_scores?: {
+      year?: number
+      company?: number
+      industry?: number
+      document_type?: number
+    }
+    extraction_notes?: string[]
+  }
 }
 
 // Full response from /files endpoint
@@ -457,9 +474,17 @@ export interface ProcessFileResponse {
     modification_date?: string
   }
   inferred?: {
-    probable_year?: number
-    probable_company?: string
-    document_type?: string
+    probable_year?: number | null
+    probable_company?: string | null
+    probable_industry?: string | null
+    document_type?: string | null
+    confidence_scores?: {
+      year?: number
+      company?: number
+      industry?: number
+      document_type?: number
+    }
+    extraction_notes?: string[]
   }
 }
 

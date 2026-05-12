@@ -171,14 +171,16 @@ async function importOne(
 
     // Title: prefer the PDF metadata title if present; otherwise filename.
     const title = response.metadata?.title?.trim() || stripExtension(filename)
-    // Year: filename-only detection per design decision 4 (deterministic;
-    // user can edit on the Library page if the filename has no year or
-    // the detected one is wrong).
-    const year = detectYearFromFilename(filename)
-    // Company is NOT auto-populated — we have no reliable filename signal
-    // for it, and the backend's content-based inference isn't returned by
-    // the upload-path endpoint. User adds via inline edit.
-    const company: string | null = null
+
+    // Year: layered per resolved decision 4 (revised 2026-05-12).
+    //   1. Filename regex first — deterministic and usually right.
+    //   2. Backend content inference (probable_year) as fallback.
+    //   3. null if neither — user edits inline on Library page.
+    const year = detectYearFromFilename(filename) ?? response.inferred?.probable_year ?? null
+
+    // Company: no reliable filename signal, so just use the backend's
+    // content inference. null if not detected.
+    const company = response.inferred?.probable_company?.trim() || null
 
     await runStatement(
       `UPDATE documents
@@ -205,6 +207,25 @@ async function importOne(
         created.id,
       ]
     )
+
+    // Per-page text storage (IA-8). Wired now even though no UI consumes
+    // it yet — page-aware concordance (US-G-03) and the embedded PDF
+    // viewer (US-G-04) both need this; storing at import time means
+    // users won't have to re-import their corpus when those land.
+    const pages = response.extracted_text?.pages ?? []
+    if (pages.length > 0) {
+      // Clear any prior page rows for this document (defensive — would
+      // only matter on a re-extract path that doesn't exist yet).
+      await runStatement('DELETE FROM document_pages WHERE document_id = ?', [created.id])
+      for (const page of pages) {
+        if (page.text && page.text.trim().length > 0) {
+          await runStatement(
+            'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
+            [created.id, page.page_number, page.text]
+          )
+        }
+      }
+    }
 
     const updated = await getDocument(created.id)
     onPhase('completed')
