@@ -214,7 +214,7 @@ workflow to the next.
 | Element | Detail |
 |---|---|
 | **Primary viz** | Document × keyword (or × tag value) **heatmap**. Cell intensity = match count. |
-| **Filters** | Documents, **Polarity** (Positive / Counter / Both — default Both with separate colour scales per polarity), **Lens** (which axis to use as columns — Keyword / SDG / Pillar / Function), **Tier** (when the chosen lens is hierarchical, roll up to parent level) |
+| **Filters** | Documents, **Polarity** (Positive / Counter / Both — default Both renders the two heatmaps stacked, one above the other, each with its own colour scale; see IA-3), **Lens** (which axis to use as columns — Keyword / SDG / Pillar / Function), **Tier** (when the chosen lens is hierarchical, roll up to parent level) |
 | **Toggle** | "Include accepted synonyms" (US-A-04). On by default. Caption shows count. |
 | **Empty state** | "Run your first coverage check" + a one-click "Analyse all documents" CTA |
 | **Export** | CSV, Excel, PNG, shareable bundle |
@@ -481,7 +481,7 @@ app run.
 
 Wherever keywords are filtered or counted, a **Polarity** dropdown is
 present (Positive / Counter / Both). Defaults vary per workflow:
-- Coverage: Both (separate colour scales)
+- Coverage: Both (stacked panels, separate colour scales — see IA-3)
 - Map: Positive (with explicit toggle to add counter as overlay)
 - Score: Positive (counter contributes only via the scoring rule
   if the rule explicitly references it)
@@ -706,16 +706,32 @@ when defining a custom Lens.
 If users hit form-UI ceilings later, a DSL escape hatch can ship in
 a future version.
 
-### IA-3. Counter-keyword display uses side-by-side small heatmaps when "Both" selected
+### IA-3. ~~Counter-keyword display uses side-by-side small heatmaps~~ → Stacked (REVISED 2026-05-12)
 
-**Decision:** Two adjacent small heatmaps in Coverage when polarity
-= Both — one for positive matches, one for counter matches. Single
-heatmap when polarity is restricted to one side.
+**Original decision (superseded):** Two adjacent small heatmaps when
+polarity = Both. Rationale at the time: side-by-side makes the
+positive-vs-counter comparison eye-trackable; overlay (split-cell
+colours) confuses two signals into one cell.
 
-**Why:** researchers look at counter-keywords because they're
-suspicious about the positives. Side-by-side makes the comparison
-eye-trackable. Overlay (e.g., split-cell colours) confuses two
-signals into one cell.
+**Revised decision:** **Stacked, one above the other.** Single heatmap
+still applies when polarity is restricted to one side. Overlay is
+still rejected for the same original reason.
+
+**Why the reversal:** In real-world testing on a project with the SDG
+keyword list (96 positive + 63 counter, all 17 SDGs), the side-by-side
+layout was too cramped — keyword column headers truncated, horizontal
+scroll fought with vertical, and the eye-trackable comparison wasn't
+actually easier. Stacked gives each heatmap full window width, the
+rotated keyword headers are legible, and the visual comparison still
+holds because the user scans top-to-bottom rather than left-to-right.
+
+**How to apply:** Coverage page. The Polarity dropdown's "Both" option
+label changed from "Both (side-by-side)" to "Both (stacked)". The
+underlying viz: `grid grid-cols-1 xl:grid-cols-2` → `space-y-8`.
+
+**Affects:** US-A-05 (polarity filter on Coverage); the matching
+"side-by-side small heatmaps" wording in the Coverage workflow spec
+above is now stale and should be read as "stacked panels".
 
 ### IA-4. Lenses are a top-level page; Projects remain the unit of analysis
 
