@@ -276,9 +276,12 @@ function PhrasesTable({
               const key = `${r.size}:${r.phrase}`
               const isExpanded = expanded.has(key)
               const pct = (r.count / max) * 100
-              // In single-doc mode, the "in N docs" column always shows 1 and
-              // expanding adds nothing useful — so disable expansion there.
-              const expandable = !singleDocMode && r.sources.length > 1
+              // In single-doc mode, the only source is the doc the user
+              // already picked — no useful info to expand. In multi-doc
+              // mode (scope=All) we always allow expansion: even when a
+              // phrase appears in only one document, the user wants to
+              // know WHICH document.
+              const expandable = !singleDocMode && r.sources.length >= 1
               return (
                 <PhrasesRow
                   key={key}

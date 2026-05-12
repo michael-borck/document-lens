@@ -3,7 +3,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { ProjectBar } from '@/components/project/ProjectBar'
 import { ProjectContextStrip } from '@/components/project/ProjectContextStrip'
 import { WorkflowTabs } from '@/components/project/WorkflowTabs'
-import { getProjectWithSetup } from '@/services/projects'
+import { getProjectWithSetup, updateProject } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
 import { listLenses } from '@/services/lenses'
 import { listScoringRules } from '@/services/scoring-rules'
@@ -100,9 +100,14 @@ export function ProjectWorkspace() {
 
   const segments = buildContextSegments(vm)
 
+  const handleRename = async (next: string) => {
+    await updateProject(vm.project.id, { name: next })
+    await vm.refresh()
+  }
+
   return (
     <div className="flex flex-col h-full">
-      <ProjectBar projectName={vm.project.name} />
+      <ProjectBar projectName={vm.project.name} onRename={handleRename} />
       <ProjectContextStrip segments={segments} />
       <WorkflowTabs setupComplete={vm.setupComplete} />
       <div className="flex-1 overflow-auto">
