@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -20,6 +20,13 @@ import { listKeywordLists } from '@/services/keyword-lists'
 import { listLenses } from '@/services/lenses'
 import { listScoringRules } from '@/services/scoring-rules'
 import { getDocument } from '@/services/documents'
+import {
+  classifyProjectFunctions,
+  getClassificationStatus,
+  type ClassifyDocumentProgress,
+  type ClassificationStatus,
+} from '@/services/classification'
+import { toast } from '@/stores/toastStore'
 import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { KeywordList, Lens, ScoringRule, Document } from '@/types/data'
@@ -82,6 +89,7 @@ export function Setup() {
           activeLensIds={new Set(vm.project.lensIds)}
           onToggle={handleToggleLens}
         />
+        <ClassificationSection vm={vm} />
         <ScoringRuleSection
           allRules={allRules}
           activeRuleId={vm.scoringRule?.id ?? null}
@@ -290,6 +298,144 @@ function LensesSection({
         )}
       </div>
     </section>
+  )
+}
+
+function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
+  // Find a document-context lens active on the project. v1 only handles
+  // one such lens at a time (typically Function); the dropdown is not
+  // shown unless a project has more than one.
+  const contextLenses = vm.lenses.filter((l) => l.type === 'document-context')
+  const [activeLensId, setActiveLensId] = useState<string>(contextLenses[0]?.id ?? '')
+  const [status, setStatus] = useState<ClassificationStatus | null>(null)
+  const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState<ClassifyDocumentProgress | null>(null)
+
+  useEffect(() => {
+    if (contextLenses.length > 0 && !activeLensId) {
+      setActiveLensId(contextLenses[0].id)
+    }
+  }, [contextLenses, activeLensId])
+
+  useEffect(() => {
+    if (!activeLensId || vm.documentCount === 0) {
+      setStatus(null)
+      return
+    }
+    getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
+  }, [vm.project.id, vm.documentCount, activeLensId])
+
+  const lens = contextLenses.find((l) => l.id === activeLensId)
+
+  const handleRun = async () => {
+    if (!activeLensId) return
+    setRunning(true)
+    setProgress(null)
+    try {
+      const result = await classifyProjectFunctions(vm.project.id, activeLensId, setProgress)
+      const fresh = await getClassificationStatus(vm.project.id, activeLensId)
+      setStatus(fresh)
+      toast.success(
+        `Classified ${result.documentsProcessed} document${result.documentsProcessed === 1 ? '' : 's'}` +
+        ` (${result.totalSectionsTagged} sections tagged)`
+      )
+    } catch (err) {
+      toast.error(`Classification failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setRunning(false)
+      setProgress(null)
+    }
+  }
+
+  if (contextLenses.length === 0) {
+    // No document-context lens active — nothing to classify. Hide the
+    // section entirely to keep Setup clean for projects that don't use
+    // Function-style classification.
+    return null
+  }
+
+  return (
+    <section>
+      <SectionHeader
+        icon={<Sparkles className="h-5 w-5" />}
+        title="Function classification"
+        count={
+          status
+            ? `${status.classifiedDocuments} / ${status.totalDocuments} documents`
+            : undefined
+        }
+      />
+      <div className="border border-border rounded-md p-4 space-y-3">
+        <p className="text-sm text-muted-foreground">
+          Classifies each section of each document on the{' '}
+          <strong>{lens?.name ?? 'document-context'}</strong> lens via embedding similarity.
+          Required for the Map two-axis matrix and the full Wedding Cake Score.
+          {status && status.unavailableDocuments > 0 && (
+            <>
+              {' '}<strong>{status.unavailableDocuments}</strong>{' '}
+              document{status.unavailableDocuments === 1 ? '' : 's'} can't be classified
+              (no extracted text — re-import or check the Library).
+            </>
+          )}
+        </p>
+
+        {progress && <ClassificationProgressBar progress={progress} />}
+
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={handleRun}
+            disabled={running || vm.documentCount === 0}
+            className="gap-2"
+          >
+            {running ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Classifying…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-4 w-4" />
+                {status && status.classifiedDocuments > 0 ? 'Re-classify' : 'Classify documents'}
+              </>
+            )}
+          </Button>
+          {status && status.classifiedDocuments === status.totalDocuments && status.totalDocuments > 0 && (
+            <span className="text-xs text-green-700">All documents classified.</span>
+          )}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function ClassificationProgressBar({ progress }: { progress: ClassifyDocumentProgress }) {
+  const docPct = ((progress.documentIndex + (progress.sectionsTotal > 0
+    ? progress.sectionsDone / progress.sectionsTotal
+    : 0)) / progress.totalDocuments) * 100
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between text-xs">
+        <span className="truncate">
+          <RefreshCw className="inline h-3 w-3 mr-1.5 animate-spin" />
+          {progress.documentLabel}
+          {progress.sectionsTotal > 0 && (
+            <span className="text-muted-foreground">
+              {' '}· {progress.sectionsDone} / {progress.sectionsTotal} sections
+            </span>
+          )}
+        </span>
+        <span className="text-muted-foreground tabular-nums">
+          {progress.documentIndex + 1} / {progress.totalDocuments}
+        </span>
+      </div>
+      <div className="h-1.5 bg-border rounded-full overflow-hidden">
+        <div
+          className="h-full bg-foreground transition-all"
+          style={{ width: `${Math.min(100, docPct)}%` }}
+        />
+      </div>
+    </div>
   )
 }
 

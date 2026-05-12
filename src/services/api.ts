@@ -359,15 +359,19 @@ class ApiClient {
   }
 
   /**
-   * Batch domain mapping for multiple documents
+   * Batch domain mapping. Backend signature is `{ documents: list[str],
+   * domains: list[str] }` — just an array of texts, not objects with
+   * ids. Response is one DomainMappingResponse per input text, in
+   * input order. The caller is responsible for tracking which input
+   * corresponds to which result by index.
    */
   async mapDomainsBatch(
-    documents: Array<{ id: string; text: string }>,
+    texts: string[],
     domains: string[]
-  ): Promise<BatchDomainMappingResponse> {
-    return this.request<BatchDomainMappingResponse>('/semantic/domain-mapping/batch', {
+  ): Promise<DomainMappingResponse[]> {
+    return this.request<DomainMappingResponse[]>('/semantic/domain-mapping/batch', {
       method: 'POST',
-      body: JSON.stringify({ documents, domains }),
+      body: JSON.stringify({ documents: texts, domains }),
     })
   }
 }
@@ -591,15 +595,21 @@ export interface SentimentResponse {
   }>
 }
 
-export interface DomainMappingResponse {
-  mappings: Array<{
-    domain: string
-    score: number  // 0 to 1
-    confidence: number
-    relevant_excerpts?: string[]
-  }>
+export interface DomainMapping {
+  section_text: string         // truncated to 200 chars by the backend
+  section_index: number
   primary_domain: string
-  coverage: Record<string, number>  // percentage of text for each domain
+  similarity_score: number     // 0.0 - 1.0 cosine similarity
+  all_domain_scores: Record<string, number>
+  confidence: 'high' | 'medium' | 'low'
+}
+
+export interface DomainMappingResponse {
+  total_sections: number
+  domains_analyzed: string[]
+  mappings: DomainMapping[]
+  domain_distribution: Record<string, number>  // domain -> count
+  average_confidence: number
 }
 
 export interface StructuralMismatchResponse {

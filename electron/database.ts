@@ -15,8 +15,12 @@ let db: Database.Database | null = null
  *   1: initial v2 schema (16 tables)
  *   2: add document_pages (per-page extracted text for future
  *      page-aware concordance and PDF viewer — IA-8, 2026-05-12)
+ *   3: add document_sections + section_lens_tags (Phase 3.5 Function
+ *      classification — paragraph-grain text chunks plus their
+ *      per-lens tag assignments, e.g. Teaching / Research /
+ *      Engagement / Operations from the Function lens)
  */
-const SCHEMA_VERSION = 2
+const SCHEMA_VERSION = 3
 
 const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -65,6 +69,42 @@ CREATE TABLE IF NOT EXISTS document_pages (
   PRIMARY KEY (document_id, page_number)
 );
 CREATE INDEX IF NOT EXISTS idx_document_pages_doc ON document_pages(document_id);
+
+-- Document sections (paragraph-grain chunks of extracted_text). Each
+-- section knows its character-offset range in the document's full text
+-- so a keyword match's offset can be joined to the section it belongs
+-- to. Created at classification time, not at import — we only spend
+-- the work when a workflow needs it.
+CREATE TABLE IF NOT EXISTS document_sections (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  section_index INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,    -- char offset in extracted_text (inclusive)
+  end_offset INTEGER NOT NULL,      -- char offset (exclusive)
+  text TEXT NOT NULL,
+  classified_at TEXT,               -- ISO timestamp of last classification, or NULL
+  UNIQUE(document_id, section_index)
+);
+CREATE INDEX IF NOT EXISTS idx_document_sections_doc ON document_sections(document_id);
+CREATE INDEX IF NOT EXISTS idx_document_sections_offset
+  ON document_sections(document_id, start_offset, end_offset);
+
+-- Per-section lens tags. Currently used by the Function lens to record
+-- which Function each section was classified as (with the embedding
+-- model's confidence score). Same shape as keyword_tags so the same
+-- conceptual model applies — a section carries values on lens axes
+-- like a keyword does.
+CREATE TABLE IF NOT EXISTS section_lens_tags (
+  section_id TEXT NOT NULL REFERENCES document_sections(id) ON DELETE CASCADE,
+  lens_id TEXT NOT NULL REFERENCES lenses(id) ON DELETE CASCADE,
+  value_id TEXT NOT NULL REFERENCES lens_values(id) ON DELETE CASCADE,
+  confidence REAL,                  -- 0.0-1.0 from the embedding model
+  PRIMARY KEY (section_id, lens_id, value_id)
+);
+CREATE INDEX IF NOT EXISTS idx_section_lens_tags_section
+  ON section_lens_tags(section_id);
+CREATE INDEX IF NOT EXISTS idx_section_lens_tags_lens_value
+  ON section_lens_tags(lens_id, value_id);
 
 -- Lenses (Tag Axes). The dimensions along which keyword mentions are
 -- classified (SDG, Pillar, Function, etc.).
