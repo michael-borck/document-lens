@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play, Sparkles } from 'lucide-react'
+import { Loader2, Play, Sparkles, ChevronRight, ChevronDown, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -9,11 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { computeNgrams, type ComputeNgramsResult, type NgramSize } from '@/services/ngrams'
+import { computeNgrams, type ComputeNgramsResult, type NgramSize, type NgramResult } from '@/services/ngrams'
+import { getDocument } from '@/services/documents'
 import { EmptyState } from '@/components/EmptyState'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
+import type { Document } from '@/types/data'
 
 type SizeFilter = '2' | '3' | 'both'
+type Scope = 'all' | 'single'
 
 export function Discover() {
   const vm = useOutletContext<ProjectViewModel>()
@@ -51,7 +54,7 @@ export function Discover() {
       </div>
 
       {activeTab === 'phrases' ? (
-        <PhrasesTab projectId={vm.project.id} />
+        <PhrasesTab projectId={vm.project.id} documentIds={vm.project.documentIds} />
       ) : (
         <SynonymsPlaceholder />
       )}
@@ -101,17 +104,40 @@ function TabButton({
 // Phrases sub-tab
 // ---------------------------------------------------------------------------
 
-function PhrasesTab({ projectId }: { projectId: string }) {
+function PhrasesTab({
+  projectId,
+  documentIds,
+}: {
+  projectId: string
+  documentIds: string[]
+}) {
   const [size, setSize] = useState<SizeFilter>('both')
   const [minCount, setMinCount] = useState<number>(3)
+  const [scope, setScope] = useState<Scope>('all')
+  const [singleDocId, setSingleDocId] = useState<string>('')
+  const [docs, setDocs] = useState<Document[]>([])
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<ComputeNgramsResult | null>(null)
 
+  // Load doc metadata for the single-doc picker.
+  useEffect(() => {
+    Promise.all(documentIds.map((id) => getDocument(id))).then((rows) => {
+      setDocs(rows.filter((d): d is Document => d !== null))
+    })
+  }, [documentIds])
+
   const handleRun = async () => {
+    if (scope === 'single' && !singleDocId) return
     setRunning(true)
     try {
       const sizes: NgramSize[] = size === '2' ? [2] : size === '3' ? [3] : [2, 3]
-      const r = await computeNgrams({ projectId, sizes, minCount, topN: 200 })
+      const r = await computeNgrams({
+        projectId,
+        documentId: scope === 'single' ? singleDocId : undefined,
+        sizes,
+        minCount,
+        topN: 200,
+      })
       setResult(r)
     } finally {
       setRunning(false)
@@ -121,6 +147,33 @@ function PhrasesTab({ projectId }: { projectId: string }) {
   return (
     <div>
       <div className="flex items-end gap-4 mb-6 flex-wrap">
+        <Field label="Scope">
+          <Select value={scope} onValueChange={(v) => { setScope(v as Scope); setResult(null) }}>
+            <SelectTrigger className="w-48">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All project documents</SelectItem>
+              <SelectItem value="single">Single document</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        {scope === 'single' && (
+          <Field label="Document">
+            <Select value={singleDocId} onValueChange={setSingleDocId}>
+              <SelectTrigger className="w-72">
+                <SelectValue placeholder="Pick a document" />
+              </SelectTrigger>
+              <SelectContent>
+                {docs.map((doc) => (
+                  <SelectItem key={doc.id} value={doc.id}>
+                    {doc.title || doc.filename}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+        )}
         <Field label="Size">
           <Select value={size} onValueChange={(v) => setSize(v as SizeFilter)}>
             <SelectTrigger className="w-44">
@@ -147,7 +200,11 @@ function PhrasesTab({ projectId }: { projectId: string }) {
           </Select>
         </Field>
         <div className="flex-1" />
-        <Button onClick={handleRun} disabled={running} className="gap-2">
+        <Button
+          onClick={handleRun}
+          disabled={running || (scope === 'single' && !singleDocId)}
+          className="gap-2"
+        >
           {running ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -164,7 +221,7 @@ function PhrasesTab({ projectId }: { projectId: string }) {
 
       {!result ? (
         <div className="text-sm text-muted-foreground border border-dashed border-border rounded-md p-6 text-center">
-          Click <strong>Run discovery</strong> to extract frequent 2- and 3-word phrases from this project's documents.
+          Click <strong>Run discovery</strong> to extract frequent 2- and 3-word phrases.
         </div>
       ) : result.results.length === 0 ? (
         <EmptyState
@@ -172,14 +229,28 @@ function PhrasesTab({ projectId }: { projectId: string }) {
           description="Lower the minimum frequency or add more documents to surface more phrases."
         />
       ) : (
-        <PhrasesTable result={result} />
+        <PhrasesTable result={result} singleDocMode={scope === 'single'} />
       )}
     </div>
   )
 }
 
-function PhrasesTable({ result }: { result: ComputeNgramsResult }) {
+function PhrasesTable({
+  result,
+  singleDocMode,
+}: {
+  result: ComputeNgramsResult
+  singleDocMode: boolean
+}) {
   const max = result.results[0]?.count ?? 1
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
+
+  const toggle = (key: string) => {
+    const next = new Set(expanded)
+    if (next.has(key)) next.delete(key)
+    else next.add(key)
+    setExpanded(next)
+  }
 
   return (
     <>
@@ -192,6 +263,7 @@ function PhrasesTable({ result }: { result: ComputeNgramsResult }) {
         <table className="w-full text-sm">
           <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
             <tr>
+              <th className="font-medium w-8"></th>
               <th className="text-left font-medium px-4 py-2 w-16">Size</th>
               <th className="text-left font-medium px-4 py-2">Phrase</th>
               <th className="text-right font-medium px-4 py-2 w-24">Count</th>
@@ -201,31 +273,94 @@ function PhrasesTable({ result }: { result: ComputeNgramsResult }) {
           </thead>
           <tbody className="divide-y divide-border">
             {result.results.map((r) => {
+              const key = `${r.size}:${r.phrase}`
+              const isExpanded = expanded.has(key)
               const pct = (r.count / max) * 100
+              // In single-doc mode, the "in N docs" column always shows 1 and
+              // expanding adds nothing useful — so disable expansion there.
+              const expandable = !singleDocMode && r.sources.length > 1
               return (
-                <tr key={`${r.size}:${r.phrase}`} className="hover:bg-muted/30 transition-colors">
-                  <td className="px-4 py-1.5 text-xs text-muted-foreground tabular-nums">
-                    {r.size}-gram
-                  </td>
-                  <td className="px-4 py-1.5 font-medium">{r.phrase}</td>
-                  <td className="px-4 py-1.5 text-right tabular-nums">{r.count.toLocaleString()}</td>
-                  <td className="px-4 py-1.5 text-right tabular-nums text-muted-foreground">
-                    {r.documentCount}
-                  </td>
-                  <td className="px-4 py-1.5">
-                    <div className="h-2 bg-border rounded-full overflow-hidden">
-                      <div
-                        className="h-full bg-foreground/60"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                  </td>
-                </tr>
+                <PhrasesRow
+                  key={key}
+                  ngram={r}
+                  isExpanded={isExpanded}
+                  expandable={expandable}
+                  onToggle={() => toggle(key)}
+                  pct={pct}
+                />
               )
             })}
           </tbody>
         </table>
       </div>
+    </>
+  )
+}
+
+function PhrasesRow({
+  ngram,
+  isExpanded,
+  expandable,
+  onToggle,
+  pct,
+}: {
+  ngram: NgramResult
+  isExpanded: boolean
+  expandable: boolean
+  onToggle: () => void
+  pct: number
+}) {
+  return (
+    <>
+      <tr
+        className={`hover:bg-muted/30 transition-colors ${expandable ? 'cursor-pointer' : ''}`}
+        onClick={expandable ? onToggle : undefined}
+      >
+        <td className="px-2 py-1.5 text-center text-muted-foreground">
+          {expandable && (
+            isExpanded
+              ? <ChevronDown className="h-3.5 w-3.5 inline" />
+              : <ChevronRight className="h-3.5 w-3.5 inline" />
+          )}
+        </td>
+        <td className="px-4 py-1.5 text-xs text-muted-foreground tabular-nums">
+          {ngram.size}-gram
+        </td>
+        <td className="px-4 py-1.5 font-medium">{ngram.phrase}</td>
+        <td className="px-4 py-1.5 text-right tabular-nums">{ngram.count.toLocaleString()}</td>
+        <td className="px-4 py-1.5 text-right tabular-nums text-muted-foreground">
+          {ngram.documentCount}
+        </td>
+        <td className="px-4 py-1.5">
+          <div className="h-2 bg-border rounded-full overflow-hidden">
+            <div className="h-full bg-foreground/60" style={{ width: `${pct}%` }} />
+          </div>
+        </td>
+      </tr>
+      {expandable && isExpanded && (
+        <tr className="bg-muted/20">
+          <td></td>
+          <td colSpan={5} className="px-4 py-2">
+            <div className="text-xs text-muted-foreground mb-1.5">Sources:</div>
+            <ul className="space-y-1">
+              {ngram.sources.map((src) => (
+                <li key={src.documentId} className="flex items-center gap-2 text-xs">
+                  <FileText className="h-3 w-3 text-muted-foreground shrink-0" />
+                  <span className="flex-1 truncate">
+                    {src.title}
+                    {src.year !== null && (
+                      <span className="text-muted-foreground"> ({src.year})</span>
+                    )}
+                  </span>
+                  <span className="tabular-nums text-muted-foreground">
+                    {src.count} match{src.count === 1 ? '' : 'es'}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </td>
+        </tr>
+      )}
     </>
   )
 }

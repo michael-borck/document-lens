@@ -63,6 +63,15 @@ export interface TrackSeries {
   points: TrackPoint[]
 }
 
+export interface TrackPerDocPoint {
+  documentId: string
+  title: string
+  year: number
+  value: number
+  /** Polarity used to compute this doc's value (matches one of the series). */
+  polarity: KeywordPolarity
+}
+
 export interface TrackResult {
   measure: TrackMeasure
   series: TrackSeries[]
@@ -74,6 +83,13 @@ export interface TrackResult {
   totalDocs: number
   /** True when the score measure was requested but classification is incomplete; the score values fall back to the v1 Pillar coverage prerequisite. */
   scoreFallback?: boolean
+  /**
+   * Per-document data points (only populated for measure='score' so the
+   * Track chart can overlay each doc as a dot at its (year, score)
+   * coordinate alongside the per-year average line). Empty for other
+   * measures.
+   */
+  perDocument: TrackPerDocPoint[]
 }
 
 export interface ComputeTrackInput {
@@ -161,6 +177,7 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   }
 
   const series: TrackSeries[] = []
+  const perDocument: TrackPerDocPoint[] = []
   let yearUnknownDocs = 0
   let yearUnknownMatches = 0
   let totalDocs = 0
@@ -177,6 +194,9 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
       yearMin = yearMin === null ? oneSeries.yearRange.min : Math.min(yearMin, oneSeries.yearRange.min)
       yearMax = yearMax === null ? oneSeries.yearRange.max : Math.max(yearMax, oneSeries.yearRange.max)
     }
+    if (input.measure === 'score') {
+      for (const p of oneSeries.perDocument) perDocument.push(p)
+    }
   }
 
   return {
@@ -186,6 +206,7 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
     yearRange: yearMin !== null && yearMax !== null ? { min: yearMin, max: yearMax } : null,
     totalDocs,
     scoreFallback: input.measure === 'score' ? scoreFallback : undefined,
+    perDocument,
   }
 }
 
@@ -195,6 +216,8 @@ interface SeriesBuildResult {
   yearUnknownMatches: number
   totalDocs: number
   yearRange: { min: number; max: number } | null
+  /** Per-document scoring data — only populated when measure='score'. */
+  perDocument: TrackPerDocPoint[]
 }
 
 async function buildSeriesForPolarity(
@@ -275,6 +298,23 @@ async function buildSeriesForPolarity(
     ? { min: sortedYears[0], max: sortedYears[sortedYears.length - 1] }
     : null
 
+  // Per-doc data points (only for score measure — other measures' per-doc
+  // values aren't meaningful as a scatter overlay).
+  const perDocument: TrackPerDocPoint[] = []
+  if (input.measure === 'score') {
+    for (const doc of knownYearDocs) {
+      const m = perDocMeasure.get(doc.id)
+      if (!m) continue
+      perDocument.push({
+        documentId: doc.id,
+        title: doc.title ?? doc.filename,
+        year: doc.year,
+        value: m.score,
+        polarity,
+      })
+    }
+  }
+
   return {
     series: {
       name: polarity === 'positive' ? 'Positive' : 'Counter',
@@ -285,6 +325,7 @@ async function buildSeriesForPolarity(
     yearUnknownMatches: yearUnknownMatchCount,
     totalDocs: knownYearDocs.length,
     yearRange,
+    perDocument,
   }
 }
 

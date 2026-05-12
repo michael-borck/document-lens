@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Scatter,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -351,6 +352,7 @@ function ResultsView({ result }: { result: TrackResult }) {
   const allYears = useMemo(() => {
     const set = new Set<number>()
     for (const s of result.series) for (const p of s.points) set.add(p.year)
+    for (const p of result.perDocument) set.add(p.year)
     return Array.from(set).sort((a, b) => a - b)
   }, [result])
 
@@ -365,6 +367,18 @@ function ResultsView({ result }: { result: TrackResult }) {
       return row
     })
   }, [allYears, result.series])
+
+  // Per-doc scatter data, separated by polarity so the dots get coloured
+  // distinctly. Only populated for score measure.
+  const scatterByPolarity = useMemo(() => {
+    const positive: Array<{ year: number; value: number; title: string }> = []
+    const counter: Array<{ year: number; value: number; title: string }> = []
+    for (const p of result.perDocument) {
+      const target = p.polarity === 'counter' ? counter : positive
+      target.push({ year: p.year, value: p.value, title: p.title })
+    }
+    return { positive, counter }
+  }, [result.perDocument])
 
   if (allYears.length < 2) {
     return (
@@ -384,6 +398,8 @@ function ResultsView({ result }: { result: TrackResult }) {
     )
   }
 
+  const showScatter = result.measure === 'score' && result.perDocument.length > 0
+
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
@@ -392,6 +408,9 @@ function ResultsView({ result }: { result: TrackResult }) {
         {yearRange && ` · ${yearRange.min}–${yearRange.max}`}
         {result.scoreFallback && (
           <> · <strong>fallback to v1 Pillar coverage</strong> (Function classification incomplete)</>
+        )}
+        {showScatter && (
+          <> · line = per-year average; dots = individual document scores</>
         )}
       </p>
 
@@ -408,20 +427,38 @@ function ResultsView({ result }: { result: TrackResult }) {
 
       <div className="border border-border rounded-md p-4">
         <ResponsiveContainer width="100%" height={360}>
-          <LineChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
+          <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
-            <XAxis dataKey="year" stroke="currentColor" fontSize={11} />
+            <XAxis
+              dataKey="year"
+              stroke="currentColor"
+              fontSize={11}
+              type="number"
+              domain={['dataMin', 'dataMax']}
+              tickCount={Math.min(allYears.length, 10)}
+              allowDecimals={false}
+            />
             <YAxis stroke="currentColor" fontSize={11} />
             <Tooltip
               contentStyle={{ fontSize: '12px' }}
               labelFormatter={(v) => `Year ${v}`}
-              formatter={(value: number, name: string) => {
-                if (result.measure === 'coverage-percent') return [`${value.toFixed(1)}%`, name]
-                if (result.measure === 'score') return [value.toFixed(2), name]
-                return [value, name]
+              formatter={(value: number | string, name: string, item) => {
+                // For scatter dots, recharts passes the full data row as item.payload.
+                const payload = item?.payload as { title?: string } | undefined
+                const numeric = typeof value === 'number' ? value : Number(value)
+                let formatted: string
+                if (result.measure === 'coverage-percent') formatted = `${numeric.toFixed(1)}%`
+                else if (result.measure === 'score') formatted = numeric.toFixed(2)
+                else formatted = String(value)
+                if (payload?.title) {
+                  return [`${formatted} (${payload.title})`, name]
+                }
+                return [formatted, name]
               }}
             />
             <Legend wrapperStyle={{ fontSize: '12px' }} />
+
+            {/* Per-year average line(s) */}
             {result.series.map((s) => (
               <Line
                 key={s.name}
@@ -433,12 +470,71 @@ function ResultsView({ result }: { result: TrackResult }) {
                 connectNulls
               />
             ))}
-          </LineChart>
+
+            {/* Per-document scatter (score measure only) */}
+            {showScatter && scatterByPolarity.positive.length > 0 && (
+              <Scatter
+                name="Documents (positive)"
+                data={scatterByPolarity.positive}
+                dataKey="value"
+                fill="rgba(34, 197, 94, 0.55)"
+              />
+            )}
+            {showScatter && scatterByPolarity.counter.length > 0 && (
+              <Scatter
+                name="Documents (counter)"
+                data={scatterByPolarity.counter}
+                dataKey="value"
+                fill="rgba(234, 88, 12, 0.55)"
+              />
+            )}
+          </ComposedChart>
         </ResponsiveContainer>
       </div>
 
+      {showScatter && <PerDocumentTable result={result} />}
+
       <DataTable result={result} />
     </div>
+  )
+}
+
+function PerDocumentTable({ result }: { result: TrackResult }) {
+  // Sort: year asc, then title asc.
+  const sorted = useMemo(() => {
+    return [...result.perDocument].sort(
+      (a, b) => a.year - b.year || a.title.localeCompare(b.title)
+    )
+  }, [result.perDocument])
+  if (sorted.length === 0) return null
+  return (
+    <details>
+      <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+        Per-document scores ({sorted.length} document{sorted.length === 1 ? '' : 's'})
+      </summary>
+      <div className="mt-2 border border-border rounded-md overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left px-3 py-1.5 font-medium w-20">Year</th>
+              <th className="text-left px-3 py-1.5 font-medium">Document</th>
+              <th className="text-right px-3 py-1.5 font-medium w-20">Score</th>
+              <th className="text-left px-3 py-1.5 font-medium w-24">Polarity</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {sorted.map((p, i) => (
+              <tr key={`${p.documentId}-${p.polarity}-${i}`}>
+                <td className="px-3 py-1 tabular-nums">{p.year}</td>
+                <td className="px-3 py-1 truncate max-w-md">{p.title}</td>
+                <td className="px-3 py-1 text-right tabular-nums">{p.value.toFixed(2)}</td>
+                <td className="px-3 py-1 text-muted-foreground capitalize">{p.polarity}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </details>
   )
 }
 

@@ -10,6 +10,13 @@ import { selectAll } from './db'
 
 export type NgramSize = 2 | 3
 
+export interface NgramSourceDoc {
+  documentId: string
+  title: string
+  year: number | null
+  count: number
+}
+
 export interface NgramResult {
   phrase: string
   size: NgramSize
@@ -17,10 +24,17 @@ export interface NgramResult {
   count: number
   /** Number of documents this phrase appeared in (1..corpus size). */
   documentCount: number
+  /** Per-document breakdown — which docs contained this phrase and how many times each. */
+  sources: NgramSourceDoc[]
 }
 
 export interface ComputeNgramsInput {
   projectId: string
+  /**
+   * When set, restrict to this single document (for "Discover within
+   * one document" mode). When omitted, scans all project documents.
+   */
+  documentId?: string
   /** Which n-gram sizes to compute (default: both). */
   sizes?: NgramSize[]
   /** Drop n-grams below this corpus-wide count (default: 3). */
@@ -59,6 +73,9 @@ const STOPWORDS = new Set<string>([
 
 interface ProjectTextRow {
   id: string
+  title: string | null
+  filename: string
+  year: number | null
   extracted_text: string | null
 }
 
@@ -67,16 +84,31 @@ export async function computeNgrams(input: ComputeNgramsInput): Promise<ComputeN
   const minCount = input.minCount ?? 3
   const topN = input.topN ?? 100
 
-  const rows = await selectAll<ProjectTextRow>(
-    `SELECT d.id, d.extracted_text
-       FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ? AND d.extracted_text IS NOT NULL`,
-    [input.projectId]
-  )
+  const rows = input.documentId
+    ? await selectAll<ProjectTextRow>(
+        `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
+           FROM documents d
+           JOIN project_documents pd ON pd.document_id = d.id
+          WHERE pd.project_id = ? AND d.id = ? AND d.extracted_text IS NOT NULL`,
+        [input.projectId, input.documentId]
+      )
+    : await selectAll<ProjectTextRow>(
+        `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
+           FROM documents d
+           JOIN project_documents pd ON pd.document_id = d.id
+          WHERE pd.project_id = ? AND d.extracted_text IS NOT NULL`,
+        [input.projectId]
+      )
 
-  // For each phrase: total occurrences + per-document presence (Set of doc ids).
-  const phraseCounts = new Map<string, { count: number; size: NgramSize; docs: Set<string> }>()
+  // Doc metadata for source attribution on each n-gram.
+  const docMeta = new Map<string, { title: string; year: number | null }>()
+  for (const r of rows) {
+    docMeta.set(r.id, { title: r.title ?? r.filename, year: r.year })
+  }
+
+  // For each phrase: total occurrences + per-document counts.
+  // Map<docId, count> rather than Set<docId> so we can attribute matches per source.
+  const phraseCounts = new Map<string, { count: number; size: NgramSize; docCounts: Map<string, number> }>()
   let totalTokens = 0
 
   for (const row of rows) {
@@ -93,11 +125,11 @@ export async function computeNgrams(input: ComputeNgramsInput): Promise<ComputeN
         const phrase = window.join(' ')
         let entry = phraseCounts.get(phrase)
         if (!entry) {
-          entry = { count: 0, size, docs: new Set() }
+          entry = { count: 0, size, docCounts: new Map() }
           phraseCounts.set(phrase, entry)
         }
         entry.count++
-        entry.docs.add(row.id)
+        entry.docCounts.set(row.id, (entry.docCounts.get(row.id) ?? 0) + 1)
       }
     }
   }
@@ -105,11 +137,19 @@ export async function computeNgrams(input: ComputeNgramsInput): Promise<ComputeN
   const results: NgramResult[] = []
   for (const [phrase, entry] of phraseCounts) {
     if (entry.count < minCount) continue
+    const sources: NgramSourceDoc[] = []
+    for (const [docId, count] of entry.docCounts) {
+      const meta = docMeta.get(docId)
+      if (!meta) continue
+      sources.push({ documentId: docId, title: meta.title, year: meta.year, count })
+    }
+    sources.sort((a, b) => b.count - a.count || a.title.localeCompare(b.title))
     results.push({
       phrase,
       size: entry.size,
       count: entry.count,
-      documentCount: entry.docs.size,
+      documentCount: entry.docCounts.size,
+      sources,
     })
   }
 
