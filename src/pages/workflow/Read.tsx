@@ -29,6 +29,11 @@ export function Read() {
   const [polarityFilter, setPolarityFilter] = useState<PolarityFilter>('all')
   const [result, setResult] = useState<ConcordanceResult | null>(null)
   const [searching, setSearching] = useState(false)
+  // Per-document keyword match counts (keywordId -> count). Computed
+  // after a document is picked so the keyword dropdown can be filtered
+  // to "what's actually in this document". null = not yet computed.
+  const [matchCounts, setMatchCounts] = useState<Record<string, number> | null>(null)
+  const [countingMatches, setCountingMatches] = useState(false)
 
   useEffect(() => {
     Promise.all(vm.project.documentIds.map((id) => getDocument(id))).then((rows) => {
@@ -41,11 +46,42 @@ export function Read() {
     listKeywords(vm.keywordList.id).then(setKeywords)
   }, [vm.keywordList])
 
+  // When the document changes, compute match counts for every enabled
+  // keyword. These drive the dropdown filter (show only keywords that
+  // actually appear in this document) and the per-row counts.
+  useEffect(() => {
+    if (!docId || keywords.length === 0) {
+      setMatchCounts(null)
+      return
+    }
+    let cancelled = false
+    setCountingMatches(true)
+    setKeywordId('')  // reset selection — old keyword may not have matches in the new doc
+    getDocument(docId).then((doc) => {
+      if (cancelled) return
+      const text = doc?.extractedText ?? ''
+      const counts: Record<string, number> = {}
+      for (const k of keywords) {
+        if (!k.enabled) continue
+        counts[k.id] = countOccurrences(text, k.text)
+      }
+      setMatchCounts(counts)
+      setCountingMatches(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [docId, keywords])
+
   const filteredKeywords = useMemo(() => {
     return keywords
       .filter((k) => k.enabled)
       .filter((k) => polarityFilter === 'all' ? true : k.polarity === polarityFilter)
-  }, [keywords, polarityFilter])
+      // After a document is picked, hide keywords with zero matches in
+      // that document. Before a document is picked (matchCounts === null),
+      // show everything so the user can see what's available.
+      .filter((k) => matchCounts === null || (matchCounts[k.id] ?? 0) > 0)
+  }, [keywords, polarityFilter, matchCounts])
 
   // Run search whenever doc + keyword + contextWords are all set.
   useEffect(() => {
@@ -125,21 +161,44 @@ export function Read() {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Keyword">
-          <Select value={keywordId} onValueChange={setKeywordId}>
+        <Field label={`Keyword${matchCounts ? ` (${filteredKeywords.length} with hits)` : ''}`}>
+          <Select value={keywordId} onValueChange={setKeywordId} disabled={!docId || countingMatches}>
             <SelectTrigger>
-              <SelectValue placeholder="Pick a keyword" />
+              <SelectValue
+                placeholder={
+                  !docId
+                    ? 'Pick a document first'
+                    : countingMatches
+                      ? 'Counting matches…'
+                      : filteredKeywords.length === 0
+                        ? 'No keywords with hits'
+                        : 'Pick a keyword'
+                }
+              />
             </SelectTrigger>
             <SelectContent>
               {filteredKeywords.length === 0 ? (
-                <div className="px-3 py-2 text-sm text-muted-foreground">No keywords match</div>
+                <div className="px-3 py-2 text-sm text-muted-foreground">
+                  {matchCounts === null
+                    ? 'No keywords match'
+                    : `No ${polarityFilter === 'all' ? '' : polarityFilter + ' '}keywords appear in this document.`}
+                </div>
               ) : (
                 filteredKeywords.map((kw) => (
                   <SelectItem key={kw.id} value={kw.id}>
-                    {kw.text}
-                    {kw.polarity === 'counter' && (
-                      <span className="ml-2 text-[10px] uppercase text-muted-foreground">counter</span>
-                    )}
+                    <span className="flex items-center justify-between gap-3 w-full">
+                      <span className="flex-1 truncate">{kw.text}</span>
+                      <span className="flex items-center gap-1.5 shrink-0">
+                        {kw.polarity === 'counter' && (
+                          <span className="text-[10px] uppercase text-muted-foreground">counter</span>
+                        )}
+                        {matchCounts && (
+                          <span className="text-[10px] tabular-nums text-muted-foreground">
+                            ({matchCounts[kw.id]})
+                          </span>
+                        )}
+                      </span>
+                    </span>
                   </SelectItem>
                 ))
               )}
@@ -217,6 +276,22 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
       {children}
     </div>
   )
+}
+
+/**
+ * Match-count helper for the keyword dropdown filter. Same regex shape
+ * as services/coverage.ts (case-insensitive whole-word for single-token
+ * keywords, literal phrase for multi-token) so the count agrees with
+ * what Coverage shows.
+ */
+function countOccurrences(text: string, keyword: string): number {
+  if (!text || !keyword) return 0
+  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const pattern = /\s/.test(keyword)
+    ? new RegExp(escaped, 'gi')
+    : new RegExp(`\\b${escaped}\\b`, 'gi')
+  const matches = text.match(pattern)
+  return matches ? matches.length : 0
 }
 
 function ConcordanceResults({
