@@ -171,9 +171,14 @@ async function importOne(
 
     // Title: prefer the PDF metadata title if present; otherwise filename.
     const title = response.metadata?.title?.trim() || stripExtension(filename)
-    // Year: use the backend's inferred probable_year if present.
-    const year = response.inferred?.probable_year ?? null
-    const company = response.inferred?.probable_company ?? null
+    // Year: filename-only detection per design decision 4 (deterministic;
+    // user can edit on the Library page if the filename has no year or
+    // the detected one is wrong).
+    const year = detectYearFromFilename(filename)
+    // Company is NOT auto-populated — we have no reliable filename signal
+    // for it, and the backend's content-based inference isn't returned by
+    // the upload-path endpoint. User adds via inline edit.
+    const company: string | null = null
 
     await runStatement(
       `UPDATE documents
@@ -233,4 +238,20 @@ function basename(filePath: string): string {
 function stripExtension(filename: string): string {
   const dot = filename.lastIndexOf('.')
   return dot === -1 ? filename : filename.slice(0, dot)
+}
+
+/**
+ * Look for a 4-digit year in the filename (1990-2039). Strips the
+ * extension first so a `.pdf` doesn't pollute the match. Prefers the
+ * first hit so `acme-2023-q3-fy2024.pdf` resolves to 2023 (the year
+ * the document is about, typically named first).
+ *
+ * Matches resolved decision 4: filename-only year detection — no PDF
+ * content sniffing, no fallback to creation_date metadata. The user
+ * can fix wrong/missing years inline on the Library page.
+ */
+function detectYearFromFilename(filename: string): number | null {
+  const base = stripExtension(filename)
+  const match = base.match(/(?:^|[^0-9])((?:19[9]\d|20[0-3]\d))(?:[^0-9]|$)/)
+  return match ? parseInt(match[1], 10) : null
 }
