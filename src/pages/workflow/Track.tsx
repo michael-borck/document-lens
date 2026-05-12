@@ -192,6 +192,8 @@ export function Track() {
             <SelectContent>
               <SelectItem value="none">None (single line)</SelectItem>
               <SelectItem value="polarity">Polarity (positive vs counter)</SelectItem>
+              <SelectItem value="company">Company (one line per company)</SelectItem>
+              <SelectItem value="sector">Sector (one line per sector)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -459,12 +461,12 @@ function ResultsView({ result }: { result: TrackResult }) {
             <Legend wrapperStyle={{ fontSize: '12px' }} />
 
             {/* Per-year average line(s) */}
-            {result.series.map((s) => (
+            {result.series.map((s, i) => (
               <Line
                 key={s.name}
                 type="monotone"
                 dataKey={s.name}
-                stroke={s.polarity === 'counter' ? 'rgb(234, 88, 12)' : 'rgb(34, 197, 94)'}
+                stroke={lineColor(s, i, result.series.length)}
                 strokeWidth={2}
                 dot={{ r: 3 }}
                 connectNulls
@@ -542,6 +544,41 @@ function measureLabel(m: TrackMeasure): string {
   if (m === 'match-count') return 'Match count'
   if (m === 'coverage-percent') return 'Coverage %'
   return 'Score'
+}
+
+/**
+ * Line colour. Polarity grouping uses semantic colours (green positive,
+ * orange counter); company/sector grouping cycles through a palette
+ * indexed by series order so lines stay visually distinct even with
+ * many companies. Single-series uses positive's green.
+ */
+const SERIES_PALETTE = [
+  'rgb(34, 197, 94)',    // green-500
+  'rgb(59, 130, 246)',   // blue-500
+  'rgb(234, 88, 12)',    // orange-600
+  'rgb(168, 85, 247)',   // purple-500
+  'rgb(234, 179, 8)',    // yellow-500
+  'rgb(220, 38, 38)',    // red-600
+  'rgb(20, 184, 166)',   // teal-500
+  'rgb(147, 51, 234)',   // violet-600
+  'rgb(2, 132, 199)',    // sky-600
+  'rgb(132, 204, 22)',   // lime-500
+]
+
+interface LineSeries {
+  name: string
+  polarity?: 'positive' | 'counter'
+}
+
+function lineColor(s: LineSeries, index: number, totalSeries: number): string {
+  // Polarity overlay (exactly two lines, named "Positive" and "Counter")
+  // — keep the semantic colour mapping.
+  if (totalSeries === 2 && (s.name === 'Positive' || s.name === 'Counter')) {
+    return s.polarity === 'counter' ? 'rgb(234, 88, 12)' : 'rgb(34, 197, 94)'
+  }
+  if (totalSeries === 1) return SERIES_PALETTE[0]
+  // Company / sector / many-line case — palette by index.
+  return SERIES_PALETTE[index % SERIES_PALETTE.length]
 }
 
 function DataTable({ result }: { result: TrackResult }) {

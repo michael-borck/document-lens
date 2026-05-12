@@ -37,7 +37,7 @@ import type {
 } from '@/types/data'
 
 export type TrackMeasure = 'match-count' | 'coverage-percent' | 'score'
-export type TrackGroup = 'none' | 'polarity'
+export type TrackGroup = 'none' | 'polarity' | 'company' | 'sector'
 
 /**
  * Topic to track. One of:
@@ -154,12 +154,19 @@ function rowToDocument(row: ProjectDocRow): Document {
   }
 }
 
-export async function computeTrack(input: ComputeTrackInput): Promise<TrackResult> {
-  // Decide which polarities we need to compute. For group='polarity' we
-  // run two passes, one per polarity, to avoid mixing the lines.
-  const polarities: KeywordPolarity[] =
-    input.group === 'polarity' ? ['positive', 'counter'] : [input.polarity]
+/**
+ * One axis of grouping for the track output. Polarity grouping splits
+ * by positive/counter; company/sector grouping splits by document
+ * attribute (one series per unique value found in the project).
+ */
+interface SeriesSpec {
+  name: string
+  polarity: KeywordPolarity
+  /** Per-doc filter applied before per-doc measure computation. null = no filter. */
+  docFilter: ((doc: Document) => boolean) | null
+}
 
+export async function computeTrack(input: ComputeTrackInput): Promise<TrackResult> {
   // Determine if score-measure can use the full Wedding Cake (function-tagged)
   // or must fall back to the v1 Pillar coverage prerequisite.
   let scoreFallback = false
@@ -176,6 +183,9 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
     }
   }
 
+  // Build the list of series we need to compute.
+  const seriesSpecs = await resolveSeriesSpecs(input)
+
   const series: TrackSeries[] = []
   const perDocument: TrackPerDocPoint[] = []
   let yearUnknownDocs = 0
@@ -184,8 +194,8 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   let yearMin: number | null = null
   let yearMax: number | null = null
 
-  for (const polarity of polarities) {
-    const oneSeries = await buildSeriesForPolarity(input, polarity, scoreFallback)
+  for (const spec of seriesSpecs) {
+    const oneSeries = await buildSeriesForSpec(input, spec, scoreFallback)
     series.push(oneSeries.series)
     yearUnknownDocs = Math.max(yearUnknownDocs, oneSeries.yearUnknownDocs)
     yearUnknownMatches += oneSeries.yearUnknownMatches
@@ -210,6 +220,52 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   }
 }
 
+async function resolveSeriesSpecs(input: ComputeTrackInput): Promise<SeriesSpec[]> {
+  if (input.group === 'polarity') {
+    return [
+      { name: 'Positive', polarity: 'positive', docFilter: null },
+      { name: 'Counter', polarity: 'counter', docFilter: null },
+    ]
+  }
+  if (input.group === 'company' || input.group === 'sector') {
+    const field = input.group  // 'company' | 'sector'
+    // Pull distinct attribute values from the project's docs (skipping null/empty).
+    const rows = await selectAll<{ value: string }>(
+      `SELECT DISTINCT ${field === 'company' ? 'd.company' : 'd.sector'} AS value
+         FROM documents d
+         JOIN project_documents pd ON pd.document_id = d.id
+        WHERE pd.project_id = ?
+          AND ${field === 'company' ? 'd.company' : 'd.sector'} IS NOT NULL
+          AND TRIM(${field === 'company' ? 'd.company' : 'd.sector'}) != ''
+        ORDER BY value`,
+      [input.projectId]
+    )
+    if (rows.length === 0) {
+      // No docs have a value for this field — fall back to a single-series
+      // result using the user's polarity, named "(no <field>)" so the legend
+      // is honest.
+      return [
+        {
+          name: `(no ${field})`,
+          polarity: input.polarity,
+          docFilter: null,
+        },
+      ]
+    }
+    return rows.map((r) => ({
+      name: r.value,
+      polarity: input.polarity,
+      docFilter: (doc) => (field === 'company' ? doc.company : doc.sector) === r.value,
+    }))
+  }
+  // group === 'none'
+  return [{ name: polarityLabel(input.polarity), polarity: input.polarity, docFilter: null }]
+}
+
+function polarityLabel(p: KeywordPolarity): string {
+  return p === 'positive' ? 'Positive' : 'Counter'
+}
+
 interface SeriesBuildResult {
   series: TrackSeries
   yearUnknownDocs: number
@@ -220,11 +276,12 @@ interface SeriesBuildResult {
   perDocument: TrackPerDocPoint[]
 }
 
-async function buildSeriesForPolarity(
+async function buildSeriesForSpec(
   input: ComputeTrackInput,
-  polarity: KeywordPolarity,
+  spec: SeriesSpec,
   scoreFallback: boolean
 ): Promise<SeriesBuildResult> {
+  const polarity = spec.polarity
   // Resolve which keywords contribute to this topic + polarity.
   const allKeywords = await listKeywords(input.keywordListId)
   const enabled = allKeywords.filter((k) => k.enabled && k.polarity === polarity)
@@ -237,7 +294,9 @@ async function buildSeriesForPolarity(
       WHERE pd.project_id = ?`,
     [input.projectId]
   )
-  const docs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
+  const allDocs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
+  // Apply the per-series doc filter (e.g., this series is for company "Acme").
+  const docs = spec.docFilter ? allDocs.filter(spec.docFilter) : allDocs
 
   // Apply the year-min / year-max filter for the trend (year-unknown docs
   // pass through to the unknown bucket regardless).
@@ -317,7 +376,7 @@ async function buildSeriesForPolarity(
 
   return {
     series: {
-      name: polarity === 'positive' ? 'Positive' : 'Counter',
+      name: spec.name,
       polarity,
       points,
     },
