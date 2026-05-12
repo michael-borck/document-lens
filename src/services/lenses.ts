@@ -124,3 +124,20 @@ export async function createLensValue(input: CreateLensValueInput): Promise<Lens
 export async function deleteLens(id: string): Promise<void> {
   await runStatement('DELETE FROM lenses WHERE id = ?', [id])
 }
+
+export async function deleteLensValue(id: string): Promise<void> {
+  await runStatement('DELETE FROM lens_values WHERE id = ?', [id])
+}
+
+/**
+ * Count how many projects currently activate this lens. Used by the
+ * Lenses page to surface "you're about to delete a lens X projects
+ * still use" before allowing destructive action.
+ */
+export async function countProjectsUsingLens(lensId: string): Promise<number> {
+  const row = await selectOne<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM project_lenses WHERE lens_id = ?',
+    [lensId]
+  )
+  return row?.n ?? 0
+}

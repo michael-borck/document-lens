@@ -74,3 +74,15 @@ export async function createScoringRule(input: CreateScoringRuleInput): Promise<
 export async function deleteScoringRule(id: string): Promise<void> {
   await runStatement('DELETE FROM scoring_rules WHERE id = ?', [id])
 }
+
+/**
+ * Count how many projects reference this scoring rule. Used by the
+ * Settings rule editor to warn before destructive action.
+ */
+export async function countProjectsUsingScoringRule(ruleId: string): Promise<number> {
+  const row = await selectOne<{ n: number }>(
+    'SELECT COUNT(*) AS n FROM projects WHERE scoring_rule_id = ?',
+    [ruleId]
+  )
+  return row?.n ?? 0
+}
