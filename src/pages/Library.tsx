@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
-import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw } from 'lucide-react'
+import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
-import { listDocuments, updateDocumentAttributes } from '@/services/documents'
+import { listDocuments, updateDocumentAttributes, deleteDocument } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
 import { cn } from '@/lib/utils'
 import { InlineEditableCell } from '@/components/InlineEditableCell'
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { selectOne } from '@/services/db'
 
 export function Library() {
   const [docs, setDocs] = useState<Document[] | null>(null)
@@ -129,6 +131,11 @@ function DocumentTable({
   documents: Document[]
   onChange: () => void
 }) {
+  const [pendingDelete, setPendingDelete] = useState<{
+    doc: Document
+    projectCount: number
+  } | null>(null)
+
   const handleEdit = async (
     id: string,
     field: 'title' | 'year' | 'company' | 'sector',
@@ -144,6 +151,25 @@ function DocumentTable({
     onChange()
   }
 
+  const handleAskDelete = async (doc: Document) => {
+    // Surface how many projects this document is in so the user knows
+    // the blast radius before confirming. project_documents has ON DELETE
+    // CASCADE so the rows go away with the document.
+    const row = await selectOne<{ n: number }>(
+      'SELECT COUNT(*) AS n FROM project_documents WHERE document_id = ?',
+      [doc.id]
+    )
+    setPendingDelete({ doc, projectCount: row?.n ?? 0 })
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    await deleteDocument(pendingDelete.doc.id)
+    toast.success(`Deleted "${pendingDelete.doc.title ?? pendingDelete.doc.filename}"`)
+    setPendingDelete(null)
+    onChange()
+  }
+
   return (
     <div className="border border-border rounded-md overflow-hidden">
       <table className="w-full text-sm">
@@ -156,6 +182,7 @@ function DocumentTable({
             <th className="text-left font-medium px-4 py-2 w-32">Status</th>
             <th className="text-right font-medium px-4 py-2 w-20">Pages</th>
             <th className="text-right font-medium px-4 py-2 w-24">Words</th>
+            <th className="font-medium px-2 py-2 w-10"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
@@ -213,10 +240,44 @@ function DocumentTable({
               <td className="px-4 py-2.5 text-right text-muted-foreground tabular-nums">
                 {doc.wordCount ? doc.wordCount.toLocaleString() : '—'}
               </td>
+              <td className="px-2 py-2.5">
+                <button
+                  type="button"
+                  onClick={() => handleAskDelete(doc)}
+                  className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                  title="Delete from Library"
+                  aria-label={`Delete ${doc.title ?? doc.filename}`}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </td>
             </tr>
           ))}
         </tbody>
       </table>
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title={`Delete "${pendingDelete?.doc.title ?? pendingDelete?.doc.filename ?? ''}"?`}
+        description={
+          <>
+            Removes the document from your Library, including its extracted
+            text and metadata. The original file on disk is{' '}
+            <strong>not</strong> deleted.
+            {pendingDelete && pendingDelete.projectCount > 0 && (
+              <>
+                {' '}This document is currently in{' '}
+                <strong>{pendingDelete.projectCount} project{pendingDelete.projectCount === 1 ? '' : 's'}</strong>;
+                it will be removed from those too.
+              </>
+            )}
+          </>
+        }
+        confirmLabel="Delete document"
+        destructive
+        onConfirm={handleConfirmDelete}
+      />
     </div>
   )
 }

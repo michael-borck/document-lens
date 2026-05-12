@@ -1,16 +1,19 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FolderOpen } from 'lucide-react'
+import { Plus, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { NewProjectDialog } from '@/components/dialogs/NewProjectDialog'
-import { listProjects } from '@/services/projects'
+import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { listProjects, deleteProject } from '@/services/projects'
+import { toast } from '@/stores/toastStore'
 import type { Project } from '@/types/data'
 
 export function Projects() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
 
   useEffect(() => {
     refresh()
@@ -23,6 +26,14 @@ export function Projects() {
   const handleCreated = (project: Project) => {
     refresh()
     navigate(`/projects/${project.id}/setup`)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    await deleteProject(pendingDelete.id)
+    toast.success(`Deleted project "${pendingDelete.name}"`)
+    setPendingDelete(null)
+    await refresh()
   }
 
   if (projects === null) {
@@ -61,11 +72,14 @@ export function Projects() {
       ) : (
         <ul className="divide-y divide-border border border-border rounded-md">
           {projects.map((project) => (
-            <li key={project.id}>
+            <li
+              key={project.id}
+              className="group flex items-center gap-2 hover:bg-muted/50 transition-colors"
+            >
               <button
                 type="button"
                 onClick={() => navigate(`/projects/${project.id}/setup`)}
-                className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center gap-4"
+                className="flex-1 text-left px-4 py-3 flex items-center gap-4 min-w-0"
               >
                 <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
@@ -78,6 +92,15 @@ export function Projects() {
                   {new Date(project.updatedAt).toLocaleDateString()}
                 </div>
               </button>
+              <button
+                type="button"
+                onClick={() => setPendingDelete(project)}
+                className="px-3 py-3 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                title="Delete project"
+                aria-label={`Delete project ${project.name}`}
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
             </li>
           ))}
         </ul>
@@ -87,6 +110,23 @@ export function Projects() {
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         onCreated={handleCreated}
+      />
+
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title={`Delete "${pendingDelete?.name ?? ''}"?`}
+        description={
+          <>
+            Removes this project, its document selection, lens / scoring rule
+            configuration, and any cached analysis results.{' '}
+            <strong>Library documents are not affected</strong> — they
+            remain available to other projects.
+          </>
+        }
+        confirmLabel="Delete project"
+        destructive
+        onConfirm={handleConfirmDelete}
       />
     </div>
   )
