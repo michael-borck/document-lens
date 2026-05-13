@@ -16,9 +16,12 @@ interface NewProjectDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onCreated: (project: Project) => void
+  /** Optional escape hatch — if provided, shows a "Use guided setup" link
+   *  that closes this dialog and opens the FirstRunWizard instead. */
+  onSwitchToWizard?: () => void
 }
 
-export function NewProjectDialog({ open, onOpenChange, onCreated }: NewProjectDialogProps) {
+export function NewProjectDialog({ open, onOpenChange, onCreated, onSwitchToWizard }: NewProjectDialogProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [creating, setCreating] = useState(false)
@@ -102,18 +105,30 @@ export function NewProjectDialog({ open, onOpenChange, onCreated }: NewProjectDi
             )}
           </div>
 
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => onOpenChange(false)}
-              disabled={creating}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" disabled={!name.trim() || creating}>
-              {creating ? 'Creating…' : 'Create project'}
-            </Button>
+          <DialogFooter className="!justify-between sm:!justify-between">
+            {onSwitchToWizard ? (
+              <button
+                type="button"
+                onClick={onSwitchToWizard}
+                disabled={creating}
+                className="text-xs text-muted-foreground hover:text-foreground underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Use guided setup instead →
+              </button>
+            ) : <div />}
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={creating}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={!name.trim() || creating}>
+                {creating ? 'Creating…' : 'Create project'}
+              </Button>
+            </div>
           </DialogFooter>
         </form>
       </DialogContent>

@@ -4,6 +4,7 @@ import { Plus, FolderOpen, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { NewProjectDialog } from '@/components/dialogs/NewProjectDialog'
+import { FirstRunWizard } from '@/components/dialogs/FirstRunWizard'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { listProjects, deleteProject } from '@/services/projects'
 import { toast } from '@/stores/toastStore'
@@ -13,6 +14,7 @@ export function Projects() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [wizardOpen, setWizardOpen] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
 
   useEffect(() => {
@@ -63,7 +65,7 @@ export function Projects() {
           title="No projects yet"
           description="A project is a workspace for analysing a set of documents through a chosen framework. The app ships with the SDG keyword list and the 5-level Wedding Cake Score pre-loaded — your first project will be productive without any configuration."
           action={
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
+            <Button onClick={() => setWizardOpen(true)} className="gap-2">
               <Plus className="h-4 w-4" />
               Create your first project
             </Button>
@@ -109,6 +111,16 @@ export function Projects() {
       <NewProjectDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
+        onCreated={handleCreated}
+        onSwitchToWizard={() => {
+          setDialogOpen(false)
+          setWizardOpen(true)
+        }}
+      />
+
+      <FirstRunWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
         onCreated={handleCreated}
       />
 
