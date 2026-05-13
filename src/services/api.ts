@@ -376,6 +376,31 @@ class ApiClient {
       body: JSON.stringify({ documents: texts, domains }),
     })
   }
+
+  /**
+   * Find candidate terms semantically similar to source terms.
+   * Powers the synonym-discovery flow. Backend embeds both lists with
+   * the same sentence-transformers model the domain_mapper uses, then
+   * for each source returns the top_n candidates by cosine similarity
+   * above min_similarity (defaults: top_n=20, min_similarity=0.0).
+   *
+   * Available on document-analyser >= 0.2.3.
+   */
+  async findSimilarTerms(
+    sourceTerms: string[],
+    candidateTerms: string[],
+    options: { topN?: number; minSimilarity?: number } = {}
+  ): Promise<SimilarTermsResponse> {
+    return this.request<SimilarTermsResponse>('/semantic/similar-terms', {
+      method: 'POST',
+      body: JSON.stringify({
+        source_terms: sourceTerms,
+        candidate_terms: candidateTerms,
+        top_n: options.topN ?? 20,
+        min_similarity: options.minSimilarity ?? 0,
+      }),
+    })
+  }
 }
 
 // Custom error class
@@ -650,6 +675,20 @@ export interface BatchDomainMappingResponse {
     domain_coverage: Record<string, number>
     primary_domains: Record<string, number>
   }
+}
+
+export interface SimilarTermCandidate {
+  candidate: string
+  similarity: number  // 0.0 - 1.0 cosine similarity
+}
+
+export interface SimilarTermsForSource {
+  source: string
+  candidates: SimilarTermCandidate[]
+}
+
+export interface SimilarTermsResponse {
+  results: SimilarTermsForSource[]
 }
 
 // Export singleton instance

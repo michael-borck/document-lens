@@ -213,3 +213,94 @@ export async function clearKeywordTagsForLens(keywordId: string, lensId: string)
     [keywordId, lensId]
   )
 }
+
+// ---------------------------------------------------------------------------
+// Synonyms (per-keyword child list)
+// ---------------------------------------------------------------------------
+
+import type { Synonym, SynonymSource } from '@/types/data'
+
+interface SynonymRow {
+  id: string
+  keyword_id: string
+  text: string
+  enabled: number
+  source: SynonymSource
+  added_at: string
+}
+
+function rowToSynonym(row: SynonymRow): Synonym {
+  return {
+    id: row.id,
+    keywordId: row.keyword_id,
+    text: row.text,
+    enabled: dbBool(row.enabled),
+    source: row.source,
+    addedAt: row.added_at,
+  }
+}
+
+export async function listSynonyms(keywordId: string): Promise<Synonym[]> {
+  const rows = await selectAll<SynonymRow>(
+    'SELECT * FROM synonyms WHERE keyword_id = ? ORDER BY added_at',
+    [keywordId]
+  )
+  return rows.map(rowToSynonym)
+}
+
+export interface CreateSynonymInput {
+  keywordId: string
+  text: string
+  source?: SynonymSource
+}
+
+export async function createSynonym(input: CreateSynonymInput): Promise<Synonym> {
+  const id = newId()
+  await runStatement(
+    `INSERT INTO synonyms (id, keyword_id, text, enabled, source, added_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      id,
+      input.keywordId,
+      input.text,
+      toDbBool(true),
+      input.source ?? 'user',
+      now(),
+    ]
+  )
+  const row = await selectOne<SynonymRow>('SELECT * FROM synonyms WHERE id = ?', [id])
+  if (!row) throw new Error(`Failed to create synonym ${input.text}`)
+  return rowToSynonym(row)
+}
+
+export async function deleteSynonym(id: string): Promise<void> {
+  await runStatement('DELETE FROM synonyms WHERE id = ?', [id])
+}
+
+export async function setSynonymEnabled(id: string, enabled: boolean): Promise<void> {
+  await runStatement('UPDATE synonyms SET enabled = ? WHERE id = ?', [toDbBool(enabled), id])
+}
+
+/**
+ * Bulk presence check — given (keywordId, text) pairs, return the set
+ * of pairs that already exist in the synonyms table. Used by Discover
+ * Synonyms to filter out already-accepted candidates without 1 SQL
+ * call per (keyword, candidate).
+ */
+export async function listExistingSynonymsForKeywords(
+  keywordIds: string[]
+): Promise<Map<string, Set<string>>> {
+  const out = new Map<string, Set<string>>()
+  if (keywordIds.length === 0) return out
+  const placeholders = keywordIds.map(() => '?').join(',')
+  const rows = await selectAll<{ keyword_id: string; text: string }>(
+    `SELECT keyword_id, text FROM synonyms WHERE keyword_id IN (${placeholders})`,
+    keywordIds
+  )
+  for (const r of rows) {
+    const set = out.get(r.keyword_id) ?? new Set<string>()
+    set.add(r.text.toLowerCase())
+    out.set(r.keyword_id, set)
+  }
+  return out
+}

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play, Sparkles, ChevronRight, ChevronDown, FileText } from 'lucide-react'
+import { Loader2, Play, Sparkles, ChevronRight, ChevronDown, FileText, Check, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -11,9 +11,18 @@ import {
 } from '@/components/ui/select'
 import { computeNgrams, type ComputeNgramsResult, type NgramSize, type NgramResult } from '@/services/ngrams'
 import { getDocument } from '@/services/documents'
+import { createSynonym } from '@/services/keyword-lists'
+import {
+  discoverSynonyms,
+  type DiscoverSynonymsResult,
+  type DiscoverSynonymsProgress,
+  type SynonymCandidate,
+} from '@/services/synonym-discovery'
+import { toast } from '@/stores/toastStore'
 import { EmptyState } from '@/components/EmptyState'
+import { cn } from '@/lib/utils'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Document } from '@/types/data'
+import type { Document, Keyword, KeywordPolarity } from '@/types/data'
 
 type SizeFilter = '2' | '3' | 'both'
 type Scope = 'all' | 'single'
@@ -56,7 +65,7 @@ export function Discover() {
       {activeTab === 'phrases' ? (
         <PhrasesTab projectId={vm.project.id} documentIds={vm.project.documentIds} />
       ) : (
-        <SynonymsPlaceholder />
+        <SynonymsTab vm={vm} />
       )}
     </div>
   )
@@ -369,16 +378,285 @@ function PhrasesRow({
 }
 
 // ---------------------------------------------------------------------------
-// Synonyms sub-tab — placeholder until Phase 5
+// Synonyms sub-tab — embedding-based candidate suggestions
 // ---------------------------------------------------------------------------
 
-function SynonymsPlaceholder() {
+function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
+  const [polarity, setPolarity] = useState<KeywordPolarity>('positive')
+  const [minSimilarity, setMinSimilarity] = useState<number>(0.5)
+  const [topN, setTopN] = useState<number>(8)
+  const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState<DiscoverSynonymsProgress | null>(null)
+  const [result, setResult] = useState<DiscoverSynonymsResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  // Per-keyword rejected candidates (kept in component state; nothing
+  // is persisted — Rejects just hide locally so the user can focus on
+  // the remaining list).
+  const [rejected, setRejected] = useState<Record<string, Set<string>>>({})
+  // Per-keyword accepted (locally tracked so the UI immediately reflects
+  // the user's action without a re-fetch).
+  const [accepted, setAccepted] = useState<Record<string, Set<string>>>({})
+
+  const handleRun = async () => {
+    if (!vm.keywordList) return
+    setRunning(true)
+    setError(null)
+    setResult(null)
+    setRejected({})
+    setAccepted({})
+    setProgress(null)
+    try {
+      const out = await discoverSynonyms(
+        {
+          projectId: vm.project.id,
+          keywordListId: vm.keywordList.id,
+          polarity,
+          minSimilarity,
+          topN,
+        },
+        setProgress
+      )
+      setResult(out)
+      if (out.unavailable) {
+        toast.error('Embedding model unavailable — backend returned 503.')
+      } else {
+        const total = out.perKeyword.reduce((s, k) => s + k.candidates.length, 0)
+        toast.success(
+          `Found ${total} candidate${total === 1 ? '' : 's'} across ${out.perKeyword.filter((k) => k.candidates.length > 0).length} keyword${out.perKeyword.length === 1 ? '' : 's'}`
+        )
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setRunning(false)
+      setProgress(null)
+    }
+  }
+
+  const handleAccept = async (keyword: Keyword, candidate: SynonymCandidate) => {
+    try {
+      await createSynonym({
+        keywordId: keyword.id,
+        text: candidate.text,
+        source: 'ai-suggested-accepted',
+      })
+      setAccepted((prev) => {
+        const next = { ...prev }
+        const set = new Set(next[keyword.id] ?? [])
+        set.add(candidate.text)
+        next[keyword.id] = set
+        return next
+      })
+      toast.success(`Added "${candidate.text}" as a synonym for "${keyword.text}"`)
+    } catch (err) {
+      toast.error(`Failed to add synonym: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleReject = (keyword: Keyword, candidate: SynonymCandidate) => {
+    setRejected((prev) => {
+      const next = { ...prev }
+      const set = new Set(next[keyword.id] ?? [])
+      set.add(candidate.text)
+      next[keyword.id] = set
+      return next
+    })
+  }
+
+  if (!vm.keywordList) {
+    return (
+      <EmptyState
+        title="No keyword list"
+        description="Pick a keyword list on the Setup tab to enable synonym discovery."
+      />
+    )
+  }
+
   return (
-    <EmptyState
-      icon={<Sparkles className="h-12 w-12" />}
-      title="Synonym discovery — coming in Phase 5"
-      description="Embedding-based synonym suggestions per keyword (positive and counter), with explicit Accept / Reject controls. The accepted synonyms attach to the parent keyword and start counting in Coverage automatically."
-    />
+    <div>
+      <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
+        Candidates are <strong>suggestions only</strong> from a sentence-embedding model — they're
+        approximate. Treat each one as a hint to evaluate, not an authoritative synonym. Accepted
+        candidates attach to the parent keyword (preserving provenance) and count in Coverage
+        automatically.
+      </div>
+
+      <div className="flex items-end gap-4 mb-6 flex-wrap">
+        <Field label="Polarity">
+          <Select value={polarity} onValueChange={(v) => setPolarity(v as KeywordPolarity)}>
+            <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="positive">Positive keywords</SelectItem>
+              <SelectItem value="counter">Counter keywords</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Min similarity">
+          <Select value={String(minSimilarity)} onValueChange={(v) => setMinSimilarity(Number(v))}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="0.3">0.3 (loose)</SelectItem>
+              <SelectItem value="0.4">0.4</SelectItem>
+              <SelectItem value="0.5">0.5 (default)</SelectItem>
+              <SelectItem value="0.6">0.6</SelectItem>
+              <SelectItem value="0.7">0.7 (strict)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Top per keyword">
+          <Select value={String(topN)} onValueChange={(v) => setTopN(Number(v))}>
+            <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="5">5</SelectItem>
+              <SelectItem value="8">8</SelectItem>
+              <SelectItem value="12">12</SelectItem>
+              <SelectItem value="20">20</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+        <div className="flex-1" />
+        <Button onClick={handleRun} disabled={running} className="gap-2">
+          {running ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              {progress ? progress.message : 'Running…'}
+            </>
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" />
+              {result ? 'Re-run' : 'Discover synonyms'}
+            </>
+          )}
+        </Button>
+      </div>
+
+      {error && (
+        <div className="mb-4 text-sm text-destructive border border-destructive/30 rounded-md p-3">{error}</div>
+      )}
+
+      {result && (
+        <SynonymsResults
+          result={result}
+          rejected={rejected}
+          accepted={accepted}
+          onAccept={handleAccept}
+          onReject={handleReject}
+        />
+      )}
+    </div>
+  )
+}
+
+function SynonymsResults({
+  result,
+  rejected,
+  accepted,
+  onAccept,
+  onReject,
+}: {
+  result: DiscoverSynonymsResult
+  rejected: Record<string, Set<string>>
+  accepted: Record<string, Set<string>>
+  onAccept: (keyword: Keyword, candidate: SynonymCandidate) => Promise<void>
+  onReject: (keyword: Keyword, candidate: SynonymCandidate) => void
+}) {
+  if (result.unavailable) {
+    return (
+      <EmptyState
+        icon={<Sparkles className="h-12 w-12" />}
+        title="Embedding model unavailable"
+        description="The backend's sentence-transformers model failed to load. Check the analysis-engine status in the app shell and try again."
+      />
+    )
+  }
+
+  const keywordsWithCandidates = result.perKeyword.filter((k) => k.candidates.length > 0)
+  if (keywordsWithCandidates.length === 0) {
+    return (
+      <EmptyState
+        title="No candidates above the similarity threshold"
+        description="Try lowering Min similarity, or import more documents so the candidate pool of corpus phrases is richer."
+      />
+    )
+  }
+
+  return (
+    <>
+      <p className="text-xs text-muted-foreground mb-3">
+        {keywordsWithCandidates.length} keyword{keywordsWithCandidates.length === 1 ? '' : 's'} with candidate{keywordsWithCandidates.length === 1 ? '' : 's'} ·
+        candidate pool: {result.candidatePoolSize.toLocaleString()} corpus phrases
+      </p>
+      <ul className="space-y-3">
+        {keywordsWithCandidates.map(({ keyword, candidates }) => {
+          const rej = rejected[keyword.id] ?? new Set<string>()
+          const acc = accepted[keyword.id] ?? new Set<string>()
+          const visibleCandidates = candidates.filter((c) => !rej.has(c.text))
+          if (visibleCandidates.length === 0) return null
+          return (
+            <li key={keyword.id} className="border border-border rounded-md p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-medium">{keyword.text}</code>
+                {keyword.polarity === 'counter' && (
+                  <span className="text-[10px] uppercase text-muted-foreground">counter</span>
+                )}
+              </div>
+              <ul className="divide-y divide-border">
+                {visibleCandidates.map((c) => {
+                  const isAccepted = acc.has(c.text)
+                  return (
+                    <li
+                      key={c.text}
+                      className="flex items-center gap-3 py-1.5 text-sm"
+                    >
+                      <span className="flex-1 truncate">{c.text}</span>
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0" title="Cosine similarity">
+                        {c.similarity.toFixed(2)}
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums shrink-0" title="Corpus frequency">
+                        {c.count}× in {c.documentCount} doc{c.documentCount === 1 ? '' : 's'}
+                      </span>
+                      {isAccepted ? (
+                        <span className="inline-flex items-center gap-1 text-xs text-green-700 px-2">
+                          <Check className="h-3 w-3" />
+                          Accepted
+                        </span>
+                      ) : (
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => onAccept(keyword, c)}
+                            className={cn(
+                              'inline-flex items-center gap-1 text-xs px-2 py-1 rounded',
+                              'text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors'
+                            )}
+                            title="Add as a synonym for this keyword"
+                          >
+                            <Check className="h-3 w-3" />
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => onReject(keyword, c)}
+                            className={cn(
+                              'inline-flex items-center gap-1 text-xs px-2 py-1 rounded',
+                              'text-muted-foreground hover:bg-muted/40 transition-colors'
+                            )}
+                            title="Hide this candidate (not stored — re-running may resurface it)"
+                          >
+                            <X className="h-3 w-3" />
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </li>
+                  )
+                })}
+              </ul>
+            </li>
+          )
+        })}
+      </ul>
+    </>
   )
 }
 
