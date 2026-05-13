@@ -39,7 +39,7 @@ export function PdfViewerModal({
 }: PdfViewerModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 gap-0">
+      <DialogContent className="w-[95vw] h-[92vh] max-w-[1600px] flex flex-col p-0 gap-0">
         <DialogHeader className="px-4 py-3 border-b border-border">
           <DialogTitle className="text-base font-medium truncate">
             {documentLabel}
