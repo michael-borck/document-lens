@@ -394,16 +394,20 @@ function extractWindowAround(text: string, offset: number, length: number): stri
 }
 
 /**
- * Map section classification confidence to a severity bucket so the
- * existing severity filter UI keeps working for confirmations:
- * higher confidence = stronger confirmation. Sections classified
- * before confidence was stored (legacy) get 'medium' as a neutral
- * fallback rather than 'low'.
+ * Map section classification confidence (cosine similarity from
+ * sentence-transformers) to a severity bucket so the existing severity
+ * filter UI distributes findings meaningfully. Thresholds are
+ * calibrated to typical similarity-score distributions: in practice
+ * the sentence-transformers section→domain cosine lands around
+ * 0.20–0.50, with strong matches above 0.45.
+ *
+ * Sections classified before confidence was stored (legacy / score=0)
+ * fall back to 'medium' so they aren't penalised.
  */
 function confidenceToSeverity(confidence: number): 'low' | 'medium' | 'high' {
   if (confidence === 0) return 'medium'  // no confidence stored
-  if (confidence >= 0.75) return 'high'
-  if (confidence >= 0.55) return 'medium'
+  if (confidence >= 0.45) return 'high'
+  if (confidence >= 0.30) return 'medium'
   return 'low'
 }
 

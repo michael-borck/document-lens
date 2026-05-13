@@ -14,6 +14,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+// Polyfills MUST run before pdfjs-dist is imported — pdfjs v5 calls
+// Uint8Array.prototype.toHex() during PDF parsing, a method added in
+// Chromium 137. Electron 33 ships Chromium 130, so we shim it.
+import './uint8-polyfill'
 import { GlobalWorkerOptions, getDocument, TextLayer } from 'pdfjs-dist'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import { ChevronLeft, ChevronRight, Loader2, ZoomIn, ZoomOut } from 'lucide-react'

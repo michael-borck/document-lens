@@ -469,15 +469,22 @@ function SeverityBadge({ mode, severity, score }: { mode: AuditMode; severity: S
       }
   const Icon = isConfirmation ? CheckCircle2 : AlertTriangle
   const scoreLabel = isConfirmation
-    ? `Section classification confidence: ${score.toFixed(2)}`
+    ? `Section classification confidence: ${score.toFixed(2)} (cosine similarity to the section's classified Function)`
     : `Dislocation score: ${score.toFixed(2)}`
+  // Confirmations: surface the raw confidence number alongside the
+  // bucket label, since the bucket alone ("low") reads as a quality
+  // judgement when it actually means "weakly classified". Anomalies:
+  // bucket label is meaningful on its own (severity of the dislocation).
+  const label = isConfirmation && score > 0
+    ? `${severity} · ${(score * 100).toFixed(0)}%`
+    : severity
   return (
     <span
       className={cn('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border', styles[severity])}
       title={scoreLabel}
     >
       <Icon className="h-3 w-3" />
-      {severity}
+      {label}
     </span>
   )
 }
