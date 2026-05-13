@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { ExternalLink } from 'lucide-react'
+import { Check, Copy, ExternalLink } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -11,6 +11,8 @@ import {
 import { findConcordance, type ConcordanceResult } from '@/services/concordance'
 import { listKeywords } from '@/services/keyword-lists'
 import { getDocument } from '@/services/documents'
+import { listSections, type DocumentSection } from '@/services/sections'
+import { getPageOffsets, findPageForOffset, type PageOffset } from '@/services/document-pages'
 import { EmptyState } from '@/components/EmptyState'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Document, Keyword, KeywordPolarity } from '@/types/data'
@@ -34,6 +36,14 @@ export function Read() {
   // to "what's actually in this document". null = not yet computed.
   const [matchCounts, setMatchCounts] = useState<Record<string, number> | null>(null)
   const [countingMatches, setCountingMatches] = useState(false)
+  // Document sections — used to label each match with the section it
+  // came from. Empty array if section detection hasn't been run for
+  // this document (e.g., classification never run).
+  const [sections, setSections] = useState<DocumentSection[]>([])
+  // Per-page char offsets — used to map each match's offset to a page
+  // number for the deep-link button. Empty if document_pages was never
+  // populated (legacy import / non-PDF source).
+  const [pageOffsets, setPageOffsets] = useState<PageOffset[]>([])
 
   useEffect(() => {
     Promise.all(vm.project.documentIds.map((id) => getDocument(id))).then((rows) => {
@@ -72,6 +82,40 @@ export function Read() {
       cancelled = true
     }
   }, [docId, keywords])
+
+  // Load sections for the picked doc so each concordance match can show
+  // which section it came from. Sections only exist if classification
+  // has populated them; otherwise the array is empty and labels hide.
+  useEffect(() => {
+    if (!docId) {
+      setSections([])
+      return
+    }
+    let cancelled = false
+    listSections(docId).then((rows) => {
+      if (!cancelled) setSections(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [docId])
+
+  // Load per-page char offsets so each match's char position can map
+  // to a page number. Empty array (silent no-op) for docs without
+  // stored page rows.
+  useEffect(() => {
+    if (!docId) {
+      setPageOffsets([])
+      return
+    }
+    let cancelled = false
+    getPageOffsets(docId).then((offsets) => {
+      if (!cancelled) setPageOffsets(offsets)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [docId])
 
   const filteredKeywords = useMemo(() => {
     return keywords
@@ -252,6 +296,8 @@ export function Read() {
           documentLabel={selectedDoc?.title ?? selectedDoc?.filename ?? ''}
           documentPath={selectedDoc?.filePath}
           keywordLabel={selectedKeyword?.text ?? ''}
+          sections={sections}
+          pageOffsets={pageOffsets}
         />
       )}
     </div>
@@ -299,11 +345,15 @@ function ConcordanceResults({
   documentLabel,
   documentPath,
   keywordLabel,
+  sections,
+  pageOffsets,
 }: {
   result: ConcordanceResult
   documentLabel: string
   documentPath?: string
   keywordLabel: string
+  sections: DocumentSection[]
+  pageOffsets: PageOffset[]
 }) {
   const openSourceFile = () => {
     if (!documentPath) return
@@ -311,6 +361,26 @@ function ConcordanceResults({
       /* user cancelled or system rejected */
     })
   }
+
+  // Pre-sort sections by startOffset for the binary search below.
+  // (listSections already returns by section_index, which == offset order.)
+  const findSection = (offset: number): DocumentSection | null => {
+    if (sections.length === 0) return null
+    let lo = 0
+    let hi = sections.length - 1
+    while (lo <= hi) {
+      const mid = (lo + hi) >> 1
+      const s = sections[mid]
+      if (offset < s.startOffset) hi = mid - 1
+      else if (offset >= s.endOffset) lo = mid + 1
+      else return s
+    }
+    return null
+  }
+
+  const totalPages = pageOffsets.length > 0
+    ? pageOffsets[pageOffsets.length - 1].pageNumber
+    : null
 
   return (
     <div>
@@ -334,22 +404,135 @@ function ConcordanceResults({
       </div>
 
       <ul className="space-y-3">
-        {result.matches.map((m) => (
-          <li
-            key={m.index}
-            className="border border-border rounded-md p-3 text-sm leading-relaxed"
-          >
-            <span className="text-muted-foreground">…{m.before} </span>
-            <mark className="bg-yellow-200 px-0.5 rounded font-medium not-italic">
-              {m.matched}
-            </mark>
-            <span className="text-muted-foreground"> {m.after}…</span>
-            <div className="text-[10px] text-muted-foreground mt-1.5 tabular-nums">
-              Match {m.index + 1} · char {m.position.toLocaleString()}
-            </div>
-          </li>
-        ))}
+        {result.matches.map((m) => {
+          const section = findSection(m.position)
+          const page = findPageForOffset(pageOffsets, m.position)
+          return (
+            <MatchCard
+              key={m.index}
+              match={m}
+              section={section}
+              sectionsTotal={sections.length}
+              page={page}
+              totalPages={totalPages}
+              documentPath={documentPath}
+            />
+          )
+        })}
       </ul>
     </div>
   )
+}
+
+function MatchCard({
+  match,
+  section,
+  sectionsTotal,
+  page,
+  totalPages,
+  documentPath,
+}: {
+  match: ConcordanceResult['matches'][number]
+  section: DocumentSection | null
+  sectionsTotal: number
+  page: number | null
+  totalPages: number | null
+  documentPath?: string
+}) {
+  const [copied, setCopied] = useState(false)
+
+  const copyPhrase = async () => {
+    const phrase = buildSearchPhrase(match.matched, match.after, match.before)
+    try {
+      await navigator.clipboard.writeText(phrase)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      /* clipboard rejected (e.g., insecure context) — silently no-op */
+    }
+  }
+
+  const openAtPage = () => {
+    if (!documentPath || page === null) return
+    // shell.openExternal honours `file://…#page=N` on macOS Preview /
+    // Acrobat. Viewers that don't understand the fragment silently
+    // ignore it and open at page 1 — that's the graceful fallback.
+    const fileUrl = `file://${encodeURI(documentPath)}#page=${page}`
+    window.electron?.openExternal(fileUrl).catch(() => {
+      /* fall back to plain open if URL form is rejected */
+      if (documentPath) window.electron?.openPath(documentPath).catch(() => {})
+    })
+  }
+
+  return (
+    <li className="border border-border rounded-md p-3 text-sm leading-relaxed">
+      <span className="text-muted-foreground">…{match.before} </span>
+      <mark className="bg-yellow-200 px-0.5 rounded font-medium not-italic">
+        {match.matched}
+      </mark>
+      <span className="text-muted-foreground"> {match.after}…</span>
+      <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
+        <span className="tabular-nums">Match {match.index + 1}</span>
+        {page !== null && (
+          <span className="tabular-nums">
+            · Page {page}{totalPages ? ` of ${totalPages}` : ''}
+          </span>
+        )}
+        {section && (
+          <span>
+            · § {section.sectionIndex + 1}/{sectionsTotal}{' '}
+            <span className="text-foreground/70">— {sectionSnippet(section.text)}</span>
+          </span>
+        )}
+        <span className="ml-auto flex items-center gap-1">
+          <button
+            type="button"
+            onClick={copyPhrase}
+            className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors"
+            title="Copy a search phrase to paste into your PDF viewer's Find (Cmd-F)"
+          >
+            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            {copied ? 'Copied' : 'Copy phrase'}
+          </button>
+          {page !== null && documentPath && (
+            <button
+              type="button"
+              onClick={openAtPage}
+              className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors"
+              title={`Open the source PDF at page ${page} (some viewers ignore the page hint and open at page 1)`}
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open at page {page}
+            </button>
+          )}
+        </span>
+      </div>
+    </li>
+  )
+}
+
+/**
+ * First ~80 chars of a section's text, collapsed onto one line and
+ * truncated. Annual-report paragraphs often start with their heading
+ * ("Risk Management", "Our Approach", etc.), so this gives the user
+ * an at-a-glance "what section is this from".
+ */
+function sectionSnippet(text: string): string {
+  const oneLine = text.replace(/\s+/g, ' ').trim()
+  if (oneLine.length <= 80) return `"${oneLine}"`
+  return `"${oneLine.slice(0, 78).trim()}…"`
+}
+
+/**
+ * Build a short search phrase the user can paste into a PDF viewer's
+ * Find: one word before + keyword + one word after. Longer phrases
+ * tend to drag in footnote / header text that the extractor inlined
+ * adjacent to the keyword but doesn't appear adjacent in the rendered
+ * PDF, which makes Cmd-F miss. Three words is usually distinctive
+ * enough and resilient to whitespace/hyphenation oddities.
+ */
+function buildSearchPhrase(matched: string, after: string, before: string): string {
+  const beforeWord = before.split(/\s+/).filter(Boolean).slice(-1)[0] ?? ''
+  const afterWord = after.split(/\s+/).filter(Boolean)[0] ?? ''
+  return [beforeWord, matched, afterWord].filter(Boolean).join(' ')
 }
