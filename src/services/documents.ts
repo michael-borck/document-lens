@@ -144,3 +144,60 @@ export async function countDocumentsInProject(projectId: string): Promise<number
   )
   return row?.n ?? 0
 }
+
+/**
+ * True when the document's file_path is a synthetic "source unavailable"
+ * marker written by the bundle importer for docs that arrived without
+ * their original source file. Such docs have full extracted text +
+ * sections + tags (analysis works) but no on-disk source for Preview /
+ * Open in viewer.
+ */
+export function isSourceMissing(doc: Document): boolean {
+  return doc.filePath.startsWith('lens-bundle://')
+}
+
+export type RelinkResult =
+  | { ok: true }
+  | { ok: false; reason: 'file-not-found' | 'unreadable' | 'hash-mismatch'; expectedHash?: string; actualHash?: string }
+
+/**
+ * Re-attach a source file to a document whose file_path was lost
+ * (typically because it arrived via bundle import without bundled
+ * files, or the file was moved on disk). Picks a candidate file from
+ * the user, hashes it, verifies it matches the document's stored
+ * file_hash, and updates file_path on success. Refuses to attach a
+ * mismatched file so the integrity of every existing analysis (text,
+ * sections, tags) stays intact.
+ */
+export async function relinkDocumentSource(
+  documentId: string,
+  candidatePath: string
+): Promise<RelinkResult> {
+  const electron = window.electron
+  if (!electron) return { ok: false, reason: 'unreadable' }
+
+  const doc = await getDocument(documentId)
+  if (!doc) return { ok: false, reason: 'file-not-found' }
+
+  let actualHash: string
+  try {
+    actualHash = await electron.computeFileHash(candidatePath)
+  } catch {
+    return { ok: false, reason: 'unreadable' }
+  }
+
+  if (actualHash !== doc.fileHash) {
+    return {
+      ok: false,
+      reason: 'hash-mismatch',
+      expectedHash: doc.fileHash,
+      actualHash,
+    }
+  }
+
+  await runStatement(
+    'UPDATE documents SET file_path = ? WHERE id = ?',
+    [candidatePath, documentId]
+  )
+  return { ok: true }
+}

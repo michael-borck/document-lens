@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -19,7 +19,7 @@ import {
 import { listKeywordLists } from '@/services/keyword-lists'
 import { listLenses } from '@/services/lenses'
 import { listScoringRules } from '@/services/scoring-rules'
-import { getDocument } from '@/services/documents'
+import { getDocument, isSourceMissing, relinkDocumentSource } from '@/services/documents'
 import {
   classifyProjectFunctions,
   getClassificationStatus,
@@ -157,10 +157,40 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
     })
   }, [vm.project.documentIds])
 
+  const refreshDocs = async () => {
+    const rows = await Promise.all(vm.project.documentIds.map((id) => getDocument(id)))
+    setDocs(rows.filter((d): d is Document => d !== null))
+  }
+
   const handleRemove = async (documentId: string) => {
     await removeDocumentFromProject(vm.project.id, documentId)
     await vm.refresh()
   }
+
+  const handleLocate = async (doc: Document) => {
+    const electron = window.electron
+    if (!electron) return
+    const dialog = await electron.openFileDialog({
+      title: `Locate ${doc.filename}`,
+      buttonLabel: 'Use this file',
+      filters: [{ name: doc.filename.split('.').pop() ?? 'File', extensions: ['*'] }],
+    })
+    if (dialog.canceled || dialog.filePaths.length === 0) return
+    const result = await relinkDocumentSource(doc.id, dialog.filePaths[0])
+    if (result.ok) {
+      toast.success(`Relinked "${doc.title || doc.filename}"`)
+      await refreshDocs()
+    } else if (result.reason === 'hash-mismatch') {
+      toast.error(
+        `That file's content doesn't match the original (different hash). ` +
+        `Either it's a different file or it has been modified since export.`
+      )
+    } else {
+      toast.error(`Couldn't relink: ${result.reason}`)
+    }
+  }
+
+  const missingCount = docs.filter(isSourceMissing).length
 
   return (
     <section>
@@ -169,6 +199,17 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
         title="Documents"
         count={`${vm.documentCount} attached`}
       />
+      {missingCount > 0 && (
+        <div className="mb-3 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 flex items-start gap-2">
+          <FileWarning className="h-4 w-4 text-yellow-700 dark:text-yellow-400 shrink-0 mt-0.5" />
+          <div>
+            <strong>{missingCount} document{missingCount === 1 ? '' : 's'} missing source file{missingCount === 1 ? '' : 's'}.</strong>{' '}
+            Likely arrived via bundle import without files. Analysis (Coverage, Score, Read, Audit) works
+            from the cached extracted text, but Preview / Open in viewer is unavailable until you re-link
+            the source. Click <em>Locate file…</em> on each row.
+          </div>
+        </div>
+      )}
       <div className="border border-border rounded-md">
         {docs.length === 0 ? (
           <div className="p-6 text-sm text-muted-foreground">
@@ -176,30 +217,52 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
           </div>
         ) : (
           <ul className="divide-y divide-border">
-            {docs.map((doc) => (
-              <li
-                key={doc.id}
-                className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors"
-              >
-                <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">
-                    {doc.title || doc.filename}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    {[doc.year, doc.company, doc.sector].filter(Boolean).join(' · ') || doc.filename}
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleRemove(doc.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors p-1"
-                  title="Remove from project"
+            {docs.map((doc) => {
+              const missing = isSourceMissing(doc)
+              return (
+                <li
+                  key={doc.id}
+                  className="flex items-center gap-3 px-3 py-2 hover:bg-muted/30 transition-colors"
                 >
-                  <X className="h-4 w-4" />
-                </button>
-              </li>
-            ))}
+                  <FileText className={`h-4 w-4 shrink-0 ${missing ? 'text-yellow-700 dark:text-yellow-400' : 'text-muted-foreground'}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className={`text-sm font-medium truncate ${missing ? 'text-muted-foreground' : ''}`}>
+                      {doc.title || doc.filename}
+                    </div>
+                    <div className="text-xs text-muted-foreground flex items-center gap-1.5 flex-wrap">
+                      <span className="truncate">
+                        {[doc.year, doc.company, doc.sector].filter(Boolean).join(' · ') || doc.filename}
+                      </span>
+                      {missing && (
+                        <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide text-yellow-700 dark:text-yellow-400 border border-yellow-500/40 rounded px-1 py-0.5">
+                          <FileWarning className="h-2.5 w-2.5" />
+                          Source missing
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  {missing && (
+                    <button
+                      type="button"
+                      onClick={() => handleLocate(doc)}
+                      className="inline-flex items-center gap-1 text-xs text-foreground hover:bg-muted rounded px-2 py-1 transition-colors"
+                      title="Pick the source file from disk to re-link it"
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      Locate file…
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleRemove(doc.id)}
+                    className="text-muted-foreground hover:text-destructive transition-colors p-1"
+                    title="Remove from project"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </li>
+              )
+            })}
           </ul>
         )}
         <div className="border-t border-border p-3">
