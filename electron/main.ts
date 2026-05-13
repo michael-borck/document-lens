@@ -175,16 +175,69 @@ app.whenReady().then(async () => {
   })
 })
 
-app.on('window-all-closed', async () => {
-  // Stop backend when app closes
-  if (backendManager) {
-    await backendManager.stop()
+// Backend orphan-prevention strategy:
+//
+// The spawned Python child gets reparented to PID 1 if the Electron
+// parent dies without explicit cleanup, leaving a zombie uvicorn on
+// :8765. To kill it reliably we hook every exit path:
+//
+//   before-quit   — fires on Cmd-Q / app.quit() (skips window-all-closed
+//                   on macOS), so this is the canonical clean-exit spot.
+//   window-all-closed — non-macOS clean exit (and macOS dock-close on
+//                   single-window apps).
+//   SIGINT/SIGTERM — Ctrl-C in the dev terminal, `kill <pid>`, parent
+//                   process death. Signal handlers are sync-restricted
+//                   so we kick off stop() and force-exit shortly after.
+//
+// Idempotent: stop() is a no-op if process is already null.
+
+let cleanupInFlight = false
+
+async function shutdownBackend(reason: string): Promise<void> {
+  if (cleanupInFlight) return
+  cleanupInFlight = true
+  console.log(`[Backend] shutdown trigger: ${reason}`)
+  try {
+    if (backendManager) await backendManager.stop()
+  } catch (err) {
+    console.error('[Backend] shutdown error:', err)
   }
-  
+}
+
+app.on('before-quit', async (event) => {
+  if (!backendManager || cleanupInFlight) return
+  // Defer the quit until the backend has cleanly stopped, then re-fire it.
+  event.preventDefault()
+  await shutdownBackend('app before-quit')
+  app.quit()
+})
+
+app.on('window-all-closed', async () => {
+  await shutdownBackend('window-all-closed')
   if (process.platform !== 'darwin') {
     app.quit()
   }
 })
+
+// Signal handlers — fire on Ctrl-C / SIGTERM / nodemon restart in dev.
+// The async stop() races against the OS giving us very little time, so
+// we bound it with a hard force-kill timeout.
+function installSignalHandlers(): void {
+  const handle = (signal: NodeJS.Signals) => {
+    console.log(`[Backend] caught ${signal} — shutting down child`)
+    shutdownBackend(signal).finally(() => {
+      // Give stop() up to 3s to land before we exit; otherwise the
+      // parent dies and the child orphans anyway.
+      setTimeout(() => process.exit(0), 100).unref()
+    })
+    // Also schedule a hard exit in case stop() hangs.
+    setTimeout(() => process.exit(1), 3000).unref()
+  }
+  process.on('SIGINT', handle)
+  process.on('SIGTERM', handle)
+  process.on('SIGHUP', handle)
+}
+installSignalHandlers()
 
 // IPC Handlers
 
