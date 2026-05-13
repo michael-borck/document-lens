@@ -1,31 +1,28 @@
 /**
- * Audit workflow — find keywords appearing in sections where they
- * don't semantically belong (US-F-01, US-F-02). Wires the backend's
- * /semantic/structural-mismatch endpoint.
+ * Audit workflow — two modes, one shape.
  *
- * For each project document:
- *   1. Send extracted text + the document-context lens's value labels
- *      to /semantic/structural-mismatch.
- *   2. Backend returns sentences whose own semantic-domain assignment
- *      differs from their parent section's, with a dislocation_score.
- *   3. For each returned sentence, check which active keywords appear
- *      in it. Surface those as findings.
+ * Anomalies (US-F-01, US-F-02): wires /semantic/structural-mismatch.
+ * For each project document, the backend returns sentences whose own
+ * semantic-domain assignment differs from their parent section's; we
+ * surface keyword-bearing dislocations.
  *
- * The methodology calls this the "contextual relevance check": e.g.,
- * "climate" mentioned in a Marketing section that semantically reads
- * as Risk Management is suspicious — the audit surfaces it so the
- * researcher can investigate.
+ * Confirmations (US-F-03): no backend call — uses cached classifications
+ * from Phase 3.5. For each section already tagged with a Function value
+ * via section_lens_tags, scan the section text for keyword matches and
+ * surface each as a "confirmed in {domain}" finding. Severity maps to
+ * the section's classification confidence.
  *
- * Confirmations mode (US-F-03) — surface keyword usages in
- * confirmed-context sections — is deferred. Same backend call (or
- * /semantic/domain-mapping) but inverted: surface high-confidence
- * matches instead of dislocations. Adds a layer of UI for switching
- * modes; ship anomalies first.
+ * The methodology calls this pair the "contextual relevance check":
+ * Anomalies catches mis-categorised disclosure or false-positive
+ * keyword detection; Confirmations gives the researcher the defensible
+ * "yes, this keyword IS being used in the right context" view to show
+ * a sceptical reviewer.
  */
 
 import { selectAll, selectOne, runStatement, now } from './db'
 import { listKeywords } from './keyword-lists'
 import { listLensValues, getLens } from './lenses'
+import { listSections, getSectionTagsForDocument } from './sections'
 import { api, type StructuralMismatchResponse } from './api'
 import type {
   Document,
@@ -34,17 +31,27 @@ import type {
   Lens,
 } from '@/types/data'
 
+export type AuditMode = 'anomalies' | 'confirmations'
+
 export interface AuditFinding {
+  /** Distinguishes anomaly (off-context) vs confirmation (in-context) findings. */
+  mode: AuditMode
   documentId: string
   documentTitle: string
   documentYear: number | null
   keyword: string
   keywordPolarity: KeywordPolarity
+  /** Quoted snippet — the dislocated sentence (anomaly) or a window
+   *  around the keyword match in its section (confirmation). */
   sentenceText: string
-  /** Where the sentence sits — the parent section's classified domain. */
+  /** The section's classified domain (Function value). */
   sectionDomain: string
-  /** Where the sentence semantically reads as belonging. */
+  /** Anomaly: where the sentence semantically reads as belonging.
+   *  Confirmation: same value as sectionDomain (alignment is the point). */
   sentenceDomain: string
+  /** Anomaly: dislocation score from the backend (0–1).
+   *  Confirmation: section's classification confidence (0–1, may be 0
+   *  if the legacy classifier didn't store one). */
   dislocationScore: number
   severity: 'low' | 'medium' | 'high'
 }
@@ -72,7 +79,9 @@ export interface RunAuditInput {
   keywordListId: string
   /** Document-context lens to use as the domain set (typically Function). */
   lensId: string
-  /** Dislocation threshold passed to the backend (0.0–1.0; default 0.3). */
+  /** Anomalies (off-context flags) or Confirmations (in-context proof). */
+  mode: AuditMode
+  /** Dislocation threshold passed to the backend (0.0–1.0; default 0.3). Anomalies only. */
   threshold?: number
   /** Filter findings to a single polarity, or omit for both. */
   polarity?: KeywordPolarity
@@ -133,21 +142,26 @@ export async function runAudit(
     }
   }
 
-  // 4. Per document: call backend (or pull from cache), find
-  //    keyword-bearing dislocations.
+  // 4. Per document: branch on mode.
   const findings: AuditFinding[] = []
   let documentsAnalysed = 0
   let documentsUnavailable = 0
   let totalSentences = 0
   let cacheHits = 0
 
-  // Precompile keyword regexes once; reused for every sentence in every doc.
+  // Precompile keyword regexes once; reused everywhere.
   const keywordRegexes = keywords.map((k) => ({
     keyword: k,
     pattern: buildKeywordRegex(k.text),
   }))
 
   const threshold = input.threshold ?? 0.3
+
+  // Build a quick lensValueId -> display label map for confirmations.
+  const lensValueLabels = new Map<string, string>()
+  for (const v of lensValues) {
+    lensValueLabels.set(v.id, v.displayName ?? v.value)
+  }
 
   for (let i = 0; i < docs.length; i++) {
     const doc = docs[i]
@@ -165,6 +179,48 @@ export async function runAudit(
       continue
     }
 
+    if (input.mode === 'confirmations') {
+      // Confirmations: per-section keyword scan over already-classified
+      // sections. No backend call, no embedding work — purely local.
+      const sections = await listSections(doc.id)
+      const tags = await getSectionTagsForDocument(doc.id, input.lensId)
+      if (sections.length === 0 || tags.size === 0) {
+        // Document hasn't been classified for this lens — skip silently.
+        // (User can run classification on Setup.)
+        continue
+      }
+      documentsAnalysed++
+      for (const section of sections) {
+        const tag = tags.get(section.id)
+        if (!tag) continue  // section unclassified for this lens
+        const domainLabel = lensValueLabels.get(tag.valueId) ?? tag.valueId
+        const confidence = tag.confidence ?? 0
+        const severity = confidenceToSeverity(confidence)
+        for (const { keyword, pattern } of keywordRegexes) {
+          let m: RegExpExecArray | null
+          while ((m = pattern.exec(section.text)) !== null) {
+            findings.push({
+              mode: 'confirmations',
+              documentId: doc.id,
+              documentTitle: docLabel,
+              documentYear: doc.year,
+              keyword: keyword.text,
+              keywordPolarity: keyword.polarity,
+              sentenceText: extractWindowAround(section.text, m.index, m[0].length),
+              sectionDomain: domainLabel,
+              sentenceDomain: domainLabel,  // alignment is the point
+              dislocationScore: confidence,
+              severity,
+            })
+          }
+          pattern.lastIndex = 0
+        }
+      }
+      continue
+    }
+
+    // Anomalies (default): call backend (or pull from cache), find
+    // keyword-bearing dislocations.
     const cacheKey = await buildAuditCacheKey(text, input.lensId, threshold, domainLabels)
     let response = await readAuditCache(input.projectId, cacheKey)
     if (response) {
@@ -181,6 +237,7 @@ export async function runAudit(
       for (const { keyword, pattern } of keywordRegexes) {
         if (pattern.test(sentence)) {
           findings.push({
+            mode: 'anomalies',
             documentId: doc.id,
             documentTitle: docLabel,
             documentYear: doc.year,
@@ -319,6 +376,35 @@ function buildKeywordRegex(keyword: string): RegExp {
   return /\s/.test(keyword)
     ? new RegExp(escaped, 'gi')
     : new RegExp(`\\b${escaped}\\b`, 'gi')
+}
+
+/**
+ * Extract a ~25 word window around a match offset, used by Confirmations
+ * to give the user a quoted snippet showing the keyword in its
+ * verified-context section.
+ */
+function extractWindowAround(text: string, offset: number, length: number): string {
+  const CONTEXT_WORDS = 25
+  const before = text.slice(0, offset)
+  const matched = text.slice(offset, offset + length)
+  const after = text.slice(offset + length)
+  const beforeWords = before.split(/\s+/).filter(Boolean).slice(-CONTEXT_WORDS).join(' ')
+  const afterWords = after.split(/\s+/).filter(Boolean).slice(0, CONTEXT_WORDS).join(' ')
+  return `…${beforeWords} ${matched} ${afterWords}…`.trim()
+}
+
+/**
+ * Map section classification confidence to a severity bucket so the
+ * existing severity filter UI keeps working for confirmations:
+ * higher confidence = stronger confirmation. Sections classified
+ * before confidence was stored (legacy) get 'medium' as a neutral
+ * fallback rather than 'low'.
+ */
+function confidenceToSeverity(confidence: number): 'low' | 'medium' | 'high' {
+  if (confidence === 0) return 'medium'  // no confidence stored
+  if (confidence >= 0.75) return 'high'
+  if (confidence >= 0.55) return 'medium'
+  return 'low'
 }
 
 // Suppress unused-import warning for types imported only for JSDoc-level

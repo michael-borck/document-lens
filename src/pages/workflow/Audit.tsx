@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play, AlertTriangle, FileText } from 'lucide-react'
+import { Loader2, Play, AlertTriangle, CheckCircle2, FileText } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -9,7 +9,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { runAudit, type AuditResult, type AuditProgress, type AuditFinding } from '@/services/audit'
+import { runAudit, type AuditResult, type AuditProgress, type AuditFinding, type AuditMode } from '@/services/audit'
 import { EmptyState } from '@/components/EmptyState'
 import { toast } from '@/stores/toastStore'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
@@ -19,21 +19,22 @@ import { cn } from '@/lib/utils'
 type Severity = 'high' | 'medium' | 'low'
 
 /**
- * Audit workflow — find keywords appearing in sections where they
- * don't semantically belong.
+ * Audit workflow — two modes for the methodology's "contextual relevance
+ * check":
  *
- * The methodology document calls this the "contextual relevance check":
- * "if 'climate' appears in a section on marketing it [should be] in the
- * context of the delivery of SDG13". When it isn't, that's an anomaly
- * worth flagging — either the company is mis-categorising disclosure or
- * the keyword detection is false-positive on the topic.
+ *   Anomalies — flags keyword-bearing sentences whose semantic domain
+ *   differs from their parent section's. Surfaces mis-categorised
+ *   disclosure or false-positive keyword detection.
  *
- * v1 only ships Anomalies mode. Confirmations mode (US-F-03 — surface
- * confirmed-context keyword usages) is deferred.
+ *   Confirmations — surfaces keyword usages in sections whose semantic
+ *   domain has been classified as the expected Function. The defensible
+ *   "yes, this is being used in the right context" view a researcher
+ *   can show a sceptical reviewer (US-F-03).
  */
 export function Audit() {
   const vm = useOutletContext<ProjectViewModel>()
 
+  const [mode, setMode] = useState<AuditMode>('anomalies')
   const [contextLenses, setContextLenses] = useState<Lens[]>([])
   const [lensId, setLensId] = useState<string>('')
   const [polarity, setPolarity] = useState<KeywordPolarity | 'all'>('all')
@@ -63,14 +64,18 @@ export function Audit() {
           projectId: vm.project.id,
           keywordListId: vm.keywordList.id,
           lensId,
+          mode,
           threshold,
           polarity: polarity === 'all' ? undefined : polarity,
         },
         setProgress
       )
       setResult(out)
+      const noun = mode === 'confirmations' ? 'confirmation' : 'anomaly'
+      const plural = mode === 'confirmations' ? 'confirmations' : 'anomalies'
+      const label = out.findings.length === 1 ? noun : plural
       toast.success(
-        `Found ${out.findings.length} anomal${out.findings.length === 1 ? 'y' : 'ies'} in ${out.documentsAnalysed} document${out.documentsAnalysed === 1 ? '' : 's'}`
+        `Found ${out.findings.length} ${label} in ${out.documentsAnalysed} document${out.documentsAnalysed === 1 ? '' : 's'}`
       )
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -125,7 +130,9 @@ export function Audit() {
     <div className="px-8 py-8 max-w-6xl">
       <Header />
 
-      <CaveatBanner />
+      <ModeToggle mode={mode} onChange={(m) => { setMode(m); setResult(null) }} />
+
+      <CaveatBanner mode={mode} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
         <Field label="Lens (domains)">
@@ -148,21 +155,25 @@ export function Audit() {
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Threshold (sensitivity)">
-          <Select value={String(threshold)} onValueChange={(v) => setThreshold(Number(v))}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0.2">0.2 (more findings, more noise)</SelectItem>
-              <SelectItem value="0.3">0.3 (default)</SelectItem>
-              <SelectItem value="0.4">0.4 (fewer findings, more confidence)</SelectItem>
-              <SelectItem value="0.5">0.5 (only strong dislocations)</SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
+        {mode === 'anomalies' ? (
+          <Field label="Threshold (sensitivity)">
+            <Select value={String(threshold)} onValueChange={(v) => setThreshold(Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0.2">0.2 (more findings, more noise)</SelectItem>
+                <SelectItem value="0.3">0.3 (default)</SelectItem>
+                <SelectItem value="0.4">0.4 (fewer findings, more confidence)</SelectItem>
+                <SelectItem value="0.5">0.5 (only strong dislocations)</SelectItem>
+              </SelectContent>
+            </Select>
+          </Field>
+        ) : (
+          <div /> /* keep grid layout stable when threshold hides */
+        )}
         <div className="flex items-end">
           <Button onClick={handleRun} disabled={running} className="gap-2 w-full">
             {running ? (<><Loader2 className="h-4 w-4 animate-spin" /> Running…</>) :
-              (<><Play className="h-4 w-4" /> {result ? 'Re-run' : 'Run audit'}</>)}
+              (<><Play className="h-4 w-4" /> {result ? 'Re-run' : `Run ${mode === 'confirmations' ? 'confirmations' : 'audit'}`}</>)}
           </Button>
         </div>
       </div>
@@ -196,10 +207,51 @@ function Header() {
   )
 }
 
-function CaveatBanner() {
+function ModeToggle({ mode, onChange }: { mode: AuditMode; onChange: (m: AuditMode) => void }) {
+  return (
+    <div className="inline-flex items-center gap-0.5 text-xs border border-border rounded-md p-0.5 mb-3">
+      <button
+        type="button"
+        onClick={() => onChange('anomalies')}
+        className={cn(
+          'px-3 py-1.5 rounded transition-colors inline-flex items-center gap-1.5',
+          mode === 'anomalies' ? 'bg-muted font-medium' : 'text-muted-foreground hover:bg-muted/40'
+        )}
+      >
+        <AlertTriangle className="h-3.5 w-3.5" />
+        Anomalies
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange('confirmations')}
+        className={cn(
+          'px-3 py-1.5 rounded transition-colors inline-flex items-center gap-1.5',
+          mode === 'confirmations' ? 'bg-muted font-medium' : 'text-muted-foreground hover:bg-muted/40'
+        )}
+      >
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        Confirmations
+      </button>
+    </div>
+  )
+}
+
+function CaveatBanner({ mode }: { mode: AuditMode }) {
+  if (mode === 'confirmations') {
+    return (
+      <div className="mb-6 text-xs border border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/20 rounded-md p-3 leading-relaxed">
+        <strong>Confirmations mode.</strong> Surfaces keyword usages that
+        occur in sections whose semantic domain has been classified as
+        the expected Function. Defensible "yes, this keyword is being
+        used in the right context" evidence to back the analysis. Uses
+        cached classifications from Setup — no backend call, instant.
+        Severity reflects each section's classification confidence.
+      </div>
+    )
+  }
   return (
     <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
-      <strong>Anomalies mode (v1).</strong> Surfaces sentences whose own
+      <strong>Anomalies mode.</strong> Surfaces sentences whose own
       semantic domain differs from their parent section's. When such a
       sentence contains an active keyword, it's flagged as an anomaly to
       investigate. Section + sentence domains are inferred from sentence-
@@ -260,13 +312,22 @@ function ResultsView({
     low: result.findings.filter((f) => f.severity === 'low').length,
   }
 
+  // Mode peeked off the first finding (all findings in a result share
+  // the same mode since they came from one runAudit call).
+  const mode: AuditMode = result.findings[0]?.mode ?? 'anomalies'
+  const noun = mode === 'confirmations' ? 'confirmation' : 'anomaly'
+  const plural = mode === 'confirmations' ? 'confirmations' : 'anomalies'
+  const label = result.findings.length === 1 ? noun : plural
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <p className="text-xs text-muted-foreground">
-          <strong>{result.findings.length}</strong> anomal{result.findings.length === 1 ? 'y' : 'ies'} found{' '}
-          across <strong>{result.documentsAnalysed}</strong> document{result.documentsAnalysed === 1 ? '' : 's'}{' '}
-          ({result.totalSentencesAnalysed.toLocaleString()} sentences analysed)
+          <strong>{result.findings.length}</strong> {label} found{' '}
+          across <strong>{result.documentsAnalysed}</strong> document{result.documentsAnalysed === 1 ? '' : 's'}
+          {mode === 'anomalies' && result.totalSentencesAnalysed > 0 && (
+            <> ({result.totalSentencesAnalysed.toLocaleString()} sentences analysed)</>
+          )}
           {result.cacheHits > 0 && (
             <> · {result.cacheHits} from cache</>
           )}
@@ -284,12 +345,16 @@ function ResultsView({
       {findings.length === 0 ? (
         result.findings.length === 0 ? (
           <EmptyState
-            title="No anomalies"
-            description="No keyword-bearing sentences were classified as out-of-section. Either your corpus is well-categorised, or try lowering the threshold for more sensitivity."
+            title={mode === 'confirmations' ? 'No confirmations' : 'No anomalies'}
+            description={
+              mode === 'confirmations'
+                ? 'No keyword matches landed in classified sections. Run Function classification on Setup, or check that your active keyword list overlaps the corpus.'
+                : 'No keyword-bearing sentences were classified as out-of-section. Either your corpus is well-categorised, or try lowering the threshold for more sensitivity.'
+            }
           />
         ) : (
           <EmptyState
-            title="No anomalies match this severity filter"
+            title={`No ${plural} match this severity filter`}
             description="Switch the severity filter back to 'All' to see every finding."
           />
         )
@@ -340,10 +405,14 @@ function SeverityFilter({
 }
 
 function FindingCard({ finding }: { finding: AuditFinding }) {
+  const isConfirmation = finding.mode === 'confirmations'
+  const accent = isConfirmation
+    ? 'border-emerald-500/40'
+    : 'border-yellow-500/40'
   return (
     <li className="border border-border rounded-md p-4">
       <div className="flex items-center gap-3 mb-2">
-        <SeverityBadge severity={finding.severity} score={finding.dislocationScore} />
+        <SeverityBadge mode={finding.mode} severity={finding.severity} score={finding.dislocationScore} />
         <span className="text-sm font-medium">
           <code className="bg-muted px-1.5 py-0.5 rounded text-xs">{finding.keyword}</code>
           {finding.keywordPolarity === 'counter' && (
@@ -358,36 +427,56 @@ function FindingCard({ finding }: { finding: AuditFinding }) {
         </div>
       </div>
 
-      <blockquote className="text-sm border-l-2 border-yellow-500/40 pl-3 py-1 text-muted-foreground italic">
+      <blockquote className={cn('text-sm border-l-2 pl-3 py-1 text-muted-foreground italic', accent)}>
         “{finding.sentenceText}”
       </blockquote>
 
-      <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-        <div className="border border-border rounded p-2">
-          <div className="text-muted-foreground uppercase tracking-wide text-[10px]">In section</div>
+      {isConfirmation ? (
+        <div className="mt-3 border border-emerald-500/40 bg-emerald-50/50 dark:bg-emerald-950/10 rounded p-2 text-xs">
+          <div className="text-emerald-800 dark:text-emerald-300 uppercase tracking-wide text-[10px]">
+            Confirmed in section classified as
+          </div>
           <div className="font-medium mt-0.5">{finding.sectionDomain}</div>
         </div>
-        <div className="border border-yellow-500/40 bg-yellow-50/50 dark:bg-yellow-950/10 rounded p-2">
-          <div className="text-yellow-800 dark:text-yellow-300 uppercase tracking-wide text-[10px]">Reads as</div>
-          <div className="font-medium mt-0.5">{finding.sentenceDomain}</div>
+      ) : (
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+          <div className="border border-border rounded p-2">
+            <div className="text-muted-foreground uppercase tracking-wide text-[10px]">In section</div>
+            <div className="font-medium mt-0.5">{finding.sectionDomain}</div>
+          </div>
+          <div className="border border-yellow-500/40 bg-yellow-50/50 dark:bg-yellow-950/10 rounded p-2">
+            <div className="text-yellow-800 dark:text-yellow-300 uppercase tracking-wide text-[10px]">Reads as</div>
+            <div className="font-medium mt-0.5">{finding.sentenceDomain}</div>
+          </div>
         </div>
-      </div>
+      )}
     </li>
   )
 }
 
-function SeverityBadge({ severity, score }: { severity: Severity; score: number }) {
-  const styles: Record<Severity, string> = {
-    high: 'bg-red-100 text-red-800 border-red-300',
-    medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
-    low: 'bg-muted text-muted-foreground border-border',
-  }
+function SeverityBadge({ mode, severity, score }: { mode: AuditMode; severity: Severity; score: number }) {
+  const isConfirmation = mode === 'confirmations'
+  const styles: Record<Severity, string> = isConfirmation
+    ? {
+        high: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+        medium: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        low: 'bg-muted text-muted-foreground border-border',
+      }
+    : {
+        high: 'bg-red-100 text-red-800 border-red-300',
+        medium: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+        low: 'bg-muted text-muted-foreground border-border',
+      }
+  const Icon = isConfirmation ? CheckCircle2 : AlertTriangle
+  const scoreLabel = isConfirmation
+    ? `Section classification confidence: ${score.toFixed(2)}`
+    : `Dislocation score: ${score.toFixed(2)}`
   return (
     <span
       className={cn('inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border', styles[severity])}
-      title={`Dislocation score: ${score.toFixed(2)}`}
+      title={scoreLabel}
     >
-      <AlertTriangle className="h-3 w-3" />
+      <Icon className="h-3 w-3" />
       {severity}
     </span>
   )

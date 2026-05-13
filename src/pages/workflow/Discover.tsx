@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play, Sparkles, ChevronRight, ChevronDown, FileText, Check, X } from 'lucide-react'
+import { Loader2, Play, Sparkles, ChevronRight, ChevronDown, FileText, Check, X, Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/select'
 import { computeNgrams, type ComputeNgramsResult, type NgramSize, type NgramResult } from '@/services/ngrams'
 import { getDocument } from '@/services/documents'
-import { createSynonym } from '@/services/keyword-lists'
+import { createSynonym, createKeyword, listKeywords } from '@/services/keyword-lists'
 import {
   discoverSynonyms,
   type DiscoverSynonymsResult,
@@ -63,7 +63,7 @@ export function Discover() {
       </div>
 
       {activeTab === 'phrases' ? (
-        <PhrasesTab projectId={vm.project.id} documentIds={vm.project.documentIds} />
+        <PhrasesTab vm={vm} />
       ) : (
         <SynonymsTab vm={vm} />
       )}
@@ -113,13 +113,9 @@ function TabButton({
 // Phrases sub-tab
 // ---------------------------------------------------------------------------
 
-function PhrasesTab({
-  projectId,
-  documentIds,
-}: {
-  projectId: string
-  documentIds: string[]
-}) {
+function PhrasesTab({ vm }: { vm: ProjectViewModel }) {
+  const projectId = vm.project.id
+  const documentIds = vm.project.documentIds
   const [size, setSize] = useState<SizeFilter>('both')
   const [minCount, setMinCount] = useState<number>(3)
   const [scope, setScope] = useState<Scope>('all')
@@ -127,6 +123,11 @@ function PhrasesTab({
   const [docs, setDocs] = useState<Document[]>([])
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<ComputeNgramsResult | null>(null)
+  // Existing-keyword phrases on the active list (lower-cased) so the
+  // "Add as keyword" button can show "Already added" instead of
+  // letting the user create a duplicate. Refreshed on mount + after
+  // each add.
+  const [existingKeywordPhrases, setExistingKeywordPhrases] = useState<Set<string>>(new Set())
 
   // Load doc metadata for the single-doc picker.
   useEffect(() => {
@@ -134,6 +135,26 @@ function PhrasesTab({
       setDocs(rows.filter((d): d is Document => d !== null))
     })
   }, [documentIds])
+
+  // Load existing keyword phrases when the keyword list changes.
+  useEffect(() => {
+    const listId = vm.keywordList?.id
+    if (!listId) {
+      setExistingKeywordPhrases(new Set())
+      return
+    }
+    listKeywords(listId).then((kws) => {
+      setExistingKeywordPhrases(new Set(kws.map((k) => k.text.toLowerCase())))
+    })
+  }, [vm.keywordList?.id])
+
+  const handleKeywordAdded = (phrase: string) => {
+    setExistingKeywordPhrases((prev) => {
+      const next = new Set(prev)
+      next.add(phrase.toLowerCase())
+      return next
+    })
+  }
 
   const handleRun = async () => {
     if (scope === 'single' && !singleDocId) return
@@ -238,7 +259,14 @@ function PhrasesTab({
           description="Lower the minimum frequency or add more documents to surface more phrases."
         />
       ) : (
-        <PhrasesTable result={result} singleDocMode={scope === 'single'} />
+        <PhrasesTable
+          result={result}
+          singleDocMode={scope === 'single'}
+          keywordListId={vm.keywordList?.id ?? null}
+          keywordListName={vm.keywordList?.name ?? null}
+          existingKeywordPhrases={existingKeywordPhrases}
+          onKeywordAdded={handleKeywordAdded}
+        />
       )}
     </div>
   )
@@ -247,18 +275,57 @@ function PhrasesTab({
 function PhrasesTable({
   result,
   singleDocMode,
+  keywordListId,
+  keywordListName,
+  existingKeywordPhrases,
+  onKeywordAdded,
 }: {
   result: ComputeNgramsResult
   singleDocMode: boolean
+  keywordListId: string | null
+  keywordListName: string | null
+  existingKeywordPhrases: Set<string>
+  onKeywordAdded: (phrase: string) => void
 }) {
   const max = result.results[0]?.count ?? 1
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
+  // Phrases currently being added (button shows spinner during the
+  // INSERT). Lower-cased for consistency with existingKeywordPhrases.
+  const [adding, setAdding] = useState<Set<string>>(new Set())
 
   const toggle = (key: string) => {
     const next = new Set(expanded)
     if (next.has(key)) next.delete(key)
     else next.add(key)
     setExpanded(next)
+  }
+
+  const handleAdd = async (phrase: string) => {
+    if (!keywordListId) return
+    const lower = phrase.toLowerCase()
+    setAdding((prev) => {
+      const next = new Set(prev)
+      next.add(lower)
+      return next
+    })
+    try {
+      await createKeyword({
+        listId: keywordListId,
+        text: phrase,
+        polarity: 'positive',
+        enabled: true,
+      })
+      onKeywordAdded(phrase)
+      toast.success(`Added “${phrase}” as a positive keyword to ${keywordListName ?? 'list'}`)
+    } catch (err) {
+      toast.error(`Could not add keyword: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setAdding((prev) => {
+        const next = new Set(prev)
+        next.delete(lower)
+        return next
+      })
+    }
   }
 
   return (
@@ -278,6 +345,7 @@ function PhrasesTable({
               <th className="text-right font-medium px-4 py-2 w-24">Count</th>
               <th className="text-right font-medium px-4 py-2 w-24">In docs</th>
               <th className="text-left font-medium px-4 py-2 w-48">Frequency</th>
+              <th className="text-center font-medium px-4 py-2 w-24">Add</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -291,6 +359,9 @@ function PhrasesTable({
               // phrase appears in only one document, the user wants to
               // know WHICH document.
               const expandable = !singleDocMode && r.sources.length >= 1
+              const phraseLower = r.phrase.toLowerCase()
+              const isAdded = existingKeywordPhrases.has(phraseLower)
+              const isAdding = adding.has(phraseLower)
               return (
                 <PhrasesRow
                   key={key}
@@ -299,6 +370,10 @@ function PhrasesTable({
                   expandable={expandable}
                   onToggle={() => toggle(key)}
                   pct={pct}
+                  hasKeywordList={Boolean(keywordListId)}
+                  isAdded={isAdded}
+                  isAdding={isAdding}
+                  onAdd={() => handleAdd(r.phrase)}
                 />
               )
             })}
@@ -315,12 +390,20 @@ function PhrasesRow({
   expandable,
   onToggle,
   pct,
+  hasKeywordList,
+  isAdded,
+  isAdding,
+  onAdd,
 }: {
   ngram: NgramResult
   isExpanded: boolean
   expandable: boolean
   onToggle: () => void
   pct: number
+  hasKeywordList: boolean
+  isAdded: boolean
+  isAdding: boolean
+  onAdd: () => void
 }) {
   return (
     <>
@@ -348,11 +431,44 @@ function PhrasesRow({
             <div className="h-full bg-foreground/60" style={{ width: `${pct}%` }} />
           </div>
         </td>
+        <td className="px-4 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+          {!hasKeywordList ? (
+            <span
+              className="text-[10px] text-muted-foreground italic"
+              title="Pick a keyword list on the Setup tab to enable adding"
+            >
+              No list
+            </span>
+          ) : isAdded ? (
+            <span
+              className="inline-flex items-center gap-1 text-[10px] text-muted-foreground"
+              title="Already in this keyword list"
+            >
+              <Check className="h-3 w-3" />
+              Added
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={onAdd}
+              disabled={isAdding}
+              className="inline-flex items-center gap-1 px-2 py-1 text-[11px] rounded border border-border hover:bg-muted/50 disabled:opacity-50 transition-colors"
+              title="Add as a positive keyword to the active list"
+            >
+              {isAdding ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Plus className="h-3 w-3" />
+              )}
+              Keyword
+            </button>
+          )}
+        </td>
       </tr>
       {expandable && isExpanded && (
         <tr className="bg-muted/20">
           <td></td>
-          <td colSpan={5} className="px-4 py-2">
+          <td colSpan={6} className="px-4 py-2">
             <div className="text-xs text-muted-foreground mb-1.5">Sources:</div>
             <ul className="space-y-1">
               {ngram.sources.map((src) => (
@@ -396,6 +512,21 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
   // Per-keyword accepted (locally tracked so the UI immediately reflects
   // the user's action without a re-fetch).
   const [accepted, setAccepted] = useState<Record<string, Set<string>>>({})
+  // Existing-keyword phrases in the active list (lower-cased). Used to
+  // disable the "Add as keyword" button for candidates that match a
+  // keyword already on the list. Refreshed on mount + after each add.
+  const [existingKeywordPhrases, setExistingKeywordPhrases] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const listId = vm.keywordList?.id
+    if (!listId) {
+      setExistingKeywordPhrases(new Set())
+      return
+    }
+    listKeywords(listId).then((kws) => {
+      setExistingKeywordPhrases(new Set(kws.map((k) => k.text.toLowerCase())))
+    })
+  }, [vm.keywordList?.id])
 
   const handleRun = async () => {
     if (!vm.keywordList) return
@@ -463,6 +594,33 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
     })
   }
 
+  // US-D-09: per-candidate "Add as new keyword" — grows the keyword
+  // list directly with the candidate (inheriting the parent's polarity).
+  // Distinct from Accept-as-synonym, which attaches under the parent.
+  // Useful for counter-keyword discovery where the researcher wants a
+  // first-class entry in the list, not a synonym hidden under another
+  // term.
+  const handleAcceptAsKeyword = async (keyword: Keyword, candidate: SynonymCandidate) => {
+    if (!vm.keywordList) return
+    try {
+      await createKeyword({
+        listId: vm.keywordList.id,
+        text: candidate.text,
+        polarity: keyword.polarity,
+        enabled: true,
+      })
+      setExistingKeywordPhrases((prev) => {
+        const next = new Set(prev)
+        next.add(candidate.text.toLowerCase())
+        return next
+      })
+      const polarityLabel = keyword.polarity === 'counter' ? 'counter-keyword' : 'positive keyword'
+      toast.success(`Added “${candidate.text}” as a new ${polarityLabel}`)
+    } catch (err) {
+      toast.error(`Could not add keyword: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   if (!vm.keywordList) {
     return (
       <EmptyState
@@ -476,9 +634,10 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
     <div>
       <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
         Candidates are <strong>suggestions only</strong> from a sentence-embedding model — they're
-        approximate. Treat each one as a hint to evaluate, not an authoritative synonym. Accepted
-        candidates attach to the parent keyword (preserving provenance) and count in Coverage
-        automatically.
+        approximate. Treat each one as a hint to evaluate. Two ways to keep one:{' '}
+        <strong>Synonym</strong> attaches it under the parent keyword (preserves provenance);{' '}
+        <strong>Keyword</strong> adds it as a first-class entry on the list with the same polarity
+        — useful when the candidate stands on its own (e.g., a new {polarity === 'counter' ? 'counter-' : 'positive '}term that the list should start tracking directly).
       </div>
 
       <div className="flex items-end gap-4 mb-6 flex-wrap">
@@ -539,7 +698,9 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
           result={result}
           rejected={rejected}
           accepted={accepted}
+          existingKeywordPhrases={existingKeywordPhrases}
           onAccept={handleAccept}
+          onAcceptAsKeyword={handleAcceptAsKeyword}
           onReject={handleReject}
         />
       )}
@@ -551,13 +712,17 @@ function SynonymsResults({
   result,
   rejected,
   accepted,
+  existingKeywordPhrases,
   onAccept,
+  onAcceptAsKeyword,
   onReject,
 }: {
   result: DiscoverSynonymsResult
   rejected: Record<string, Set<string>>
   accepted: Record<string, Set<string>>
+  existingKeywordPhrases: Set<string>
   onAccept: (keyword: Keyword, candidate: SynonymCandidate) => Promise<void>
+  onAcceptAsKeyword: (keyword: Keyword, candidate: SynonymCandidate) => Promise<void>
   onReject: (keyword: Keyword, candidate: SynonymCandidate) => void
 }) {
   if (result.unavailable) {
@@ -603,6 +768,8 @@ function SynonymsResults({
               <ul className="divide-y divide-border">
                 {visibleCandidates.map((c) => {
                   const isAccepted = acc.has(c.text)
+                  const isAlreadyKeyword = existingKeywordPhrases.has(c.text.toLowerCase())
+                  const polarityLabel = keyword.polarity === 'counter' ? 'counter-keyword' : 'positive keyword'
                   return (
                     <li
                       key={c.text}
@@ -618,7 +785,7 @@ function SynonymsResults({
                       {isAccepted ? (
                         <span className="inline-flex items-center gap-1 text-xs text-green-700 px-2">
                           <Check className="h-3 w-3" />
-                          Accepted
+                          Synonym added
                         </span>
                       ) : (
                         <div className="flex items-center gap-1">
@@ -629,11 +796,33 @@ function SynonymsResults({
                               'inline-flex items-center gap-1 text-xs px-2 py-1 rounded',
                               'text-green-700 hover:bg-green-50 dark:hover:bg-green-950/30 transition-colors'
                             )}
-                            title="Add as a synonym for this keyword"
+                            title={`Add as a synonym of "${keyword.text}"`}
                           >
                             <Check className="h-3 w-3" />
-                            Accept
+                            Synonym
                           </button>
+                          {isAlreadyKeyword ? (
+                            <span
+                              className="inline-flex items-center gap-1 text-xs text-muted-foreground px-2"
+                              title="This phrase is already a keyword on this list"
+                            >
+                              <Check className="h-3 w-3" />
+                              In list
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onAcceptAsKeyword(keyword, c)}
+                              className={cn(
+                                'inline-flex items-center gap-1 text-xs px-2 py-1 rounded',
+                                'text-foreground hover:bg-muted/40 transition-colors'
+                              )}
+                              title={`Add as a new ${polarityLabel} on the active list`}
+                            >
+                              <Plus className="h-3 w-3" />
+                              Keyword
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => onReject(keyword, c)}
