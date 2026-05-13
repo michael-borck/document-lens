@@ -46,7 +46,7 @@ export function PdfViewerModal({
           </DialogTitle>
           <DialogDescription className="text-xs text-muted-foreground">
             {highlight
-              ? <>Previewing source — keyword <code className="bg-muted px-1 rounded">{highlight}</code> highlighted on the visible page.</>
+              ? <>Previewing source. Hit <kbd className="bg-muted px-1 rounded text-[10px]">⌘F</kbd> inside the PDF and paste <code className="bg-muted px-1 rounded">{highlight}</code> (or use the <strong>Copy phrase</strong> button on the match card) to land on the keyword.</>
               : 'Previewing source.'}
           </DialogDescription>
         </DialogHeader>
