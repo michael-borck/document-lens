@@ -267,6 +267,9 @@ function ResultsView({
           <strong>{result.findings.length}</strong> anomal{result.findings.length === 1 ? 'y' : 'ies'} found{' '}
           across <strong>{result.documentsAnalysed}</strong> document{result.documentsAnalysed === 1 ? '' : 's'}{' '}
           ({result.totalSentencesAnalysed.toLocaleString()} sentences analysed)
+          {result.cacheHits > 0 && (
+            <> · {result.cacheHits} from cache</>
+          )}
           {result.documentsUnavailable > 0 && (
             <> · {result.documentsUnavailable} doc{result.documentsUnavailable === 1 ? '' : 's'} skipped (no extracted text)</>
           )}

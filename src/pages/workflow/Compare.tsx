@@ -28,10 +28,11 @@ import {
   type CompareMetric,
   type CompareGroup,
 } from '@/services/compare'
+import { listKeywords } from '@/services/keyword-lists'
 import { selectAll } from '@/services/db'
 import { EmptyState } from '@/components/EmptyState'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { KeywordPolarity } from '@/types/data'
+import type { Keyword, KeywordPolarity } from '@/types/data'
 
 /**
  * Compare workflow.
@@ -48,6 +49,8 @@ export function Compare() {
   const vm = useOutletContext<ProjectViewModel>()
   const [metric, setMetric] = useState<CompareMetric>('score')
   const [polarity, setPolarity] = useState<KeywordPolarity>('positive')
+  const [keywordId, setKeywordId] = useState<string>('')  // '' = all keywords
+  const [keywords, setKeywords] = useState<Keyword[]>([])
   const [group, setGroup] = useState<CompareGroup>('none')
   const [yearMin, setYearMin] = useState<string>('')
   const [yearMax, setYearMax] = useState<string>('')
@@ -60,6 +63,23 @@ export function Compare() {
   const [running, setRunning] = useState(false)
   const [result, setResult] = useState<CompareResult | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Load enabled keywords for the per-keyword narrowing dropdown.
+  useEffect(() => {
+    if (!vm.keywordList) {
+      setKeywords([])
+      return
+    }
+    listKeywords(vm.keywordList.id).then((all) => {
+      setKeywords(all.filter((k) => k.enabled))
+    })
+  }, [vm.keywordList])
+
+  // Reset the keyword selection when polarity changes — the previously
+  // chosen keyword may not exist in the new polarity.
+  useEffect(() => {
+    setKeywordId('')
+  }, [polarity])
 
   // Load distinct companies + sectors from the project's docs for the
   // multi-select filters.
@@ -101,6 +121,7 @@ export function Compare() {
         keywordListId: vm.keywordList.id,
         metric,
         polarity,
+        keywordId: keywordId || undefined,
         group,
         yearMin: yearMin ? Number(yearMin) : undefined,
         yearMax: yearMax ? Number(yearMax) : undefined,
@@ -158,7 +179,7 @@ export function Compare() {
     <div className="px-8 py-8 max-w-6xl">
       <Header />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <Field label="Metric">
           <Select value={metric} onValueChange={(v) => setMetric(v as CompareMetric)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
@@ -171,15 +192,30 @@ export function Compare() {
           </Select>
         </Field>
         {(metric === 'match-count' || metric === 'distinct-keywords') && (
-          <Field label="Polarity">
-            <Select value={polarity} onValueChange={(v) => setPolarity(v as KeywordPolarity)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="positive">Positive</SelectItem>
-                <SelectItem value="counter">Counter</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          <>
+            <Field label="Polarity">
+              <Select value={polarity} onValueChange={(v) => setPolarity(v as KeywordPolarity)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="positive">Positive</SelectItem>
+                  <SelectItem value="counter">Counter</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
+            <Field label="Keyword">
+              <Select value={keywordId || '__all__'} onValueChange={(v) => setKeywordId(v === '__all__' ? '' : v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All {polarity} keywords</SelectItem>
+                  {keywords
+                    .filter((k) => k.polarity === polarity)
+                    .map((k) => (
+                      <SelectItem key={k.id} value={k.id}>{k.text}</SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </>
         )}
         <Field label="Colour bars by">
           <Select value={group} onValueChange={(v) => setGroup(v as CompareGroup)}>
@@ -363,6 +399,9 @@ function ResultsView({ result }: { result: CompareResult }) {
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground">
         Ranked by <strong>{metricLabel(result.metric)}</strong>
+        {result.keywordLabel && (
+          <> for <code className="text-[11px] bg-muted px-1 py-0.5 rounded">{result.keywordLabel}</code></>
+        )}
         {' · '}{result.points.length} document{result.points.length === 1 ? '' : 's'}
         {result.excluded > 0 && ` (${result.excluded} excluded — no extracted text)`}
         {result.scoreFallback && (

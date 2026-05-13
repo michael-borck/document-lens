@@ -23,10 +23,10 @@
  * modes; ship anomalies first.
  */
 
-import { selectAll } from './db'
+import { selectAll, selectOne, runStatement, now } from './db'
 import { listKeywords } from './keyword-lists'
 import { listLensValues, getLens } from './lenses'
-import { api } from './api'
+import { api, type StructuralMismatchResponse } from './api'
 import type {
   Document,
   KeywordPolarity,
@@ -57,6 +57,8 @@ export interface AuditResult {
   totalSentencesAnalysed: number
   /** Map domain label (as returned by backend) -> human-readable display name. */
   domainLabels: string[]
+  /** Of `documentsAnalysed`, how many came from cache (no backend call made). */
+  cacheHits: number
 }
 
 export interface AuditProgress {
@@ -127,20 +129,25 @@ export async function runAudit(
       documentsUnavailable: 0,
       totalSentencesAnalysed: 0,
       domainLabels,
+      cacheHits: 0,
     }
   }
 
-  // 4. Per document: call backend, find keyword-bearing dislocations.
+  // 4. Per document: call backend (or pull from cache), find
+  //    keyword-bearing dislocations.
   const findings: AuditFinding[] = []
   let documentsAnalysed = 0
   let documentsUnavailable = 0
   let totalSentences = 0
+  let cacheHits = 0
 
   // Precompile keyword regexes once; reused for every sentence in every doc.
   const keywordRegexes = keywords.map((k) => ({
     keyword: k,
     pattern: buildKeywordRegex(k.text),
   }))
+
+  const threshold = input.threshold ?? 0.3
 
   for (let i = 0; i < docs.length; i++) {
     const doc = docs[i]
@@ -158,7 +165,14 @@ export async function runAudit(
       continue
     }
 
-    const response = await api.detectStructuralMismatch(text, domainLabels, input.threshold ?? 0.3)
+    const cacheKey = await buildAuditCacheKey(text, input.lensId, threshold, domainLabels)
+    let response = await readAuditCache(input.projectId, cacheKey)
+    if (response) {
+      cacheHits++
+    } else {
+      response = await api.detectStructuralMismatch(text, domainLabels, threshold)
+      await writeAuditCache(input.projectId, cacheKey, response)
+    }
     documentsAnalysed++
     totalSentences += response.total_sentences_analyzed
 
@@ -203,7 +217,75 @@ export async function runAudit(
     documentsUnavailable,
     totalSentencesAnalysed: totalSentences,
     domainLabels,
+    cacheHits,
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cache: per-doc /semantic/structural-mismatch responses
+// ---------------------------------------------------------------------------
+//
+// Embedding every sentence in a 50-page report takes ~10–60s per doc; a
+// 20-doc audit can run for 5–20 min. The response only depends on
+// (extracted_text, lens label set, threshold), so we cache it in the
+// existing analysis_cache table. Invalidation is by key change — if any
+// of those inputs differ, the key changes and we re-call the backend.
+//
+// Cache key shape:
+//   audit:v1:<sha1(text \x1f lensId \x1f threshold \x1f sortedLabels)>
+//
+// Bump the v1 prefix if the response format changes (forces re-fetch).
+
+const AUDIT_CACHE_PREFIX = 'audit:v1:'
+
+async function buildAuditCacheKey(
+  text: string,
+  lensId: string,
+  threshold: number,
+  domainLabels: string[]
+): Promise<string> {
+  const parts = [
+    text,
+    lensId,
+    threshold.toString(),
+    [...domainLabels].sort().join('\x1f'),
+  ]
+  const payload = parts.join('\x1f')
+  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(payload))
+  const hex = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return AUDIT_CACHE_PREFIX + hex
+}
+
+async function readAuditCache(
+  projectId: string,
+  cacheKey: string
+): Promise<StructuralMismatchResponse | null> {
+  const row = await selectOne<{ result: string }>(
+    'SELECT result FROM analysis_cache WHERE project_id = ? AND cache_key = ?',
+    [projectId, cacheKey]
+  )
+  if (!row) return null
+  try {
+    return JSON.parse(row.result) as StructuralMismatchResponse
+  } catch {
+    return null  // corrupt entry — fall through to a fresh call
+  }
+}
+
+async function writeAuditCache(
+  projectId: string,
+  cacheKey: string,
+  response: StructuralMismatchResponse
+): Promise<void> {
+  await runStatement(
+    `INSERT INTO analysis_cache (project_id, cache_key, result, computed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (project_id, cache_key)
+       DO UPDATE SET result = excluded.result, computed_at = excluded.computed_at`,
+    [projectId, cacheKey, JSON.stringify(response), now()]
+  )
 }
 
 /**

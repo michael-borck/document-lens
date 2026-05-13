@@ -47,6 +47,8 @@ export interface CompareResult {
   scoreFallback?: boolean
   /** Documents excluded from ranking (no extracted text). */
   excluded: number
+  /** When set, ranking was narrowed to a single keyword (display label). */
+  keywordLabel?: string
 }
 
 export interface ComputeCompareInput {
@@ -60,6 +62,13 @@ export interface ComputeCompareInput {
   sectors?: string[]
   /** Polarity filter (used by match-count and distinct-keywords). */
   polarity: KeywordPolarity
+  /**
+   * When set (and metric is match-count or distinct-keywords), narrow the
+   * metric to a single keyword. Lets the user ask "which doc talks most
+   * about *circular economy*". Ignored for pos-minus-counter and score
+   * (those metrics need the whole keyword set).
+   */
+  keywordId?: string
   /** Visual grouping (colours bars by attribute; doesn't change ranking order). */
   group: CompareGroup
   /** Required for score metric. */
@@ -153,9 +162,14 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
 
   // 3. Compute per-doc metric value.
   const points: ComparePoint[] = []
+  let keywordLabel: string | undefined
   if (input.metric === 'match-count' || input.metric === 'distinct-keywords') {
-    const keywords = (await listKeywords(input.keywordListId))
+    let keywords = (await listKeywords(input.keywordListId))
       .filter((k) => k.enabled && k.polarity === input.polarity)
+    if (input.keywordId) {
+      keywords = keywords.filter((k) => k.id === input.keywordId)
+      keywordLabel = keywords[0]?.text
+    }
     for (const doc of filteredDocs) {
       const text = doc.extractedText ?? ''
       let total = 0
@@ -238,6 +252,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     group: input.group,
     scoreFallback: input.metric === 'score' ? scoreFallback : undefined,
     excluded,
+    keywordLabel,
   }
 }
 
