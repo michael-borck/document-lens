@@ -1,0 +1,19 @@
+/*
+ * Embedded PDF viewer styles. We re-use pdfjs-dist's official text
+ * layer + viewer CSS for span positioning + transparent-text-on-canvas
+ * behaviour, then layer our keyword-highlight style on top.
+ */
+
+@import 'pdfjs-dist/web/pdf_viewer.css';
+
+/*
+ * Keyword highlight applied by applyHighlight() in PdfViewer.tsx.
+ * Yellow translucent background matches the concordance highlight
+ * style in Read.tsx so the visual identity is consistent.
+ */
+.textLayer mark.pdf-highlight {
+  background-color: rgba(254, 240, 138, 0.85);
+  color: transparent; /* keep text invisible — canvas underneath shows the glyphs */
+  border-radius: 1px;
+  padding: 0;
+}

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Check, Copy, ExternalLink } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -13,6 +13,7 @@ import { listKeywords } from '@/services/keyword-lists'
 import { getDocument } from '@/services/documents'
 import { listSections, type DocumentSection } from '@/services/sections'
 import { getPageOffsets, findPageForOffset, type PageOffset } from '@/services/document-pages'
+import { PdfViewerModal } from '@/components/pdf-viewer/PdfViewerModal'
 import { EmptyState } from '@/components/EmptyState'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Document, Keyword, KeywordPolarity } from '@/types/data'
@@ -416,6 +417,8 @@ function ConcordanceResults({
               page={page}
               totalPages={totalPages}
               documentPath={documentPath}
+              documentLabel={documentLabel}
+              keywordLabel={keywordLabel}
             />
           )
         })}
@@ -431,6 +434,8 @@ function MatchCard({
   page,
   totalPages,
   documentPath,
+  documentLabel,
+  keywordLabel,
 }: {
   match: ConcordanceResult['matches'][number]
   section: DocumentSection | null
@@ -438,8 +443,14 @@ function MatchCard({
   page: number | null
   totalPages: number | null
   documentPath?: string
+  documentLabel: string
+  keywordLabel: string
 }) {
   const [copied, setCopied] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  // Only PDFs render in the embedded viewer; other formats fall back
+  // to the OS handler via "Open at page" / "Open source file".
+  const isPdf = (documentPath ?? '').toLowerCase().endsWith('.pdf')
 
   const copyPhrase = async () => {
     const phrase = buildSearchPhrase(match.matched, match.after, match.before)
@@ -494,12 +505,23 @@ function MatchCard({
             {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
             {copied ? 'Copied' : 'Copy phrase'}
           </button>
+          {isPdf && documentPath && (
+            <button
+              type="button"
+              onClick={() => setPreviewOpen(true)}
+              className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors"
+              title="Preview the PDF inside the app, with the keyword highlighted"
+            >
+              <Eye className="h-3 w-3" />
+              Preview
+            </button>
+          )}
           {page !== null && documentPath && (
             <button
               type="button"
               onClick={openAtPage}
               className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors"
-              title={`Open the source PDF at page ${page} (some viewers ignore the page hint and open at page 1)`}
+              title={`Open the source PDF at page ${page} in the OS viewer (some viewers ignore the page hint and open at page 1)`}
             >
               <ExternalLink className="h-3 w-3" />
               Open at page {page}
@@ -507,6 +529,16 @@ function MatchCard({
           )}
         </span>
       </div>
+      {isPdf && documentPath && (
+        <PdfViewerModal
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          filePath={documentPath}
+          documentLabel={documentLabel}
+          initialPage={page ?? 1}
+          highlight={keywordLabel}
+        />
+      )}
     </li>
   )
 }
