@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FolderOpen, Trash2 } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { NewProjectDialog } from '@/components/dialogs/NewProjectDialog'
 import { FirstRunWizard } from '@/components/dialogs/FirstRunWizard'
+import { ImportBundleDialog } from '@/components/dialogs/ImportBundleDialog'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { listProjects, deleteProject } from '@/services/projects'
 import { toast } from '@/stores/toastStore'
@@ -15,6 +16,7 @@ export function Projects() {
   const [projects, setProjects] = useState<Project[] | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [wizardOpen, setWizardOpen] = useState(false)
+  const [importBundlePath, setImportBundlePath] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
 
   useEffect(() => {
@@ -28,6 +30,21 @@ export function Projects() {
   const handleCreated = (project: Project) => {
     refresh()
     navigate(`/projects/${project.id}/setup`)
+  }
+
+  const handlePickImportBundle = async () => {
+    const electron = window.electron
+    if (!electron) return
+    const dialog = await electron.openFileDialog({
+      title: 'Import project bundle',
+      buttonLabel: 'Import',
+      filters: [
+        { name: 'Document Lens bundle', extensions: ['lens'] },
+        { name: 'ZIP archive', extensions: ['zip'] },
+      ],
+    })
+    if (dialog.canceled || dialog.filePaths.length === 0) return
+    setImportBundlePath(dialog.filePaths[0])
   }
 
   const handleConfirmDelete = async () => {
@@ -52,10 +69,16 @@ export function Projects() {
           <p className="text-muted-foreground italic mt-1">What are you working on?</p>
         </div>
         {projects.length > 0 && (
-          <Button onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            New project
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={handlePickImportBundle} className="gap-2">
+              <Package className="h-4 w-4" />
+              Import bundle
+            </Button>
+            <Button onClick={() => setDialogOpen(true)} className="gap-2">
+              <Plus className="h-4 w-4" />
+              New project
+            </Button>
+          </div>
         )}
       </header>
 
@@ -65,10 +88,16 @@ export function Projects() {
           title="No projects yet"
           description="A project is a workspace for analysing a set of documents through a chosen framework. The app ships with the SDG keyword list and the 5-level Wedding Cake Score pre-loaded — your first project will be productive without any configuration."
           action={
-            <Button onClick={() => setWizardOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
-              Create your first project
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={() => setWizardOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Create your first project
+              </Button>
+              <Button variant="outline" onClick={handlePickImportBundle} className="gap-2">
+                <Package className="h-4 w-4" />
+                Import a bundle
+              </Button>
+            </div>
           }
         />
       ) : (
@@ -122,6 +151,13 @@ export function Projects() {
         open={wizardOpen}
         onOpenChange={setWizardOpen}
         onCreated={handleCreated}
+      />
+
+      <ImportBundleDialog
+        open={importBundlePath !== null}
+        onOpenChange={(o) => { if (!o) setImportBundlePath(null) }}
+        onImported={handleCreated}
+        bundlePath={importBundlePath}
       />
 
       <ConfirmDialog

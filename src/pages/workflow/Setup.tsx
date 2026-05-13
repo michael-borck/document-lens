@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -28,6 +28,7 @@ import {
 } from '@/services/classification'
 import { toast } from '@/stores/toastStore'
 import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
+import { exportProjectBundle } from '@/services/bundle-project-export'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { KeywordList, Lens, ScoringRule, Document } from '@/types/data'
 
@@ -68,13 +69,35 @@ export function Setup() {
     await vm.refresh()
   }
 
+  const handleExportBundle = async () => {
+    try {
+      const result = await exportProjectBundle(vm.project)
+      if ('cancelled' in result) return
+      toast.success(`Exported bundle to ${result.filePath}`)
+    } catch (err) {
+      toast.error(`Bundle export failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   return (
     <div className="px-8 py-8 max-w-4xl">
-      <header className="mb-8">
-        <h1 className="font-display text-2xl font-medium tracking-tight">Setup</h1>
-        <p className="text-muted-foreground italic mt-1">
-          Assemble this project: documents, keywords, lenses, scoring rule.
-        </p>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="font-display text-2xl font-medium tracking-tight">Setup</h1>
+          <p className="text-muted-foreground italic mt-1">
+            Assemble this project: documents, keywords, lenses, scoring rule.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportBundle}
+          className="gap-1.5"
+          title="Export this project as a .lens bundle for sharing or archiving"
+        >
+          <Package className="h-4 w-4" />
+          Export bundle
+        </Button>
       </header>
 
       <div className="space-y-8">
