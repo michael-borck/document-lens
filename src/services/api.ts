@@ -331,18 +331,20 @@ class ApiClient {
   }
 
   /**
-   * Detect structural mismatch (thematic dislocation)
+   * Detect structural mismatch (thematic dislocation).
+   *
+   * Backend signature: { text, domains: list[str], threshold: float }.
+   * Returns sentences whose own semantic-domain assignment differs from
+   * their parent section's, with a dislocation_score and severity.
    */
   async detectStructuralMismatch(
     text: string,
-    expectedStructure?: string[]
+    domains: string[],
+    threshold: number = 0.3
   ): Promise<StructuralMismatchResponse> {
     return this.request<StructuralMismatchResponse>('/semantic/structural-mismatch', {
       method: 'POST',
-      body: JSON.stringify({
-        text,
-        expected_structure: expectedStructure,
-      }),
+      body: JSON.stringify({ text, domains, threshold }),
     })
   }
 
@@ -612,16 +614,20 @@ export interface DomainMappingResponse {
   average_confidence: number
 }
 
+export interface SentenceDislocation {
+  sentence_index: number
+  sentence_text: string
+  sentence_domain: string
+  parent_section_index: number
+  parent_section_domain: string
+  dislocation_score: number  // 0.0 - 1.0, higher = more dislocated
+  severity: 'low' | 'medium' | 'high'
+}
+
 export interface StructuralMismatchResponse {
-  has_mismatch: boolean
-  mismatch_score: number  // 0 to 1, higher = more mismatch
-  sections: Array<{
-    section: string
-    expected_topic?: string
-    actual_topic: string
-    alignment_score: number
-  }>
-  summary: string
+  total_sentences_analyzed: number
+  total_sections: number
+  dislocations: SentenceDislocation[]
 }
 
 export interface BatchSentimentResponse {
