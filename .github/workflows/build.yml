@@ -11,6 +11,10 @@ on:
 jobs:
   build:
     strategy:
+      # One platform failing must not cancel the others — we want
+      # parallel signal across all three OSes when iterating on PyInstaller
+      # collect/hidden-import issues, not "first failure poisons the run".
+      fail-fast: false
       matrix:
         include:
           - os: macos-latest
@@ -260,6 +264,8 @@ jobs:
             --collect-all safetensors \
             --collect-all spacy \
             --collect-all en_core_web_sm \
+            --collect-all magika \
+            --collect-all markitdown \
             --hidden-import uvicorn.logging \
             --hidden-import uvicorn.lifespan \
             --hidden-import uvicorn.lifespan.on \
@@ -283,7 +289,7 @@ jobs:
             --hidden-import textstat \
             --hidden-import nltk \
             --hidden-import sklearn \
-            --hidden-import PyPDF2 \
+            --hidden-import pypdf \
             --hidden-import pdfplumber \
             --hidden-import python_multipart \
             --hidden-import multipart \
