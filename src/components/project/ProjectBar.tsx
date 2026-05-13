@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeft, MoreVertical, Pencil, Check, X } from 'lucide-react'
+import { ArrowLeft, Pencil, Check, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface ProjectBarProps {
@@ -10,8 +10,7 @@ interface ProjectBarProps {
 }
 
 /**
- * Project bar — back arrow, project name (click to rename), and a
- * trailing actions button.
+ * Project bar — back arrow + project name (click to rename).
  *
  * Rename UX: click the name to switch to an input, Enter or blur to
  * commit, Escape to cancel. Whitespace-only / empty commits are
@@ -124,13 +123,6 @@ export function ProjectBar({ projectName, onRename }: ProjectBarProps) {
           )}
         </button>
       )}
-      <button
-        type="button"
-        className="text-muted-foreground hover:text-foreground p-1 rounded shrink-0"
-        title="Project actions"
-      >
-        <MoreVertical className="h-4 w-4" />
-      </button>
     </div>
   )
 }

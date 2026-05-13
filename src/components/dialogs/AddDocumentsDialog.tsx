@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Search } from 'lucide-react'
+import { Search, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -13,6 +13,8 @@ import {
 } from '@/components/ui/dialog'
 import { listDocuments } from '@/services/documents'
 import { addDocumentsToProject } from '@/services/projects'
+import { importDocuments, type ImportProgress } from '@/services/import'
+import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
 
 interface AddDocumentsDialogProps {
@@ -35,6 +37,8 @@ export function AddDocumentsDialog({
   const [search, setSearch] = useState('')
   const [loading, setLoading] = useState(false)
   const [adding, setAdding] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importProgress, setImportProgress] = useState<ImportProgress | null>(null)
 
   useEffect(() => {
     if (!open) return
@@ -46,6 +50,57 @@ export function AddDocumentsDialog({
       setLoading(false)
     })
   }, [open])
+
+  // Import fresh documents directly from the picker so the user doesn't
+  // have to context-switch to Library when this project's slate is empty.
+  // Newly imported docs are auto-selected so the user can confirm-add
+  // with one more click.
+  const handleImportNew = async () => {
+    const electron = window.electron
+    if (!electron) return
+
+    const dialog = await electron.openFileDialog({
+      title: 'Import documents',
+      buttonLabel: 'Import',
+      filters: [
+        { name: 'Documents', extensions: ['pdf', 'docx', 'pptx', 'txt', 'md'] },
+        { name: 'All files', extensions: ['*'] },
+      ],
+    })
+    if (dialog.canceled || dialog.filePaths.length === 0) return
+
+    setImporting(true)
+    setImportProgress(null)
+    try {
+      const result = await importDocuments(dialog.filePaths, setImportProgress)
+      const fresh = await listDocuments()
+      setAllDocs(fresh)
+
+      // Auto-select successfully imported (and duplicate) docs so the
+      // user just clicks "Add N" to confirm. Filter to ones not already
+      // attached to this project — duplicates may have been added before.
+      const newIds = result.items
+        .filter((it) => it.document && (it.phase === 'completed' || it.phase === 'duplicate'))
+        .map((it) => it.document!.id)
+        .filter((id) => !alreadyAddedIds.has(id))
+      if (newIds.length > 0) {
+        const next = new Set(selected)
+        for (const id of newIds) next.add(id)
+        setSelected(next)
+      }
+
+      const parts: string[] = []
+      if (result.completed > 0) parts.push(`${result.completed} imported`)
+      if (result.duplicates > 0) parts.push(`${result.duplicates} duplicate`)
+      if (result.failed > 0) parts.push(`${result.failed} failed`)
+      toast.success(`Import finished: ${parts.join(' · ') || 'nothing to import'}`)
+    } catch (err) {
+      toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setImporting(false)
+      setImportProgress(null)
+    }
+  }
 
   const availableDocs = useMemo(
     () => allDocs.filter((d) => !alreadyAddedIds.has(d.id)),
@@ -94,15 +149,35 @@ export function AddDocumentsDialog({
         </DialogHeader>
 
         <div className="py-2">
-          <div className="relative mb-3">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by title, filename, or company"
-              className="pl-9"
-            />
+          <div className="flex items-center gap-2 mb-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search by title, filename, or company"
+                className="pl-9"
+              />
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleImportNew}
+              disabled={importing || adding}
+              className="gap-2 shrink-0"
+              title="Import new files into the Library and add them to this project"
+            >
+              <Upload className="h-4 w-4" />
+              {importing ? 'Importing…' : 'Import new…'}
+            </Button>
           </div>
+
+          {importProgress && (
+            <div className="mb-3 text-xs text-muted-foreground border border-border rounded-md px-3 py-2">
+              {importProgress.phase} · {importProgress.current}/{importProgress.total} ·{' '}
+              <span className="font-mono truncate">{importProgress.currentFile}</span>
+            </div>
+          )}
 
           <div className="border border-border rounded-md max-h-80 overflow-auto">
             {loading ? (
@@ -110,8 +185,8 @@ export function AddDocumentsDialog({
             ) : availableDocs.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground">
                 {allDocs.length === 0
-                  ? 'Your Library is empty. Import documents on the Library page first.'
-                  : 'All Library documents are already in this project.'}
+                  ? 'Your Library is empty. Use “Import new…” above to add files.'
+                  : 'All Library documents are already in this project. Use “Import new…” to add more.'}
               </div>
             ) : filteredDocs.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground">No matches.</div>
