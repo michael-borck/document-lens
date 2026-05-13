@@ -2,15 +2,39 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+    <!-- PyTorch's JIT compiler allocates executable memory; without
+         these the bundled sentence-transformers model crashes the
+         moment it encodes anything under hardened runtime. -->
     <key>com.apple.security.cs.allow-jit</key>
     <true/>
     <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
     <true/>
+
+    <!-- PyPI-distributed wheels (numpy / torch / transformers /
+         sentence-transformers) ship .so/.dylib binaries signed by
+         their own teams. Under hardened runtime, dyld refuses to load
+         a library whose Team ID doesn't match the loading process.
+         Without this entitlement the bundled Python sidecar crashes
+         on `import numpy` with a Team-ID mismatch. -->
     <key>com.apple.security.cs.disable-library-validation</key>
     <true/>
+
+    <!-- The PyInstaller entrypoint sets HF_HOME / HF_HUB_CACHE /
+         TRANSFORMERS_OFFLINE env vars at startup to point the bundled
+         sentence-transformers at the bundled model cache. Hardened
+         runtime drops env-var modifications unless explicitly allowed. -->
+    <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+    <true/>
+
+    <!-- File picker / Save dialog access. -->
+    <key>com.apple.security.files.user-selected.read-write</key>
+    <true/>
+
+    <!-- Outgoing HTTP from renderer to the localhost backend +
+         incoming socket accept on the bundled uvicorn (127.0.0.1:8765). -->
     <key>com.apple.security.network.client</key>
     <true/>
-    <key>com.apple.security.files.user-selected.read-write</key>
+    <key>com.apple.security.network.server</key>
     <true/>
 </dict>
 </plist>
