@@ -50,8 +50,12 @@ desktop.ini
 .history/
 
 # Testing / coverage
+# NOTE: leading slash on /coverage/ anchors the rule to repo root.
+# Without it, ANY nested coverage/ folder is ignored — which silently
+# excluded src/components/coverage/ from git for the whole Phase 2 +
+# Phase 3.5 work and only surfaced when CI on Linux failed typecheck.
 .coverage
-coverage/
+/coverage/
 htmlcov/
 coverage.xml
 
