@@ -1,22 +1,29 @@
 name: Build and Release
 
+# Triggers chosen for a release-only pipeline:
+#   tags v* — production release builds + published GitHub Release
+#   PRs to main — pre-merge CI validation
+#
+# We deliberately do NOT fire on main pushes. v0.14.5 demonstrated why:
+# `git push origin main --tags` fires two events for the same SHA; the
+# concurrency block cancelled the tag run in favour of the main run,
+# the main run skipped the conditional release job, and no Release got
+# published despite all three platforms building cleanly. CI on every
+# main commit was also expensive (15-20 min × 3 platforms) for no
+# additional signal beyond what PRs already give us.
 on:
   push:
-    branches: [main]
     tags:
       - 'v*'
   pull_request:
     branches: [main]
 
-# `git push origin main --tags` fires two separate push events (one
-# for the main branch, one for the tag). Without this concurrency
-# group, that schedules two identical workflow runs that compete for
-# the 4 concurrent-runner slots — one of v0.14.4's runs hung at the
-# HuggingFace prefetch step for over an hour because of the contention.
-# Grouping by commit SHA dedupes; cancel-in-progress=true means a
-# fresh push of the same SHA wins (relevant if a prior run is hung).
+# Defensive: if someone manages to trigger two concurrent runs for the
+# same tag (e.g. delete + re-push), dedupe rather than race. cancel-
+# in-progress=true means the newer push wins. Tags are immutable so
+# this should be rare — kept for the hung-build recovery path.
 concurrency:
-  group: build-${{ github.sha }}
+  group: build-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
