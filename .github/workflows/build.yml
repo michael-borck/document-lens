@@ -60,9 +60,12 @@ jobs:
           repository: michael-borck/document-analyser
           path: document-analyser-backend
           # Pinned for reproducible builds — bump in lockstep with
-          # document-analyser releases. v0.3.0 introduced full-ML
-          # graduation (matches document-lens 0.14+).
-          ref: v0.3.0
+          # document-analyser releases.
+          #   v0.3.0 — full-ML graduation (matches document-lens 0.14+)
+          #   v0.3.1 — clears 24 osv-scanner CVEs on the uv.lock
+          #            (nltk/urllib3/python-multipart/pillow/cryptography
+          #            +others). Lockfile-only; no API change.
+          ref: v0.3.1
 
       # HuggingFace model caches use deeply-nested paths
       # (models--org--name/snapshots/<40-char-hash>/<long-filename>) that
