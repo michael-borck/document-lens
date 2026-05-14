@@ -176,6 +176,43 @@ export async function setKeywordEnabled(id: string, enabled: boolean): Promise<v
   await runStatement('UPDATE keywords SET enabled = ? WHERE id = ?', [toDbBool(enabled), id])
 }
 
+export interface UpdateKeywordInput {
+  text?: string
+  polarity?: KeywordPolarity
+  notes?: string | null
+  sortOrder?: number
+}
+
+/**
+ * Patch one or more fields on a keyword. Used by the Keywords page
+ * for inline edits (text, polarity, notes). Skips fields not in the
+ * patch — leaves enabled / list_id alone (those have dedicated helpers
+ * because the CRUD shape differs).
+ */
+export async function updateKeyword(id: string, patch: UpdateKeywordInput): Promise<void> {
+  const fields: string[] = []
+  const params: unknown[] = []
+  if (patch.text !== undefined) {
+    fields.push('text = ?')
+    params.push(patch.text)
+  }
+  if (patch.polarity !== undefined) {
+    fields.push('polarity = ?')
+    params.push(patch.polarity)
+  }
+  if (patch.notes !== undefined) {
+    fields.push('notes = ?')
+    params.push(patch.notes)
+  }
+  if (patch.sortOrder !== undefined) {
+    fields.push('sort_order = ?')
+    params.push(patch.sortOrder)
+  }
+  if (fields.length === 0) return
+  params.push(id)
+  await runStatement(`UPDATE keywords SET ${fields.join(', ')} WHERE id = ?`, params)
+}
+
 export async function deleteKeyword(id: string): Promise<void> {
   await runStatement('DELETE FROM keywords WHERE id = ?', [id])
 }
