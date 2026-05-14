@@ -28,6 +28,12 @@ extraResources:
     filter:
       - "**/*"
 
+# macOS notarization hook — see scripts/notarize.js for the full
+# rationale. We run @electron/notarize directly here rather than
+# trusting electron-builder's built-in notarize wrapper (buggy across
+# 24.x). The hook is a no-op on non-darwin builds.
+afterSign: ./scripts/notarize.js
+
 win:
   target:
     - target: nsis

@@ -1,6 +1,6 @@
 {
   "name": "document-lens",
-  "version": "0.14.6",
+  "version": "0.14.7",
   "description": "Desktop research tool for analyzing document collections through keyword frameworks. Map documents to domains, track terminology, and surface patterns across corpora.",
   "main": "dist-electron/main.js",
   "author": "Michael Borck",
@@ -61,6 +61,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@electron/notarize": "^3.1.1",
     "@eslint/js": "^9.39.2",
     "@types/better-sqlite3": "^7.6.12",
     "@types/file-saver": "^2.0.7",

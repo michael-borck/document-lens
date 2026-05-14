@@ -444,35 +444,27 @@ jobs:
       - name: Build Vite
         run: npm run build:vite
 
-      - name: Import macOS signing certificate
-        if: matrix.os == 'macos-latest'
-        env:
-          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
-          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
-        run: |
-          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-          security create-keychain -p actions build.keychain
-          security default-keychain -s build.keychain
-          security unlock-keychain -p actions build.keychain
-          security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k actions build.keychain
-          rm certificate.p12
+      # The legacy "Import macOS signing certificate" step that ran
+      # `security create-keychain` etc. is gone — electron-builder reads
+      # CSC_LINK (base64'd .p12) and CSC_KEY_PASSWORD directly from env
+      # and handles keychain setup itself. One less thing to maintain.
 
       - name: Build Electron app (no publish)
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Renamed from APPLE_* so electron-builder's auto-detection
-          # doesn't fire its own (broken) notarize wrapper alongside
-          # what we'll wire via afterSign later. Even with `notarize:
-          # false` in electron-builder.yml, the presence of APPLE_ID
-          # in the environment was triggering the wrapper and erroring
-          # with `Cannot destructure property 'appBundleId' of
-          # 'options'`. Renamed env vars are invisible to electron-
-          # builder; an afterSign hook can read them under the new names
-          # when we add real notarization.
+          # Code signing: electron-builder picks these up automatically
+          # on macOS and uses them to set up a temporary keychain +
+          # codesign the .app. Setting them on Linux/Windows is a no-op.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Notarization: read by scripts/notarize.js (the afterSign
+          # hook). Renamed from APPLE_* so electron-builder's own broken
+          # auto-notarize wrapper can't see them and fire alongside the
+          # hook (would crash with `Cannot destructure property
+          # 'appBundleId' of 'options'`).
           NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
-          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
