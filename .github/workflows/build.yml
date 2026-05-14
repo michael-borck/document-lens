@@ -8,6 +8,17 @@ on:
   pull_request:
     branches: [main]
 
+# `git push origin main --tags` fires two separate push events (one
+# for the main branch, one for the tag). Without this concurrency
+# group, that schedules two identical workflow runs that compete for
+# the 4 concurrent-runner slots — one of v0.14.4's runs hung at the
+# HuggingFace prefetch step for over an hour because of the contention.
+# Grouping by commit SHA dedupes; cancel-in-progress=true means a
+# fresh push of the same SHA wins (relevant if a prior run is hung).
+concurrency:
+  group: build-${{ github.sha }}
+  cancel-in-progress: true
+
 jobs:
   build:
     strategy:
