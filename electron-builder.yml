@@ -45,6 +45,14 @@ mac:
   category: public.app-category.productivity
   hardenedRuntime: true
   gatekeeperAssess: false
+  # Explicitly disable electron-builder's built-in notarize wrapper —
+  # it has been buggy across 24.x and crashes with `Cannot destructure
+  # property 'appBundleId' of 'options'` whenever APPLE_* env vars are
+  # present (which they are, in CI). When we wire real notarization,
+  # we'll do it via an afterSign hook calling @electron/notarize
+  # directly. For now, beta DMGs are unsigned — researchers right-click-
+  # Open the .app once and macOS remembers the trust decision.
+  notarize: false
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
 

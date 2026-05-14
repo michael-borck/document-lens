@@ -78,13 +78,19 @@ jobs:
       - name: Install Python dependencies and PyInstaller
         run: |
           cd document-analyser-backend
-          pip install --upgrade pip
-          pip install pyinstaller
+          # Use `python -m pip` everywhere — Windows pip.exe is locked
+          # while running, so `pip install --upgrade pip` errors with
+          # "ERROR: To modify pip, please run the following command:
+          # python -m pip install --upgrade pip". `python -m pip`
+          # spawns a subprocess that can replace pip.exe cleanly on
+          # Windows; behaves identically on macOS / Linux.
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
           # [nlp] pulls sentence-transformers + transformers + spacy +
           # (transitively) torch. document-lens 0.14+ ships the full
           # ML stack so Function classification / Audit Anomalies /
           # Discover Synonyms work in production binaries.
-          pip install -e ".[nlp]"
+          python -m pip install -e ".[nlp]"
           # spaCy model download — needed by the NER analyser if any
           # workflow ever calls it. Small (~50 MB), worth bundling.
           python -m spacy download en_core_web_sm
@@ -422,9 +428,18 @@ jobs:
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Renamed from APPLE_* so electron-builder's auto-detection
+          # doesn't fire its own (broken) notarize wrapper alongside
+          # what we'll wire via afterSign later. Even with `notarize:
+          # false` in electron-builder.yml, the presence of APPLE_ID
+          # in the environment was triggering the wrapper and erroring
+          # with `Cannot destructure property 'appBundleId' of
+          # 'options'`. Renamed env vars are invisible to electron-
+          # builder; an afterSign hook can read them under the new names
+          # when we add real notarization.
+          NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
