@@ -3,7 +3,7 @@ import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
 import { autoUpdater } from 'electron-updater'
-import { initDatabase, getDatabase } from './database'
+import { initDatabase, getDatabase, closeDatabase } from './database'
 import { BackendManager, BACKEND_URL } from './backend-manager'
 
 // The built directory structure
@@ -175,45 +175,55 @@ app.whenReady().then(async () => {
   })
 })
 
-// Backend orphan-prevention strategy:
+// Shutdown strategy — covers two resources:
 //
-// The spawned Python child gets reparented to PID 1 if the Electron
-// parent dies without explicit cleanup, leaving a zombie uvicorn on
-// :8765. To kill it reliably we hook every exit path:
+//   Python backend child: gets reparented to PID 1 if the Electron
+//     parent dies without explicit cleanup, leaving a zombie uvicorn
+//     on :8765.
+//   SQLite handle: better-sqlite3 holds a file lock; an open WAL on a
+//     hard kill is recoverable but a clean close flushes the WAL and
+//     avoids "database is locked" on next launch.
 //
+// Hooked into every exit path:
 //   before-quit   — fires on Cmd-Q / app.quit() (skips window-all-closed
 //                   on macOS), so this is the canonical clean-exit spot.
 //   window-all-closed — non-macOS clean exit (and macOS dock-close on
 //                   single-window apps).
 //   SIGINT/SIGTERM — Ctrl-C in the dev terminal, `kill <pid>`, parent
 //                   process death. Signal handlers are sync-restricted
-//                   so we kick off stop() and force-exit shortly after.
+//                   so we kick off shutdown and force-exit shortly after.
 //
-// Idempotent: stop() is a no-op if process is already null.
+// Idempotent: backend stop() is a no-op if process is already null;
+// closeDatabase() is a no-op if the handle is null.
 
 let cleanupInFlight = false
 
-async function shutdownBackend(reason: string): Promise<void> {
+async function shutdownApp(reason: string): Promise<void> {
   if (cleanupInFlight) return
   cleanupInFlight = true
-  console.log(`[Backend] shutdown trigger: ${reason}`)
+  console.log(`[Shutdown] trigger: ${reason}`)
   try {
     if (backendManager) await backendManager.stop()
   } catch (err) {
-    console.error('[Backend] shutdown error:', err)
+    console.error('[Shutdown] backend stop error:', err)
+  }
+  try {
+    closeDatabase()
+  } catch (err) {
+    console.error('[Shutdown] database close error:', err)
   }
 }
 
 app.on('before-quit', async (event) => {
-  if (!backendManager || cleanupInFlight) return
-  // Defer the quit until the backend has cleanly stopped, then re-fire it.
+  if (cleanupInFlight) return
+  // Defer the quit until backend + DB have cleanly stopped, then re-fire it.
   event.preventDefault()
-  await shutdownBackend('app before-quit')
+  await shutdownApp('app before-quit')
   app.quit()
 })
 
 app.on('window-all-closed', async () => {
-  await shutdownBackend('window-all-closed')
+  await shutdownApp('window-all-closed')
   if (process.platform !== 'darwin') {
     app.quit()
   }
@@ -224,13 +234,13 @@ app.on('window-all-closed', async () => {
 // we bound it with a hard force-kill timeout.
 function installSignalHandlers(): void {
   const handle = (signal: NodeJS.Signals) => {
-    console.log(`[Backend] caught ${signal} — shutting down child`)
-    shutdownBackend(signal).finally(() => {
-      // Give stop() up to 3s to land before we exit; otherwise the
+    console.log(`[Shutdown] caught ${signal}`)
+    shutdownApp(signal).finally(() => {
+      // Give shutdown up to 3s to land before we exit; otherwise the
       // parent dies and the child orphans anyway.
       setTimeout(() => process.exit(0), 100).unref()
     })
-    // Also schedule a hard exit in case stop() hangs.
+    // Also schedule a hard exit in case shutdown hangs.
     setTimeout(() => process.exit(1), 3000).unref()
   }
   process.on('SIGINT', handle)
