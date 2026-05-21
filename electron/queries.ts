@@ -250,6 +250,14 @@ export const QUERIES = {
        ON CONFLICT (project_id, cache_key)
        DO UPDATE SET result = excluded.result, computed_at = excluded.computed_at`,
 
+  // generic analysis_cache access (gap service and future consumers)
+  'analysisCache.get':
+    'SELECT result FROM analysis_cache WHERE project_id = ? AND cache_key = ?',
+  'analysisCache.put': `INSERT INTO analysis_cache (project_id, cache_key, result, computed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (project_id, cache_key)
+       DO UPDATE SET result = excluded.result, computed_at = excluded.computed_at`,
+
   // document pages (write — import + bundle import)
   'documentPages.insert':
     'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
