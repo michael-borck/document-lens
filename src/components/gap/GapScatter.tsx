@@ -38,32 +38,40 @@ export function GapScatter({ data, level, onLevelChange }: Props) {
           </button>
         ))}
       </div>
-      <ResponsiveContainer width="100%" height={420}>
-        <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" dataKey="substance" name="Substance" domain={[-1, 1]}
-            label={{ value: 'substance (delivery →)', position: 'bottom' }} />
-          <YAxis type="number" dataKey="tone" name="Tone" domain={[-1, 1]}
-            label={{ value: 'tone', angle: -90, position: 'left' }} />
-          <ZAxis type="number" dataKey="weight" range={[40, 400]} name="matches" />
-          <ReferenceLine segment={[{ x: -1, y: -1 }, { x: 1, y: 1 }]} stroke="#bbb" strokeDasharray="5 5" />
-          <Tooltip cursor={{ strokeDasharray: '3 3' }}
-            content={({ payload }) => {
-              const p = payload?.[0]?.payload as GapPoint | undefined
-              if (!p) return null
-              return (
-                <div className="bg-card border border-border rounded px-2 py-1 text-xs">
-                  <div className="font-medium">{p.label}</div>
-                  <div>tone {p.tone.toFixed(2)} · substance {p.substance.toFixed(2)}</div>
-                  <div>gap {p.gap >= 0 ? '+' : ''}{p.gap.toFixed(2)}{p.gap > 0.4 ? ' — performative' : ''}</div>
-                </div>
-              )
-            }} />
-          {byDoc.map(([docId, pts]) => (
-            <Scatter key={docId} data={pts} fill={docColor.get(docId)} fillOpacity={0.75} />
-          ))}
-        </ScatterChart>
-      </ResponsiveContainer>
+      <div className="relative">
+        <div className="pointer-events-none absolute inset-0 z-10">
+          <span className="absolute left-12 top-3 text-[11px] font-medium text-[#c0392b]">Performative</span>
+          <span className="absolute right-8 top-3 text-[11px] font-medium text-[#27ae60]">Genuine</span>
+          <span className="absolute left-12 bottom-10 text-[11px] font-medium text-[#7f8c8d]">Honest gaps</span>
+          <span className="absolute right-8 bottom-10 text-[11px] font-medium text-[#2980b9]">Understated</span>
+        </div>
+        <ResponsiveContainer width="100%" height={420}>
+          <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis type="number" dataKey="substance" name="Substance" domain={[-1, 1]}
+              label={{ value: 'substance (delivery →)', position: 'bottom' }} />
+            <YAxis type="number" dataKey="tone" name="Tone" domain={[-1, 1]}
+              label={{ value: 'tone', angle: -90, position: 'left' }} />
+            <ZAxis type="number" dataKey="weight" range={[40, 400]} name="matches" />
+            <ReferenceLine segment={[{ x: -1, y: -1 }, { x: 1, y: 1 }]} stroke="#bbb" strokeDasharray="5 5" />
+            <Tooltip cursor={{ strokeDasharray: '3 3' }}
+              content={({ payload }) => {
+                const p = payload?.[0]?.payload as GapPoint | undefined
+                if (!p) return null
+                return (
+                  <div className="bg-card border border-border rounded px-2 py-1 text-xs">
+                    <div className="font-medium">{p.label}</div>
+                    <div>tone {p.tone.toFixed(2)} · substance {p.substance.toFixed(2)}</div>
+                    <div>gap {p.gap >= 0 ? '+' : ''}{p.gap.toFixed(2)}{p.gap > 0.4 ? ' — performative' : ''}</div>
+                  </div>
+                )
+              }} />
+            {byDoc.map(([docId, pts]) => (
+              <Scatter key={docId} data={pts} fill={docColor.get(docId)} fillOpacity={0.75} />
+            ))}
+          </ScatterChart>
+        </ResponsiveContainer>
+      </div>
       <p className="text-xs text-muted-foreground mt-2">
         Top-left (high tone, low substance) = performative. Distance above the dashed diagonal = greenwashing intensity.
       </p>

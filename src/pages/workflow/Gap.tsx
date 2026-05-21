@@ -66,6 +66,11 @@ export function Gap() {
 
       {loading || !data ? (
         <div className="text-sm text-muted-foreground py-8">Analysing…</div>
+      ) : data.byLevel.document.length === 0 && data.byLevel.section.length === 0 && data.byLevel.keyword.length === 0 ? (
+        <EmptyState
+          title="Nothing to plot yet"
+          description="The gap needs documents with extracted text and keyword matches. Import and analyse documents on the Library tab, and make sure your keyword list has terms that appear in them."
+        />
       ) : (
         <>
           <GapScatter data={data} level={level} onLevelChange={setLevel} />

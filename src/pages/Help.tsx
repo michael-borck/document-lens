@@ -42,9 +42,9 @@ const TOPICS: Topic[] = [
   { id: 'track', title: 'Track', group: 'Workflows', icon: TrendingUp, render: TrackTopic },
   { id: 'compare', title: 'Compare', group: 'Workflows', icon: BarChart3, render: CompareTopic },
   { id: 'audit', title: 'Audit', group: 'Workflows', icon: AlertTriangle, render: AuditTopic },
+  { id: 'gap', title: 'Gap', group: 'Workflows', icon: ScatterChart, render: GapTopic },
   { id: 'discover', title: 'Discover', group: 'Workflows', icon: Sparkles, render: DiscoverTopic },
   { id: 'read', title: 'Read', group: 'Workflows', icon: BookOpen, render: ReadTopic },
-  { id: 'gap', title: 'Gap', group: 'Workflows', icon: ScatterChart, render: GapTopic },
   { id: 'paper-bundle', title: 'Paper-ready bundle', group: 'Sharing & export', icon: FileText, render: PaperBundleTopic },
   { id: 'project-bundle', title: 'Project bundle (.lens)', group: 'Sharing & export', icon: Package, render: ProjectBundleTopic },
 ]
