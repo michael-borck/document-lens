@@ -4,7 +4,7 @@ import fs from 'fs'
 import crypto from 'crypto'
 import { autoUpdater } from 'electron-updater'
 import { initDatabase, getDatabase, closeDatabase } from './database'
-import { getQuery, buildUpdate } from './queries'
+import { getQuery, getInQuery, buildUpdate } from './queries'
 import { BackendManager, BACKEND_URL } from './backend-manager'
 
 // The built directory structure
@@ -425,6 +425,20 @@ ipcMain.handle('db:update', async (_, { table, columns, idColumn, params }) => {
     return params ? stmt.run(...params) : stmt.run()
   } catch (error) {
     console.error(`Database update error [${table}]:`, error)
+    throw error
+  }
+})
+
+// Keyed SELECT with a variable-length IN (...) list. The registry SQL holds
+// an __IN__ marker; main expands it to the right number of placeholders and
+// binds the ids as parameters.
+ipcMain.handle('db:selectIn', async (_, { key, ids }) => {
+  const db = getDatabase()
+  try {
+    const stmt = db.prepare(getInQuery(key, ids.length))
+    return stmt.all(...ids)
+  } catch (error) {
+    console.error(`Database selectIn error [${key}]:`, error)
     throw error
   }
 })

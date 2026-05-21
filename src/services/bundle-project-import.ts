@@ -33,7 +33,7 @@
  */
 
 import JSZip from 'jszip'
-import { runStatement, selectAll, newId, stringifyJson } from './db'
+import { runStatementKeyed, selectAllKeyed, newId, stringifyJson } from './db'
 import {
   createProject,
   addDocumentsToProject,
@@ -272,10 +272,7 @@ export async function applyBundle(
         const child = createdValuesByName.get(v.value)
         const parent = createdValuesByName.get(v.parentValueName)
         if (child && parent) {
-          await runStatement(
-            'UPDATE lens_values SET parent_value_id = ? WHERE id = ?',
-            [parent.id, child.id]
-          )
+          await runStatementKeyed('bundleImport.updateLensValueParent', [parent.id, child.id])
         }
       }
     }
@@ -440,13 +437,7 @@ export async function applyBundle(
       }
 
       docId = newId()
-      await runStatement(
-        `INSERT INTO documents
-           (id, filename, file_path, file_hash, file_size, title, year, company, sector,
-            page_count, word_count, extracted_text, pdf_metadata, status, status_error,
-            imported_at, extracted_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
+      await runStatementKeyed('bundleImport.insertDocument', [
           docId,
           bd.filename,
           filePath,
@@ -470,10 +461,7 @@ export async function applyBundle(
 
       // Per-page text.
       for (const page of bd.pages) {
-        await runStatement(
-          'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
-          [docId, page.pageNumber, page.text]
-        )
+        await runStatementKeyed('documentPages.insert', [docId, page.pageNumber, page.text])
       }
 
       // Sections + section tags.
@@ -481,12 +469,15 @@ export async function applyBundle(
       const sectionIdByIndex = new Map<number, string>()
       for (const s of bd.sections) {
         const sectionId = newId()
-        await runStatement(
-          `INSERT INTO document_sections
-             (id, document_id, section_index, start_offset, end_offset, text, classified_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [sectionId, docId, s.sectionIndex, s.startOffset, s.endOffset, s.text, s.classifiedAt]
-        )
+        await runStatementKeyed('bundleImport.insertSection', [
+          sectionId,
+          docId,
+          s.sectionIndex,
+          s.startOffset,
+          s.endOffset,
+          s.text,
+          s.classifiedAt,
+        ])
         sectionIdByIndex.set(s.sectionIndex, sectionId)
       }
       for (const tag of bd.sectionTags) {
@@ -602,7 +593,7 @@ function uniqueName(desired: string, taken: string[]): string {
 }
 
 async function uniqueProjectName(desired: string): Promise<string> {
-  const existing = await selectAll<{ name: string }>('SELECT name FROM projects')
+  const existing = await selectAllKeyed<{ name: string }>('projects.listNames')
   const taken = existing.map((r) => r.name)
   return uniqueName(desired, taken)
 }

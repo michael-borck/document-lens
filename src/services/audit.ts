@@ -19,7 +19,7 @@
  * a sceptical reviewer.
  */
 
-import { selectAll, selectOne, runStatement, now } from './db'
+import { selectAllKeyed, selectOneKeyed, runStatementKeyed, now } from './db'
 import { listKeywords } from './keyword-lists'
 import { listLensValues, getLens } from './lenses'
 import { listSections, getSectionTagsForDocument } from './sections'
@@ -112,12 +112,8 @@ export async function runAudit(
   const domainLabels = lensValues.map((v) => domainLabelFor(v))
 
   // 2. Load project documents (with extracted text only).
-  const docs = await selectAll<ProjectDocRow>(
-    `SELECT d.id, d.filename, d.title, d.year, d.extracted_text
-       FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.imported_at`,
+  const docs = await selectAllKeyed<ProjectDocRow>(
+    'audit.projectDocs',
     [input.projectId]
   )
 
@@ -317,10 +313,7 @@ async function readAuditCache(
   projectId: string,
   cacheKey: string
 ): Promise<StructuralMismatchResponse | null> {
-  const row = await selectOne<{ result: string }>(
-    'SELECT result FROM analysis_cache WHERE project_id = ? AND cache_key = ?',
-    [projectId, cacheKey]
-  )
+  const row = await selectOneKeyed<{ result: string }>('audit.getCache', [projectId, cacheKey])
   if (!row) return null
   try {
     return JSON.parse(row.result) as StructuralMismatchResponse
@@ -334,13 +327,12 @@ async function writeAuditCache(
   cacheKey: string,
   response: StructuralMismatchResponse
 ): Promise<void> {
-  await runStatement(
-    `INSERT INTO analysis_cache (project_id, cache_key, result, computed_at)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT (project_id, cache_key)
-       DO UPDATE SET result = excluded.result, computed_at = excluded.computed_at`,
-    [projectId, cacheKey, JSON.stringify(response), now()]
-  )
+  await runStatementKeyed('audit.writeCache', [
+    projectId,
+    cacheKey,
+    JSON.stringify(response),
+    now(),
+  ])
 }
 
 /**

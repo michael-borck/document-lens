@@ -89,6 +89,7 @@ export interface ElectronAPI {
     idColumn: string,
     params: unknown[]
   ) => Promise<DatabaseResult>
+  dbSelectIn: <T = unknown>(key: string, ids: unknown[]) => Promise<T[]>
 
   // File system
   readFile: (filePath: string) => Promise<ArrayBuffer>

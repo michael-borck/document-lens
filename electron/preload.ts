@@ -103,6 +103,8 @@ const electronAPI = {
     params: unknown[]
   ): Promise<DatabaseResult> =>
     ipcRenderer.invoke('db:update', { table, columns, idColumn, params }),
+  dbSelectIn: <T = unknown>(key: string, ids: unknown[]): Promise<T[]> =>
+    ipcRenderer.invoke('db:selectIn', { key, ids }),
 
   // File system
   readFile: (filePath: string): Promise<ArrayBuffer> =>

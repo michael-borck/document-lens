@@ -83,6 +83,15 @@ export async function updateRow(
   return api().dbUpdate(table, columns, idColumn, params)
 }
 
+/**
+ * Run a registered SELECT with a variable-length `IN (...)` list. The
+ * registry SQL holds an `__IN__` marker expanded in main; `ids` are bound
+ * as the IN parameters.
+ */
+export async function selectInListKeyed<T>(key: string, ids: unknown[]): Promise<T[]> {
+  return api().dbSelectIn<T>(key, ids)
+}
+
 // ---------------------------------------------------------------------------
 // Boolean and JSON column helpers
 // ---------------------------------------------------------------------------

@@ -168,6 +168,118 @@ export const QUERIES = {
        JOIN project_documents pd ON pd.document_id = d.id
       WHERE pd.project_id = ?
       ORDER BY d.imported_at`,
+
+  // keyword lists
+  'keywordLists.list': 'SELECT * FROM keyword_lists ORDER BY type, name',
+  'keywordLists.getById': 'SELECT * FROM keyword_lists WHERE id = ?',
+  'keywordLists.create': `INSERT INTO keyword_lists
+       (id, name, description, type, source, parent_list_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  'keywordLists.deleteById': 'DELETE FROM keyword_lists WHERE id = ?',
+  'keywordLists.clearLenses': 'DELETE FROM keyword_list_lenses WHERE list_id = ?',
+  'keywordLists.addLens':
+    'INSERT INTO keyword_list_lenses (list_id, lens_id) VALUES (?, ?)',
+  'keywordLists.listLensIds':
+    'SELECT lens_id FROM keyword_list_lenses WHERE list_id = ?',
+
+  // keywords
+  'keywords.listByList':
+    'SELECT * FROM keywords WHERE list_id = ? ORDER BY polarity, sort_order, text',
+  'keywords.create': `INSERT INTO keywords (id, list_id, text, polarity, enabled, notes, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  'keywords.getById': 'SELECT * FROM keywords WHERE id = ?',
+  'keywords.setEnabled': 'UPDATE keywords SET enabled = ? WHERE id = ?',
+  'keywords.deleteById': 'DELETE FROM keywords WHERE id = ?',
+  'keywords.listTags': 'SELECT * FROM keyword_tags WHERE keyword_id = ?',
+  'keywords.addTag':
+    'INSERT OR IGNORE INTO keyword_tags (keyword_id, lens_id, value_id) VALUES (?, ?, ?)',
+  'keywords.clearTagsForLens':
+    'DELETE FROM keyword_tags WHERE keyword_id = ? AND lens_id = ?',
+
+  // synonyms
+  'synonyms.listByKeyword':
+    'SELECT * FROM synonyms WHERE keyword_id = ? ORDER BY added_at',
+  'synonyms.create': `INSERT INTO synonyms (id, keyword_id, text, enabled, source, added_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+  'synonyms.getById': 'SELECT * FROM synonyms WHERE id = ?',
+  'synonyms.deleteById': 'DELETE FROM synonyms WHERE id = ?',
+  'synonyms.setEnabled': 'UPDATE synonyms SET enabled = ? WHERE id = ?',
+  // __IN__ is expanded to a `?,?,…` placeholder list in main (db:selectInList).
+  'synonyms.byKeywordIds':
+    'SELECT keyword_id, text FROM synonyms WHERE keyword_id IN (__IN__)',
+
+  // sections
+  'sections.listByDocument':
+    'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',
+  'sections.deleteByDocument': 'DELETE FROM document_sections WHERE document_id = ?',
+  'sections.create': `INSERT INTO document_sections
+         (id, document_id, section_index, start_offset, end_offset, text, classified_at)
+       VALUES (?, ?, ?, ?, ?, ?, NULL)`,
+  'sections.findForOffset': `SELECT * FROM document_sections
+       WHERE document_id = ? AND start_offset <= ? AND end_offset > ?
+       LIMIT 1`,
+  'sections.markClassified':
+    'UPDATE document_sections SET classified_at = ? WHERE id = ?',
+  'sections.setTag': `INSERT INTO section_lens_tags (section_id, lens_id, value_id, confidence)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (section_id, lens_id, value_id) DO UPDATE SET confidence = excluded.confidence`,
+  'sections.clearTagsForLens': `DELETE FROM section_lens_tags
+       WHERE lens_id = ?
+         AND section_id IN (SELECT id FROM document_sections WHERE document_id = ?)`,
+  'sections.tagsForDocument': `SELECT slt.section_id, slt.value_id, slt.confidence
+       FROM section_lens_tags slt
+       JOIN document_sections ds ON ds.id = slt.section_id
+      WHERE ds.document_id = ? AND slt.lens_id = ?`,
+  'sections.countClassified': `SELECT COUNT(DISTINCT slt.section_id) AS n
+       FROM section_lens_tags slt
+       JOIN document_sections ds ON ds.id = slt.section_id
+      WHERE ds.document_id = ? AND slt.lens_id = ?`,
+
+  // audit (Anomalies/Confirmations + result cache)
+  'audit.projectDocs': `SELECT d.id, d.filename, d.title, d.year, d.extracted_text
+       FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?
+      ORDER BY d.imported_at`,
+  'audit.getCache':
+    'SELECT result FROM analysis_cache WHERE project_id = ? AND cache_key = ?',
+  'audit.writeCache': `INSERT INTO analysis_cache (project_id, cache_key, result, computed_at)
+       VALUES (?, ?, ?, ?)
+       ON CONFLICT (project_id, cache_key)
+       DO UPDATE SET result = excluded.result, computed_at = excluded.computed_at`,
+
+  // document pages (write — import + bundle import)
+  'documentPages.insert':
+    'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
+  'documentPages.deleteByDocument': 'DELETE FROM document_pages WHERE document_id = ?',
+
+  // bundle import
+  'projects.listNames': 'SELECT name FROM projects',
+  'bundleImport.updateLensValueParent':
+    'UPDATE lens_values SET parent_value_id = ? WHERE id = ?',
+  'bundleImport.insertDocument': `INSERT INTO documents
+           (id, filename, file_path, file_hash, file_size, title, year, company, sector,
+            page_count, word_count, extracted_text, pdf_metadata, status, status_error,
+            imported_at, extracted_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  'bundleImport.insertSection': `INSERT INTO document_sections
+             (id, document_id, section_index, start_offset, end_offset, text, classified_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
+
+  // import (extraction pipeline)
+  'import.updateExtraction': `UPDATE documents
+         SET title = ?,
+             year = ?,
+             company = ?,
+             page_count = ?,
+             word_count = ?,
+             extracted_text = ?,
+             pdf_metadata = ?,
+             status = 'extracted',
+             status_error = NULL,
+             extracted_at = ?
+       WHERE id = ?`,
+  'import.markFailed': `UPDATE documents SET status = 'failed', status_error = ? WHERE id = ?`,
 } as const
 
 export type QueryKey = keyof typeof QUERIES
@@ -197,6 +309,21 @@ const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
     'updated_at',
     'id',
   ]),
+  keywords: new Set(['text', 'polarity', 'notes', 'sort_order', 'id']),
+}
+
+/**
+ * Resolve a query whose SQL contains the `__IN__` marker into a concrete
+ * statement with `count` parameter placeholders, for variable-length
+ * `WHERE col IN (...)` lookups. Throws if the key isn't an IN-template.
+ */
+export function getInQuery(key: string, count: number): string {
+  const template = getQuery(key)
+  if (!template.includes('__IN__')) {
+    throw new Error(`Query ${key} is not an IN-list template`)
+  }
+  const placeholders = count > 0 ? new Array(count).fill('?').join(',') : 'NULL'
+  return template.replace('__IN__', placeholders)
 }
 
 /**

@@ -23,7 +23,7 @@ import {
   createDocument,
   getDocument,
 } from './documents'
-import { runStatement, now, stringifyJson } from './db'
+import { runStatementKeyed, now, stringifyJson } from './db'
 import { api } from './api'
 import type { Document } from '@/types/data'
 
@@ -186,31 +186,17 @@ async function importOne(
       ?? response.inferred?.probable_company?.trim()
       ?? null
 
-    await runStatement(
-      `UPDATE documents
-         SET title = ?,
-             year = ?,
-             company = ?,
-             page_count = ?,
-             word_count = ?,
-             extracted_text = ?,
-             pdf_metadata = ?,
-             status = 'extracted',
-             status_error = NULL,
-             extracted_at = ?
-       WHERE id = ?`,
-      [
-        title,
-        year,
-        company,
-        pageCount,
-        wordCount,
-        extractedText,
-        response.metadata ? stringifyJson(response.metadata) : null,
-        now(),
-        created.id,
-      ]
-    )
+    await runStatementKeyed('import.updateExtraction', [
+      title,
+      year,
+      company,
+      pageCount,
+      wordCount,
+      extractedText,
+      response.metadata ? stringifyJson(response.metadata) : null,
+      now(),
+      created.id,
+    ])
 
     // Per-page text storage (IA-8). Wired now even though no UI consumes
     // it yet — page-aware concordance (US-G-03) and the embedded PDF
@@ -220,13 +206,14 @@ async function importOne(
     if (pages.length > 0) {
       // Clear any prior page rows for this document (defensive — would
       // only matter on a re-extract path that doesn't exist yet).
-      await runStatement('DELETE FROM document_pages WHERE document_id = ?', [created.id])
+      await runStatementKeyed('documentPages.deleteByDocument', [created.id])
       for (const page of pages) {
         if (page.text && page.text.trim().length > 0) {
-          await runStatement(
-            'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
-            [created.id, page.page_number, page.text]
-          )
+          await runStatementKeyed('documentPages.insert', [
+            created.id,
+            page.page_number,
+            page.text,
+          ])
         }
       }
     }
@@ -241,10 +228,7 @@ async function importOne(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    await runStatement(
-      `UPDATE documents SET status = 'failed', status_error = ? WHERE id = ?`,
-      [message, created.id]
-    )
+    await runStatementKeyed('import.markFailed', [message, created.id])
     return {
       filePath,
       filename,

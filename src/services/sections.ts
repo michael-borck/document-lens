@@ -16,7 +16,7 @@
  * meaningfully to topic classification).
  */
 
-import { selectAll, selectOne, runStatement, newId, now } from './db'
+import { selectAllKeyed, selectOneKeyed, runStatementKeyed, newId, now } from './db'
 
 export interface DocumentSection {
   id: string
@@ -171,10 +171,7 @@ export function detectSections(text: string): DetectedSection[] {
 // ---------------------------------------------------------------------------
 
 export async function listSections(documentId: string): Promise<DocumentSection[]> {
-  const rows = await selectAll<DocumentSectionRow>(
-    'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',
-    [documentId]
-  )
+  const rows = await selectAllKeyed<DocumentSectionRow>('sections.listByDocument', [documentId])
   return rows.map(rowToSection)
 }
 
@@ -187,16 +184,18 @@ export async function persistSections(
   documentId: string,
   detected: DetectedSection[]
 ): Promise<DocumentSection[]> {
-  await runStatement('DELETE FROM document_sections WHERE document_id = ?', [documentId])
+  await runStatementKeyed('sections.deleteByDocument', [documentId])
   const out: DocumentSection[] = []
   for (const sec of detected) {
     const id = newId()
-    await runStatement(
-      `INSERT INTO document_sections
-         (id, document_id, section_index, start_offset, end_offset, text, classified_at)
-       VALUES (?, ?, ?, ?, ?, ?, NULL)`,
-      [id, documentId, sec.index, sec.startOffset, sec.endOffset, sec.text]
-    )
+    await runStatementKeyed('sections.create', [
+      id,
+      documentId,
+      sec.index,
+      sec.startOffset,
+      sec.endOffset,
+      sec.text,
+    ])
     out.push({
       id,
       documentId,
@@ -214,12 +213,11 @@ export async function findSectionForOffset(
   documentId: string,
   offset: number
 ): Promise<DocumentSection | null> {
-  const row = await selectOne<DocumentSectionRow>(
-    `SELECT * FROM document_sections
-       WHERE document_id = ? AND start_offset <= ? AND end_offset > ?
-       LIMIT 1`,
-    [documentId, offset, offset]
-  )
+  const row = await selectOneKeyed<DocumentSectionRow>('sections.findForOffset', [
+    documentId,
+    offset,
+    offset,
+  ])
   return row ? rowToSection(row) : null
 }
 
@@ -229,10 +227,7 @@ export async function markSectionsClassified(
   if (sectionIds.length === 0) return
   const timestamp = now()
   for (const id of sectionIds) {
-    await runStatement(
-      'UPDATE document_sections SET classified_at = ? WHERE id = ?',
-      [timestamp, id]
-    )
+    await runStatementKeyed('sections.markClassified', [timestamp, id])
   }
 }
 
@@ -246,24 +241,14 @@ export async function setSectionTag(
   valueId: string,
   confidence: number | null = null
 ): Promise<void> {
-  await runStatement(
-    `INSERT INTO section_lens_tags (section_id, lens_id, value_id, confidence)
-       VALUES (?, ?, ?, ?)
-       ON CONFLICT (section_id, lens_id, value_id) DO UPDATE SET confidence = excluded.confidence`,
-    [sectionId, lensId, valueId, confidence]
-  )
+  await runStatementKeyed('sections.setTag', [sectionId, lensId, valueId, confidence])
 }
 
 export async function clearSectionTagsForLens(
   documentId: string,
   lensId: string
 ): Promise<void> {
-  await runStatement(
-    `DELETE FROM section_lens_tags
-       WHERE lens_id = ?
-         AND section_id IN (SELECT id FROM document_sections WHERE document_id = ?)`,
-    [lensId, documentId]
-  )
+  await runStatementKeyed('sections.clearTagsForLens', [lensId, documentId])
 }
 
 interface SectionTagRow {
@@ -280,13 +265,7 @@ export async function getSectionTagsForDocument(
   documentId: string,
   lensId: string
 ): Promise<Map<string, { valueId: string; confidence: number | null }>> {
-  const rows = await selectAll<SectionTagRow>(
-    `SELECT slt.section_id, slt.value_id, slt.confidence
-       FROM section_lens_tags slt
-       JOIN document_sections ds ON ds.id = slt.section_id
-      WHERE ds.document_id = ? AND slt.lens_id = ?`,
-    [documentId, lensId]
-  )
+  const rows = await selectAllKeyed<SectionTagRow>('sections.tagsForDocument', [documentId, lensId])
   const result = new Map<string, { valueId: string; confidence: number | null }>()
   for (const row of rows) {
     result.set(row.section_id, { valueId: row.value_id, confidence: row.confidence })
@@ -302,12 +281,6 @@ export async function countClassifiedSections(
   documentId: string,
   lensId: string
 ): Promise<number> {
-  const row = await selectOne<{ n: number }>(
-    `SELECT COUNT(DISTINCT slt.section_id) AS n
-       FROM section_lens_tags slt
-       JOIN document_sections ds ON ds.id = slt.section_id
-      WHERE ds.document_id = ? AND slt.lens_id = ?`,
-    [documentId, lensId]
-  )
+  const row = await selectOneKeyed<{ n: number }>('sections.countClassified', [documentId, lensId])
   return row?.n ?? 0
 }
