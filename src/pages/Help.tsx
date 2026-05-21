@@ -21,6 +21,7 @@ import {
   BookOpen,
   Package,
   FileText,
+  ScatterChart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -43,6 +44,7 @@ const TOPICS: Topic[] = [
   { id: 'audit', title: 'Audit', group: 'Workflows', icon: AlertTriangle, render: AuditTopic },
   { id: 'discover', title: 'Discover', group: 'Workflows', icon: Sparkles, render: DiscoverTopic },
   { id: 'read', title: 'Read', group: 'Workflows', icon: BookOpen, render: ReadTopic },
+  { id: 'gap', title: 'Gap', group: 'Workflows', icon: ScatterChart, render: GapTopic },
   { id: 'paper-bundle', title: 'Paper-ready bundle', group: 'Sharing & export', icon: FileText, render: PaperBundleTopic },
   { id: 'project-bundle', title: 'Project bundle (.lens)', group: 'Sharing & export', icon: Package, render: ProjectBundleTopic },
 ]
@@ -445,6 +447,67 @@ function ReadTopic() {
         the heading, so you can tell what part of the document you're looking at without
         opening the PDF.
       </P>
+    </>
+  )
+}
+
+function GapTopic() {
+  return (
+    <>
+      <P><em>Where does the tone run ahead of the substance?</em></P>
+      <P>
+        Gap plots each document, section, and keyword in{' '}
+        <strong>tone (sentiment) × substance (keyword polarity)</strong> space.
+        Distance above the 1:1 diagonal is the "talk exceeds walk" measure —
+        the gap between what is said and what is delivered.
+      </P>
+      <P>
+        The gap is more informative than either axis alone, for a specific
+        reason: in corporate disclosure the tone is uniformly positive, so
+        absolute sentiment barely varies. What varies meaningfully is how far
+        the tone runs ahead of (or behind) the substance. Subtracting one axis
+        from the other cancels out the baseline positivity that makes raw
+        sentiment useless here. You're left with a residual: tone not justified
+        by substance.
+      </P>
+      <H2>Quadrant guide</H2>
+      <table className="text-xs w-full border-collapse mb-4">
+        <thead>
+          <tr>
+            <th className="border border-border px-2 py-1 text-left text-muted-foreground font-medium"></th>
+            <th className="border border-border px-2 py-1 text-left text-muted-foreground font-medium">High substance (delivery)</th>
+            <th className="border border-border px-2 py-1 text-left text-muted-foreground font-medium">Low substance (counter / sparse)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td className="border border-border px-2 py-1 font-medium">High tone</td>
+            <td className="border border-border px-2 py-1">aligned — genuine good news</td>
+            <td className="border border-border px-2 py-1">talk &gt; walk → performative / greenwashing</td>
+          </tr>
+          <tr>
+            <td className="border border-border px-2 py-1 font-medium">Low tone</td>
+            <td className="border border-border px-2 py-1">walk &gt; talk → understated / candid</td>
+            <td className="border border-border px-2 py-1">aligned — honest about gaps</td>
+          </tr>
+        </tbody>
+      </table>
+      <H2>Polarity vs sentiment</H2>
+      <P>
+        These two axes are orthogonal and must not be conflated:
+      </P>
+      <UL>
+        <li><strong>Polarity</strong> is a property of the <em>keyword</em> — curated by the researcher: positive keywords signal delivery, counter keywords signal performative vocabulary.</li>
+        <li><strong>Sentiment</strong> is a property of the <em>text</em> — inferred by the model from the tone of the surrounding prose.</li>
+      </UL>
+      <P>
+        Greenwashing is positive in tone but hollow in substance, so the gap between them is the signal.
+      </P>
+      <Tip>
+        Gap is a coarse signal for surfacing passages that warrant closer reading —
+        not a verdict on a document's integrity. Use{' '}
+        <strong>Read</strong> to inspect the flagged passages in context.
+      </Tip>
     </>
   )
 }

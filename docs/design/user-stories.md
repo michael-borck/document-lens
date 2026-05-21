@@ -256,7 +256,7 @@ Scoring Rule selector.
 | ID | Story | Status |
 |---|---|---|
 | US-C-01 | As a researcher, I want to see how a single company's coverage of a topic has changed over multiple years, so that I can identify trends, shifts in tone, or evolving disclosure practices. | CONFIRMED |
-| US-C-02 | As a researcher, I want to see how the *language* (not just the keyword counts) used around a topic has changed over time, so that I can detect rhetorical shifts that simple counts miss. | DRAFT |
+| US-C-02 | As a researcher, I want to see how far the *tone* (sentiment) runs ahead of the *substance* (keyword polarity) at document, section, and keyword levels — and how that gap evolves over time — so that I can detect performative disclosure patterns that raw keyword counts miss. | IMPLEMENTED (v-next — Tone–Substance Gap workflow tab) |
 | US-C-03 | As a researcher, I want to overlay multiple companies on the same trend chart, so that I can compare longitudinal trajectories. | SPECULATIVE |
 | US-C-04 | As a researcher, I want documents with unknown year to appear in a separate "Year unknown" bucket on trend charts, never silently dropped, so that I can see at a glance how much data is missing. | CONFIRMED |
 | US-C-05 | As a researcher, I want to track positive-vs-counter keyword balance over time on the same chart, so that I can see whether a sector's reporting is becoming more substantive or more performative. | CONFIRMED |
@@ -408,8 +408,12 @@ Coverage / Map / Track / Compare / Read) shipped in v0.16.0.
 **Not yet built:**
 - **US-B-02** — compare a single company across multiple frameworks
   side-by-side. (SPECULATIVE; no current workflow.)
-- **US-C-02** — language/rhetorical shift over time beyond raw counts
-  (needs a sentiment/embedding-over-time pass). (DRAFT; not started.)
+
+**Shipped since last update:**
+- **US-C-02** — now implemented as the **Tone–Substance Gap** workflow tab.
+  Plots tone (sentiment) × substance (keyword polarity) at document, section,
+  and keyword levels; gap-over-time view shows whether the tone–substance
+  delta is widening or closing across the corpus.
 
 **Deferred polish (not full stories):**
 - First-run wizard **Cybersecurity focus** is disabled ("Coming soon").

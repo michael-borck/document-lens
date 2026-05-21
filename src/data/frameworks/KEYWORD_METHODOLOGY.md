@@ -147,3 +147,29 @@ https://github.com/michaelborck-education/document-lens
 
 For questions about keyword methodology or to suggest improvements:
 - GitHub Issues: https://github.com/michaelborck-education/document-lens-desktop/issues
+
+## Tone–Substance Gap
+
+The gap is more informative than either axis alone, for a specific reason: in corporate disclosure the tone is uniformly positive, so absolute sentiment barely varies. What varies meaningfully is how far the tone runs ahead of (or behind) the substance. Subtracting one axis from the other cancels out the baseline positivity that makes raw sentiment useless here. You're left with a residual: tone not justified by substance.
+
+### Quadrant interpretation
+
+Each document, section, or keyword is plotted in tone (sentiment) × substance (keyword polarity) space. Distance above the 1:1 diagonal indicates tone exceeding substance — the "talk exceeds walk" measure of greenwashing intensity.
+
+| | High substance (delivery) | Low substance (counter / sparse) |
+|---|---|---|
+| **High tone** | aligned — genuine good news | talk > walk → performative / greenwashing |
+| **Low tone** | walk > talk → understated / candid | aligned — honest about gaps |
+
+### Polarity vs sentiment
+
+These two axes are orthogonal and must not be conflated:
+
+- **Polarity** is a property of the *keyword* — curated by the researcher: positive keywords signal delivery, counter keywords signal performative vocabulary.
+- **Sentiment** is a property of the *text* — inferred by the model from the tone of the surrounding prose.
+
+Greenwashing is positive in tone but hollow in substance, so the gap between them is the signal.
+
+### Caveat
+
+The Gap view is a coarse signal for surfacing passages that warrant closer reading; it is not a verdict on the document's integrity.
