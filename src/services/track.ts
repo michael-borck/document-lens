@@ -18,12 +18,14 @@ import { selectAll } from './db'
 import {
   listKeywords,
   getKeywordListLenses,
+  listEnabledSynonymsForKeywords,
 } from './keyword-lists'
 import { listLensValues } from './lenses'
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
 import { getClassificationStatus } from './classification'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
+import { countConcept } from './_shared/keyword-match'
 import type {
   Document,
   Keyword,
@@ -351,11 +353,13 @@ async function computePerDocumentMeasure(
   // keywords. We do a fast local regex pass rather than going through
   // computeCoverage (avoids the extra lens-totals work we don't need here).
   if (input.measure === 'match-count' || input.measure === 'coverage-percent') {
+    // Fold accepted (enabled) synonyms into each keyword's count (US-A-04).
+    const synonymsByKeyword = await listEnabledSynonymsForKeywords(topicKeywords.map((k) => k.id))
     for (const doc of docs) {
       const text = doc.extractedText ?? ''
       let total = 0
       for (const kw of topicKeywords) {
-        total += countMatches(text, kw.text)
+        total += countConcept(text, [kw.text, ...(synonymsByKeyword.get(kw.id) ?? [])])
       }
       out.set(doc.id, { matchCount: total, hasMatch: total > 0, score: 0 })
     }
@@ -430,12 +434,3 @@ async function filterToTopic(
   return keywords.filter((k) => taggedIds.has(k.id))
 }
 
-function countMatches(text: string, keyword: string): number {
-  if (!text || !keyword) return 0
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-  const matches = text.match(pattern)
-  return matches ? matches.length : 0
-}

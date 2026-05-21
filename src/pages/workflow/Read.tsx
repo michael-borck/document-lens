@@ -9,7 +9,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { findConcordance, type ConcordanceResult } from '@/services/concordance'
-import { listKeywords } from '@/services/keyword-lists'
+import { listKeywords, listEnabledSynonymsForKeywords } from '@/services/keyword-lists'
+import { countConcept } from '@/services/_shared/keyword-match'
 import { getDocument } from '@/services/documents'
 import { listSections, type DocumentSection } from '@/services/sections'
 import { getPageOffsets, findPageForOffset, type PageOffset } from '@/services/document-pages'
@@ -26,6 +27,9 @@ export function Read() {
 
   const [docs, setDocs] = useState<Document[]>([])
   const [keywords, setKeywords] = useState<Keyword[]>([])
+  // Accepted (enabled) synonyms per keyword id — folded into match counts
+  // and concordance so a synonym hit counts toward its parent keyword (US-A-04).
+  const [synonymsByKeyword, setSynonymsByKeyword] = useState<Map<string, string[]>>(new Map())
   const [docId, setDocId] = useState<string>('')
   const [keywordId, setKeywordId] = useState<string>('')
   const [contextWords, setContextWords] = useState<ContextWindow>(50)
@@ -54,7 +58,10 @@ export function Read() {
 
   useEffect(() => {
     if (!vm.keywordList) return
-    listKeywords(vm.keywordList.id).then(setKeywords)
+    listKeywords(vm.keywordList.id).then(async (kws) => {
+      setKeywords(kws)
+      setSynonymsByKeyword(await listEnabledSynonymsForKeywords(kws.map((k) => k.id)))
+    })
   }, [vm.keywordList])
 
   // When the document changes, compute match counts for every enabled
@@ -74,7 +81,7 @@ export function Read() {
       const counts: Record<string, number> = {}
       for (const k of keywords) {
         if (!k.enabled) continue
-        counts[k.id] = countOccurrences(text, k.text)
+        counts[k.id] = countConcept(text, [k.text, ...(synonymsByKeyword.get(k.id) ?? [])])
       }
       setMatchCounts(counts)
       setCountingMatches(false)
@@ -82,7 +89,7 @@ export function Read() {
     return () => {
       cancelled = true
     }
-  }, [docId, keywords])
+  }, [docId, keywords, synonymsByKeyword])
 
   // Load sections for the picked doc so each concordance match can show
   // which section it came from. Sections only exist if classification
@@ -140,11 +147,12 @@ export function Read() {
     findConcordance({
       documentId: docId,
       keyword: keyword.text,
+      synonyms: synonymsByKeyword.get(keyword.id) ?? [],
       contextWords,
     })
       .then(setResult)
       .finally(() => setSearching(false))
-  }, [docId, keywordId, contextWords, keywords])
+  }, [docId, keywordId, contextWords, keywords, synonymsByKeyword])
 
   if (!vm.keywordList) {
     return (
@@ -331,16 +339,6 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
  * keywords, literal phrase for multi-token) so the count agrees with
  * what Coverage shows.
  */
-function countOccurrences(text: string, keyword: string): number {
-  if (!text || !keyword) return 0
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-  const matches = text.match(pattern)
-  return matches ? matches.length : 0
-}
-
 function ConcordanceResults({
   result,
   documentLabel,

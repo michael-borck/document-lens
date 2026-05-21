@@ -7,6 +7,7 @@
  */
 
 import { getDocument } from './documents'
+import { findConceptSpans } from './_shared/keyword-match'
 import type { KeywordPolarity } from '@/types/data'
 
 export interface ConcordanceMatch {
@@ -34,6 +35,9 @@ export interface ConcordanceResult {
 export interface FindConcordanceInput {
   documentId: string
   keyword: string
+  /** Accepted (enabled) synonym texts for this keyword; their matches are
+   *  surfaced alongside the keyword's own, attributed to the keyword (US-A-04). */
+  synonyms?: string[]
   /** N words to include on each side. */
   contextWords: number
 }
@@ -55,7 +59,8 @@ export async function findConcordance(input: FindConcordanceInput): Promise<Conc
     }
   }
 
-  const matches = findAllMatches(text, input.keyword, input.contextWords)
+  const terms = [input.keyword, ...(input.synonyms ?? [])]
+  const matches = findAllMatches(text, terms, input.contextWords)
   return {
     documentId: input.documentId,
     keyword: input.keyword,
@@ -65,39 +70,14 @@ export async function findConcordance(input: FindConcordanceInput): Promise<Conc
   }
 }
 
-function findAllMatches(text: string, keyword: string, contextWords: number): ConcordanceMatch[] {
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-
-  const out: ConcordanceMatch[] = []
-  let match: RegExpExecArray | null
-  let i = 0
-  while ((match = pattern.exec(text)) !== null) {
-    const start = match.index
-    const end = start + match[0].length
-
-    const beforeText = text.slice(0, start)
-    const afterText = text.slice(end)
-
-    const before = lastNWords(beforeText, contextWords)
-    const after = firstNWords(afterText, contextWords)
-
-    out.push({
-      index: i,
-      position: start,
-      matched: match[0],
-      before,
-      after,
-    })
-    i++
-
-    // Guard against zero-length matches (shouldn't happen with our patterns)
-    if (match.index === pattern.lastIndex) pattern.lastIndex++
-  }
-
-  return out
+function findAllMatches(text: string, terms: string[], contextWords: number): ConcordanceMatch[] {
+  return findConceptSpans(text, terms).map((span, i) => ({
+    index: i,
+    position: span.start,
+    matched: span.matched,
+    before: lastNWords(text.slice(0, span.start), contextWords),
+    after: firstNWords(text.slice(span.end), contextWords),
+  }))
 }
 
 function lastNWords(text: string, n: number): string {

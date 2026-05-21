@@ -311,3 +311,26 @@ export async function listExistingSynonymsForKeywords(
   }
   return out
 }
+
+/**
+ * Map of keyword_id -> [enabled synonym texts] for a set of keywords, in
+ * one query. Used by the analysis workflows to fold accepted synonyms into
+ * their parent keyword's match count (US-A-04). Only enabled synonyms are
+ * returned; disabled ones are ignored in matching.
+ */
+export async function listEnabledSynonymsForKeywords(
+  keywordIds: string[]
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  if (keywordIds.length === 0) return out
+  const rows = await selectInList<{ keyword_id: string; text: string }>(
+    'synonyms.enabledByKeywordIds',
+    keywordIds
+  )
+  for (const r of rows) {
+    const list = out.get(r.keyword_id) ?? []
+    list.push(r.text)
+    out.set(r.keyword_id, list)
+  }
+  return out
+}

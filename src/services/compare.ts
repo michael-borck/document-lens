@@ -7,7 +7,8 @@
  */
 
 import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses } from './keyword-lists'
+import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
+import { countConcept } from './_shared/keyword-match'
 import { listLensValues } from './lenses'
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
@@ -114,6 +115,17 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     return { metric: input.metric, points: [], group: input.group, excluded }
   }
 
+  // Accepted (enabled) synonyms fold into their parent keyword's count
+  // (US-A-04). Loaded once for the whole list; termsFor() yields the
+  // keyword text plus its synonyms for the matcher.
+  const synonymsByKeyword = await listEnabledSynonymsForKeywords(
+    (await listKeywords(input.keywordListId)).map((k) => k.id)
+  )
+  const termsFor = (kw: { id: string; text: string }) => [
+    kw.text,
+    ...(synonymsByKeyword.get(kw.id) ?? []),
+  ]
+
   // 3. Compute per-doc metric value.
   const points: ComparePoint[] = []
   let keywordLabel: string | undefined
@@ -129,7 +141,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
       let total = 0
       let distinctHits = 0
       for (const kw of keywords) {
-        const n = countMatches(text, kw.text)
+        const n = countConcept(text, termsFor(kw))
         total += n
         if (n > 0) distinctHits++
       }
@@ -143,8 +155,8 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     for (const doc of filteredDocs) {
       const text = doc.extractedText ?? ''
       let pos = 0, neg = 0
-      for (const kw of positives) pos += countMatches(text, kw.text)
-      for (const kw of counters) neg += countMatches(text, kw.text)
+      for (const kw of positives) pos += countConcept(text, termsFor(kw))
+      for (const kw of counters) neg += countConcept(text, termsFor(kw))
       points.push(makePoint(doc, pos - neg, { positive: pos, counter: neg }))
     }
   } else if (input.metric === 'score' && input.scoringRule) {
@@ -222,12 +234,3 @@ function makePoint(doc: Document, value: number, breakdown?: Record<string, numb
   }
 }
 
-function countMatches(text: string, keyword: string): number {
-  if (!text || !keyword) return 0
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-  const matches = text.match(pattern)
-  return matches ? matches.length : 0
-}

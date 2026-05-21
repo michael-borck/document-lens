@@ -16,7 +16,8 @@
  */
 
 import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses } from './keyword-lists'
+import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
+import { findConceptSpans } from './_shared/keyword-match'
 import { listLensValues } from './lenses'
 import {
   listSections,
@@ -90,6 +91,15 @@ export async function computeCoverage2D(
     return emptyMatrix(rowLens, colLens, rowValues, colValues)
   }
 
+  // Accepted (enabled) synonyms fold into their parent keyword (US-A-04):
+  // a synonym match contributes a mention at its position, attributed to
+  // the parent keyword's row-lens tags.
+  const synonymsByKeyword = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
+  const termsFor = (kw: { id: string; text: string }) => [
+    kw.text,
+    ...(synonymsByKeyword.get(kw.id) ?? []),
+  ]
+
   // Load keyword -> rowValueId mappings (keyword_tags joined to lens_id = rowLensId).
   const keywordTagRows = await selectAll<KeywordTagRow>('keywords.tagsForList', [
     input.keywordListId,
@@ -133,15 +143,15 @@ export async function computeCoverage2D(
     const text = doc.extractedText ?? ''
     for (const kw of keywords) {
       const rowValueIds = keywordRowValueIds.get(kw.id)
+      const spans = findConceptSpans(text, termsFor(kw))
       if (!rowValueIds || rowValueIds.length === 0) {
         // Count once per match — we need to know how many matches this contributes.
-        const n = countOccurrences(text, kw.text)
-        unplacedNoKeywordTag += n
+        unplacedNoKeywordTag += spans.length
         continue
       }
 
       // Find every match position. For each, look up section + col tag.
-      for (const position of findMatchPositions(text, kw.text)) {
+      for (const position of spans.map((s) => s.start)) {
         totalMatches++
         const section = findSectionContaining(sections, position)
         if (!section) {
@@ -235,25 +245,3 @@ function findSectionContaining(
   return null
 }
 
-/**
- * Match the same regex shape as services/coverage.ts and
- * services/concordance.ts for consistency.
- */
-function findMatchPositions(text: string, keyword: string): number[] {
-  if (!text || !keyword) return []
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-  const positions: number[] = []
-  let m: RegExpExecArray | null
-  while ((m = pattern.exec(text)) !== null) {
-    positions.push(m.index)
-    if (m.index === pattern.lastIndex) pattern.lastIndex++  // zero-length guard
-  }
-  return positions
-}
-
-function countOccurrences(text: string, keyword: string): number {
-  return findMatchPositions(text, keyword).length
-}

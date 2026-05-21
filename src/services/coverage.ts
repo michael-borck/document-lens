@@ -11,9 +11,10 @@
  */
 
 import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses } from './keyword-lists'
+import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
 import { listLensValues } from './lenses'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
+import { countConcept } from './_shared/keyword-match'
 import type {
   Document,
   Keyword,
@@ -58,13 +59,17 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
     ? enabled
     : enabled.filter((k) => k.polarity === input.polarity)
 
-  // 3. Per-document, per-keyword count via local regex matching.
+  // 3. Per-document, per-keyword count. Each keyword's tally folds in its
+  //    accepted (enabled) synonyms — a match on a synonym counts toward the
+  //    parent keyword (US-A-04).
+  const synonymsByKeyword = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
   const counts: Record<string, Record<string, number>> = {}
   for (const doc of usableDocs) {
     counts[doc.id] = {}
     const text = doc.extractedText ?? ''
     for (const kw of keywords) {
-      counts[doc.id][kw.id] = countMatches(text, kw.text)
+      const terms = [kw.text, ...(synonymsByKeyword.get(kw.id) ?? [])]
+      counts[doc.id][kw.id] = countConcept(text, terms)
     }
   }
 
@@ -131,20 +136,4 @@ async function loadKeywordTagsForLens(
   return result
 }
 
-/**
- * Case-insensitive whole-word match count. Escapes regex metacharacters
- * in the keyword. A keyword like "carbon offset reliance (without
- * reduction)" matches the literal phrase including the parentheses.
- */
-function countMatches(text: string, keyword: string): number {
-  const escaped = keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  // Allow word-character boundaries for single-token keywords; for
-  // multi-token keywords just match the literal phrase. Both forms
-  // are case-insensitive.
-  const pattern = /\s/.test(keyword)
-    ? new RegExp(escaped, 'gi')
-    : new RegExp(`\\b${escaped}\\b`, 'gi')
-  const matches = text.match(pattern)
-  return matches ? matches.length : 0
-}
 

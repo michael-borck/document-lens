@@ -207,6 +207,8 @@ export const QUERIES = {
   // __IN__ is expanded to a `?,?,…` placeholder list in main (db:selectInList).
   'synonyms.byKeywordIds':
     'SELECT keyword_id, text FROM synonyms WHERE keyword_id IN (__IN__)',
+  'synonyms.enabledByKeywordIds':
+    'SELECT keyword_id, text FROM synonyms WHERE enabled = 1 AND keyword_id IN (__IN__)',
 
   // sections
   'sections.listByDocument':
