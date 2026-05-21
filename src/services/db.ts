@@ -26,6 +26,12 @@ function api() {
   return electron
 }
 
+// ---------------------------------------------------------------------------
+// Legacy raw-SQL helpers — DEPRECATED. Being migrated to the keyed helpers
+// below; removed once every service references query keys. runStatement now
+// routes through dbQuery (the same `db:query` handler the old dbRun used).
+// ---------------------------------------------------------------------------
+
 /** Run a SELECT and return typed rows. */
 export async function selectAll<T>(sql: string, params?: unknown[]): Promise<T[]> {
   return api().dbQuery<T>(sql, params)
@@ -39,12 +45,42 @@ export async function selectOne<T>(sql: string, params?: unknown[]): Promise<T |
 
 /** Run an INSERT/UPDATE/DELETE statement. Returns DatabaseResult. */
 export async function runStatement(sql: string, params?: unknown[]): Promise<DatabaseResult> {
-  return api().dbRun(sql, params)
+  return api().dbQuery(sql, params) as unknown as Promise<DatabaseResult>
 }
 
-/** Run multi-statement DDL (CREATE TABLE, etc.). */
-export async function execScript(sql: string): Promise<void> {
-  return api().dbExec(sql)
+// ---------------------------------------------------------------------------
+// Keyed helpers — the renderer passes a query KEY (see electron/queries.ts);
+// main resolves it to SQL. No SQL crosses the IPC boundary.
+// ---------------------------------------------------------------------------
+
+/** Run a registered SELECT and return typed rows. */
+export async function selectAllKeyed<T>(key: string, params?: unknown[]): Promise<T[]> {
+  return api().dbSelect<T>(key, params)
+}
+
+/** Run a registered SELECT and return the first row, or null. */
+export async function selectOneKeyed<T>(key: string, params?: unknown[]): Promise<T | null> {
+  const rows = await api().dbSelect<T>(key, params)
+  return rows[0] ?? null
+}
+
+/** Run a registered INSERT/UPDATE/DELETE. Returns DatabaseResult. */
+export async function runStatementKeyed(key: string, params?: unknown[]): Promise<DatabaseResult> {
+  return api().dbRunKeyed(key, params)
+}
+
+/**
+ * Run a validated dynamic partial UPDATE. `columns` and `idColumn` are
+ * checked against a per-table allowlist in main; `params` must be the
+ * column values in `columns` order followed by the id value.
+ */
+export async function updateRow(
+  table: string,
+  columns: string[],
+  idColumn: string,
+  params: unknown[]
+): Promise<DatabaseResult> {
+  return api().dbUpdate(table, columns, idColumn, params)
 }
 
 // ---------------------------------------------------------------------------

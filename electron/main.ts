@@ -4,6 +4,7 @@ import fs from 'fs'
 import crypto from 'crypto'
 import { autoUpdater } from 'electron-updater'
 import { initDatabase, getDatabase, closeDatabase } from './database'
+import { getQuery, buildUpdate } from './queries'
 import { BackendManager, BACKEND_URL } from './backend-manager'
 
 // The built directory structure
@@ -365,7 +366,15 @@ ipcMain.handle('debug:getResourcesInfo', () => {
   return info
 })
 
-// Database handlers - these will be expanded as needed
+// Database handlers.
+//
+// The renderer sends a registry KEY (resolved against electron/queries.ts),
+// never raw SQL — see the module docstring there for the threat model. The
+// legacy `db:query` raw-SQL handler is retained only until every service is
+// migrated to keyed queries, then removed (no DDL handler — schema changes
+// run in database.ts at init, never from the renderer).
+
+// Legacy raw-SQL passthrough — DEPRECATED, removed at migration cutover.
 ipcMain.handle('db:query', async (_, { sql, params }) => {
   const db = getDatabase()
   try {
@@ -381,12 +390,41 @@ ipcMain.handle('db:query', async (_, { sql, params }) => {
   }
 })
 
-ipcMain.handle('db:exec', async (_, sql: string) => {
+// Keyed SELECT — resolves SQL from the registry, returns rows.
+ipcMain.handle('db:select', async (_, { key, params }) => {
   const db = getDatabase()
   try {
-    return db.exec(sql)
+    const stmt = db.prepare(getQuery(key))
+    return params ? stmt.all(...params) : stmt.all()
   } catch (error) {
-    console.error('Database exec error:', error)
+    console.error(`Database select error [${key}]:`, error)
+    throw error
+  }
+})
+
+// Keyed INSERT/UPDATE/DELETE — resolves SQL from the registry, returns
+// { changes, lastInsertRowid }.
+ipcMain.handle('db:run', async (_, { key, params }) => {
+  const db = getDatabase()
+  try {
+    const stmt = db.prepare(getQuery(key))
+    return params ? stmt.run(...params) : stmt.run()
+  } catch (error) {
+    console.error(`Database run error [${key}]:`, error)
+    throw error
+  }
+})
+
+// Validated dynamic partial UPDATE — column identifiers come from the
+// renderer but are checked against a per-table allowlist before the SQL is
+// assembled in main (see buildUpdate). Values are bound as parameters.
+ipcMain.handle('db:update', async (_, { table, columns, idColumn, params }) => {
+  const db = getDatabase()
+  try {
+    const stmt = db.prepare(buildUpdate(table, columns, idColumn))
+    return params ? stmt.run(...params) : stmt.run()
+  } catch (error) {
+    console.error(`Database update error [${table}]:`, error)
     throw error
   }
 })
