@@ -1,7 +1,8 @@
 import {
-  selectAll,
-  selectOne,
-  runStatement,
+  selectAllKeyed,
+  selectOneKeyed,
+  runStatementKeyed,
+  updateRow,
   parseJson,
   stringifyJson,
   newId,
@@ -41,14 +42,12 @@ function rowToProject(row: ProjectRow): Project {
 
 /** List all projects, most recently updated first. */
 export async function listProjects(): Promise<Project[]> {
-  const rows = await selectAll<ProjectRow>(
-    'SELECT * FROM projects ORDER BY updated_at DESC'
-  )
+  const rows = await selectAllKeyed<ProjectRow>('projects.list')
   return rows.map(rowToProject)
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const row = await selectOne<ProjectRow>('SELECT * FROM projects WHERE id = ?', [id])
+  const row = await selectOneKeyed<ProjectRow>('projects.getById', [id])
   return row ? rowToProject(row) : null
 }
 
@@ -61,18 +60,9 @@ export async function getProjectWithSetup(id: string): Promise<ProjectWithSetup 
   if (!project) return null
 
   const [documentRows, listRows, lensRows] = await Promise.all([
-    selectAll<{ document_id: string }>(
-      'SELECT document_id FROM project_documents WHERE project_id = ?',
-      [id]
-    ),
-    selectAll<{ list_id: string }>(
-      'SELECT list_id FROM project_keyword_lists WHERE project_id = ?',
-      [id]
-    ),
-    selectAll<{ lens_id: string }>(
-      'SELECT lens_id FROM project_lenses WHERE project_id = ?',
-      [id]
-    ),
+    selectAllKeyed<{ document_id: string }>('projects.listDocumentIds', [id]),
+    selectAllKeyed<{ list_id: string }>('projects.listKeywordListIds', [id]),
+    selectAllKeyed<{ lens_id: string }>('projects.listLensIds', [id]),
   ])
 
   return {
@@ -93,21 +83,16 @@ export interface CreateProjectInput {
 export async function createProject(input: CreateProjectInput): Promise<Project> {
   const id = newId()
   const timestamp = now()
-  await runStatement(
-    `INSERT INTO projects
-       (id, name, description, research_focus, scoring_rule_id, filter_state, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.name,
-      input.description ?? null,
-      input.researchFocus ?? null,
-      input.scoringRuleId ?? null,
-      null,
-      timestamp,
-      timestamp,
-    ]
-  )
+  await runStatementKeyed('projects.create', [
+    id,
+    input.name,
+    input.description ?? null,
+    input.researchFocus ?? null,
+    input.scoringRuleId ?? null,
+    null,
+    timestamp,
+    timestamp,
+  ])
   const created = await getProject(id)
   if (!created) {
     throw new Error(`Failed to create project ${input.name}`)
@@ -124,43 +109,40 @@ export interface UpdateProjectInput {
 }
 
 export async function updateProject(id: string, patch: UpdateProjectInput): Promise<void> {
-  const fields: string[] = []
+  const columns: string[] = []
   const params: unknown[] = []
 
   if (patch.name !== undefined) {
-    fields.push('name = ?')
+    columns.push('name')
     params.push(patch.name)
   }
   if (patch.description !== undefined) {
-    fields.push('description = ?')
+    columns.push('description')
     params.push(patch.description)
   }
   if (patch.researchFocus !== undefined) {
-    fields.push('research_focus = ?')
+    columns.push('research_focus')
     params.push(patch.researchFocus)
   }
   if (patch.scoringRuleId !== undefined) {
-    fields.push('scoring_rule_id = ?')
+    columns.push('scoring_rule_id')
     params.push(patch.scoringRuleId)
   }
   if (patch.filterState !== undefined) {
-    fields.push('filter_state = ?')
+    columns.push('filter_state')
     params.push(patch.filterState === null ? null : stringifyJson(patch.filterState))
   }
-  if (fields.length === 0) return
+  if (columns.length === 0) return
 
-  fields.push('updated_at = ?')
+  columns.push('updated_at')
   params.push(now())
   params.push(id)
 
-  await runStatement(
-    `UPDATE projects SET ${fields.join(', ')} WHERE id = ?`,
-    params
-  )
+  await updateRow('projects', columns, 'id', params)
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  await runStatement('DELETE FROM projects WHERE id = ?', [id])
+  await runStatementKeyed('projects.deleteById', [id])
 }
 
 /**
@@ -185,22 +167,13 @@ export async function cloneProject(sourceId: string, newName: string): Promise<P
   // Replicate document / keyword-list / lens activations.
   const timestamp = now()
   for (const docId of source.documentIds) {
-    await runStatement(
-      'INSERT INTO project_documents (project_id, document_id, added_at) VALUES (?, ?, ?)',
-      [cloned.id, docId, timestamp]
-    )
+    await runStatementKeyed('projects.addDocument', [cloned.id, docId, timestamp])
   }
   for (const listId of source.keywordListIds) {
-    await runStatement(
-      'INSERT INTO project_keyword_lists (project_id, list_id) VALUES (?, ?)',
-      [cloned.id, listId]
-    )
+    await runStatementKeyed('projects.addKeywordList', [cloned.id, listId])
   }
   for (const lensId of source.lensIds) {
-    await runStatement(
-      'INSERT INTO project_lenses (project_id, lens_id) VALUES (?, ?)',
-      [cloned.id, lensId]
-    )
+    await runStatementKeyed('projects.addLens', [cloned.id, lensId])
   }
 
   return cloned
@@ -216,11 +189,7 @@ export async function addDocumentsToProject(
 ): Promise<void> {
   const timestamp = now()
   for (const docId of documentIds) {
-    await runStatement(
-      `INSERT OR IGNORE INTO project_documents (project_id, document_id, added_at)
-       VALUES (?, ?, ?)`,
-      [projectId, docId, timestamp]
-    )
+    await runStatementKeyed('projects.addDocumentIgnore', [projectId, docId, timestamp])
   }
   await touchProject(projectId)
 }
@@ -229,10 +198,7 @@ export async function removeDocumentFromProject(
   projectId: string,
   documentId: string
 ): Promise<void> {
-  await runStatement(
-    'DELETE FROM project_documents WHERE project_id = ? AND document_id = ?',
-    [projectId, documentId]
-  )
+  await runStatementKeyed('projects.removeDocument', [projectId, documentId])
   await touchProject(projectId)
 }
 
@@ -242,11 +208,8 @@ export async function setProjectKeywordList(
 ): Promise<void> {
   // For now we model "one keyword list per project" via clear + insert.
   // The schema allows many; relax this helper when multi-list workflows arrive.
-  await runStatement('DELETE FROM project_keyword_lists WHERE project_id = ?', [projectId])
-  await runStatement(
-    'INSERT INTO project_keyword_lists (project_id, list_id) VALUES (?, ?)',
-    [projectId, listId]
-  )
+  await runStatementKeyed('projects.clearKeywordLists', [projectId])
+  await runStatementKeyed('projects.addKeywordList', [projectId, listId])
   await touchProject(projectId)
 }
 
@@ -254,16 +217,13 @@ export async function setProjectLenses(
   projectId: string,
   lensIds: string[]
 ): Promise<void> {
-  await runStatement('DELETE FROM project_lenses WHERE project_id = ?', [projectId])
+  await runStatementKeyed('projects.clearLenses', [projectId])
   for (const lensId of lensIds) {
-    await runStatement(
-      'INSERT INTO project_lenses (project_id, lens_id) VALUES (?, ?)',
-      [projectId, lensId]
-    )
+    await runStatementKeyed('projects.addLens', [projectId, lensId])
   }
   await touchProject(projectId)
 }
 
 async function touchProject(projectId: string): Promise<void> {
-  await runStatement('UPDATE projects SET updated_at = ? WHERE id = ?', [now(), projectId])
+  await runStatementKeyed('projects.touch', [now(), projectId])
 }

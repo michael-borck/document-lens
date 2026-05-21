@@ -1,24 +1,19 @@
-import { selectAll, selectOne, runStatement, newId, now } from './db'
+import { selectAllKeyed, selectOneKeyed, runStatementKeyed, updateRow, newId, now } from './db'
 import type { Document } from '@/types/data'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
 
 export async function listDocuments(): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>(
-    'SELECT * FROM documents ORDER BY imported_at DESC'
-  )
+  const rows = await selectAllKeyed<DocumentRow>('documents.list')
   return rows.map(rowToDocument)
 }
 
 export async function getDocument(id: string): Promise<Document | null> {
-  const row = await selectOne<DocumentRow>('SELECT * FROM documents WHERE id = ?', [id])
+  const row = await selectOneKeyed<DocumentRow>('documents.getById', [id])
   return row ? rowToDocument(row) : null
 }
 
 export async function getDocumentByHash(fileHash: string): Promise<Document | null> {
-  const row = await selectOne<DocumentRow>(
-    'SELECT * FROM documents WHERE file_hash = ?',
-    [fileHash]
-  )
+  const row = await selectOneKeyed<DocumentRow>('documents.getByHash', [fileHash])
   return row ? rowToDocument(row) : null
 }
 
@@ -40,25 +35,19 @@ export interface CreateDocumentInput {
  */
 export async function createDocument(input: CreateDocumentInput): Promise<Document> {
   const id = newId()
-  await runStatement(
-    `INSERT INTO documents
-       (id, filename, file_path, file_hash, file_size, title, year, company, sector,
-        status, imported_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.filename,
-      input.filePath,
-      input.fileHash,
-      input.fileSize ?? null,
-      input.title ?? null,
-      input.year ?? null,
-      input.company ?? null,
-      input.sector ?? null,
-      'pending',
-      now(),
-    ]
-  )
+  await runStatementKeyed('documents.create', [
+    id,
+    input.filename,
+    input.filePath,
+    input.fileHash,
+    input.fileSize ?? null,
+    input.title ?? null,
+    input.year ?? null,
+    input.company ?? null,
+    input.sector ?? null,
+    'pending',
+    now(),
+  ])
   const created = await getDocument(id)
   if (!created) throw new Error(`Failed to create document ${input.filename}`)
   return created
@@ -79,28 +68,25 @@ export async function updateDocumentAttributes(
   id: string,
   patch: UpdateDocumentAttributesInput
 ): Promise<void> {
-  const fields: string[] = []
+  const columns: string[] = []
   const params: unknown[] = []
 
-  if (patch.title !== undefined) { fields.push('title = ?'); params.push(patch.title) }
-  if (patch.year !== undefined) { fields.push('year = ?'); params.push(patch.year) }
-  if (patch.company !== undefined) { fields.push('company = ?'); params.push(patch.company) }
-  if (patch.sector !== undefined) { fields.push('sector = ?'); params.push(patch.sector) }
+  if (patch.title !== undefined) { columns.push('title'); params.push(patch.title) }
+  if (patch.year !== undefined) { columns.push('year'); params.push(patch.year) }
+  if (patch.company !== undefined) { columns.push('company'); params.push(patch.company) }
+  if (patch.sector !== undefined) { columns.push('sector'); params.push(patch.sector) }
 
-  if (fields.length === 0) return
+  if (columns.length === 0) return
   params.push(id)
-  await runStatement(`UPDATE documents SET ${fields.join(', ')} WHERE id = ?`, params)
+  await updateRow('documents', columns, 'id', params)
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await runStatement('DELETE FROM documents WHERE id = ?', [id])
+  await runStatementKeyed('documents.deleteById', [id])
 }
 
 export async function countDocumentsInProject(projectId: string): Promise<number> {
-  const row = await selectOne<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM project_documents WHERE project_id = ?',
-    [projectId]
-  )
+  const row = await selectOneKeyed<{ n: number }>('documents.countInProject', [projectId])
   return row?.n ?? 0
 }
 
@@ -154,9 +140,6 @@ export async function relinkDocumentSource(
     }
   }
 
-  await runStatement(
-    'UPDATE documents SET file_path = ? WHERE id = ?',
-    [candidatePath, documentId]
-  )
+  await runStatementKeyed('documents.updateFilePath', [candidatePath, documentId])
   return { ok: true }
 }

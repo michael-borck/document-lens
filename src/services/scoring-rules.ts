@@ -1,4 +1,4 @@
-import { selectAll, selectOne, runStatement, dbBool, toDbBool, newId, now, parseJson, stringifyJson } from './db'
+import { selectAllKeyed, selectOneKeyed, runStatementKeyed, dbBool, toDbBool, newId, now, parseJson, stringifyJson } from './db'
 import type { ScoringRule, ScoringRuleDefinition, ScoringRuleLevel } from '@/types/data'
 
 interface ScoringRuleRow {
@@ -26,17 +26,12 @@ function rowToRule(row: ScoringRuleRow): ScoringRule {
 }
 
 export async function listScoringRules(): Promise<ScoringRule[]> {
-  const rows = await selectAll<ScoringRuleRow>(
-    'SELECT * FROM scoring_rules ORDER BY is_builtin DESC, name'
-  )
+  const rows = await selectAllKeyed<ScoringRuleRow>('scoringRules.list')
   return rows.map(rowToRule)
 }
 
 export async function getScoringRule(id: string): Promise<ScoringRule | null> {
-  const row = await selectOne<ScoringRuleRow>(
-    'SELECT * FROM scoring_rules WHERE id = ?',
-    [id]
-  )
+  const row = await selectOneKeyed<ScoringRuleRow>('scoringRules.getById', [id])
   return row ? rowToRule(row) : null
 }
 
@@ -51,28 +46,23 @@ export interface CreateScoringRuleInput {
 export async function createScoringRule(input: CreateScoringRuleInput): Promise<ScoringRule> {
   const id = newId()
   const timestamp = now()
-  await runStatement(
-    `INSERT INTO scoring_rules
-       (id, name, description, is_builtin, definition, output_levels, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.name,
-      input.description ?? null,
-      toDbBool(input.isBuiltin ?? false),
-      stringifyJson(input.definition),
-      stringifyJson(input.outputLevels),
-      timestamp,
-      timestamp,
-    ]
-  )
+  await runStatementKeyed('scoringRules.create', [
+    id,
+    input.name,
+    input.description ?? null,
+    toDbBool(input.isBuiltin ?? false),
+    stringifyJson(input.definition),
+    stringifyJson(input.outputLevels),
+    timestamp,
+    timestamp,
+  ])
   const created = await getScoringRule(id)
   if (!created) throw new Error(`Failed to create scoring rule ${input.name}`)
   return created
 }
 
 export async function deleteScoringRule(id: string): Promise<void> {
-  await runStatement('DELETE FROM scoring_rules WHERE id = ?', [id])
+  await runStatementKeyed('scoringRules.deleteById', [id])
 }
 
 /**
@@ -80,9 +70,6 @@ export async function deleteScoringRule(id: string): Promise<void> {
  * Settings rule editor to warn before destructive action.
  */
 export async function countProjectsUsingScoringRule(ruleId: string): Promise<number> {
-  const row = await selectOne<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM projects WHERE scoring_rule_id = ?',
-    [ruleId]
-  )
+  const row = await selectOneKeyed<{ n: number }>('scoringRules.countProjectsUsing', [ruleId])
   return row?.n ?? 0
 }

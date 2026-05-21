@@ -18,6 +18,74 @@
  */
 
 export const QUERIES = {
+  // documents
+  'documents.list': 'SELECT * FROM documents ORDER BY imported_at DESC',
+  'documents.getById': 'SELECT * FROM documents WHERE id = ?',
+  'documents.getByHash': 'SELECT * FROM documents WHERE file_hash = ?',
+  'documents.create': `INSERT INTO documents
+       (id, filename, file_path, file_hash, file_size, title, year, company, sector,
+        status, imported_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  'documents.deleteById': 'DELETE FROM documents WHERE id = ?',
+  'documents.countInProject':
+    'SELECT COUNT(*) AS n FROM project_documents WHERE project_id = ?',
+  'documents.updateFilePath': 'UPDATE documents SET file_path = ? WHERE id = ?',
+
+  // reference
+  'reference.listIndustries': 'SELECT code, name FROM industries ORDER BY name',
+
+  // projects
+  'projects.list': 'SELECT * FROM projects ORDER BY updated_at DESC',
+  'projects.getById': 'SELECT * FROM projects WHERE id = ?',
+  'projects.listDocumentIds':
+    'SELECT document_id FROM project_documents WHERE project_id = ?',
+  'projects.listKeywordListIds':
+    'SELECT list_id FROM project_keyword_lists WHERE project_id = ?',
+  'projects.listLensIds': 'SELECT lens_id FROM project_lenses WHERE project_id = ?',
+  'projects.create': `INSERT INTO projects
+       (id, name, description, research_focus, scoring_rule_id, filter_state, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  'projects.deleteById': 'DELETE FROM projects WHERE id = ?',
+  'projects.addDocument':
+    'INSERT INTO project_documents (project_id, document_id, added_at) VALUES (?, ?, ?)',
+  'projects.addDocumentIgnore': `INSERT OR IGNORE INTO project_documents (project_id, document_id, added_at)
+       VALUES (?, ?, ?)`,
+  'projects.removeDocument':
+    'DELETE FROM project_documents WHERE project_id = ? AND document_id = ?',
+  'projects.addKeywordList':
+    'INSERT INTO project_keyword_lists (project_id, list_id) VALUES (?, ?)',
+  'projects.clearKeywordLists':
+    'DELETE FROM project_keyword_lists WHERE project_id = ?',
+  'projects.addLens':
+    'INSERT INTO project_lenses (project_id, lens_id) VALUES (?, ?)',
+  'projects.clearLenses': 'DELETE FROM project_lenses WHERE project_id = ?',
+  'projects.touch': 'UPDATE projects SET updated_at = ? WHERE id = ?',
+
+  // lenses
+  'lenses.list': 'SELECT * FROM lenses ORDER BY is_builtin DESC, name',
+  'lenses.getById': 'SELECT * FROM lenses WHERE id = ?',
+  'lenses.listValues':
+    'SELECT * FROM lens_values WHERE lens_id = ? ORDER BY sort_order, value',
+  'lenses.create': `INSERT INTO lenses (id, name, description, type, is_hierarchical, is_builtin, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  'lenses.createValue': `INSERT INTO lens_values
+       (id, lens_id, value, display_name, description, parent_value_id, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  'lenses.getValueById': 'SELECT * FROM lens_values WHERE id = ?',
+  'lenses.deleteById': 'DELETE FROM lenses WHERE id = ?',
+  'lenses.deleteValueById': 'DELETE FROM lens_values WHERE id = ?',
+  'lenses.countProjectsUsing':
+    'SELECT COUNT(*) AS n FROM project_lenses WHERE lens_id = ?',
+
+  // scoring rules
+  'scoringRules.list': 'SELECT * FROM scoring_rules ORDER BY is_builtin DESC, name',
+  'scoringRules.getById': 'SELECT * FROM scoring_rules WHERE id = ?',
+  'scoringRules.create': `INSERT INTO scoring_rules
+       (id, name, description, is_builtin, definition, output_levels, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+  'scoringRules.deleteById': 'DELETE FROM scoring_rules WHERE id = ?',
+  'scoringRules.countProjectsUsing':
+    'SELECT COUNT(*) AS n FROM projects WHERE scoring_rule_id = ?',
 } as const
 
 export type QueryKey = keyof typeof QUERIES
@@ -37,6 +105,16 @@ export function getQuery(key: string): string {
  * identifier construction in the main process with a fixed allowlist.
  */
 const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
+  documents: new Set(['title', 'year', 'company', 'sector', 'id']),
+  projects: new Set([
+    'name',
+    'description',
+    'research_focus',
+    'scoring_rule_id',
+    'filter_state',
+    'updated_at',
+    'id',
+  ]),
 }
 
 /**

@@ -1,4 +1,4 @@
-import { selectAll, selectOne, runStatement, dbBool, toDbBool, newId, now } from './db'
+import { selectAllKeyed, selectOneKeyed, runStatementKeyed, dbBool, toDbBool, newId, now } from './db'
 import type { Lens, LensType, LensValue } from '@/types/data'
 
 interface LensRow {
@@ -46,20 +46,17 @@ function rowToValue(row: LensValueRow): LensValue {
 }
 
 export async function listLenses(): Promise<Lens[]> {
-  const rows = await selectAll<LensRow>('SELECT * FROM lenses ORDER BY is_builtin DESC, name')
+  const rows = await selectAllKeyed<LensRow>('lenses.list')
   return rows.map(rowToLens)
 }
 
 export async function getLens(id: string): Promise<Lens | null> {
-  const row = await selectOne<LensRow>('SELECT * FROM lenses WHERE id = ?', [id])
+  const row = await selectOneKeyed<LensRow>('lenses.getById', [id])
   return row ? rowToLens(row) : null
 }
 
 export async function listLensValues(lensId: string): Promise<LensValue[]> {
-  const rows = await selectAll<LensValueRow>(
-    'SELECT * FROM lens_values WHERE lens_id = ? ORDER BY sort_order, value',
-    [lensId]
-  )
+  const rows = await selectAllKeyed<LensValueRow>('lenses.listValues', [lensId])
   return rows.map(rowToValue)
 }
 
@@ -73,19 +70,15 @@ export interface CreateLensInput {
 
 export async function createLens(input: CreateLensInput): Promise<Lens> {
   const id = newId()
-  await runStatement(
-    `INSERT INTO lenses (id, name, description, type, is_hierarchical, is_builtin, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.name,
-      input.description ?? null,
-      input.type,
-      toDbBool(input.isHierarchical ?? false),
-      toDbBool(input.isBuiltin ?? false),
-      now(),
-    ]
-  )
+  await runStatementKeyed('lenses.create', [
+    id,
+    input.name,
+    input.description ?? null,
+    input.type,
+    toDbBool(input.isHierarchical ?? false),
+    toDbBool(input.isBuiltin ?? false),
+    now(),
+  ])
   const created = await getLens(id)
   if (!created) throw new Error(`Failed to create lens ${input.name}`)
   return created
@@ -102,31 +95,26 @@ export interface CreateLensValueInput {
 
 export async function createLensValue(input: CreateLensValueInput): Promise<LensValue> {
   const id = newId()
-  await runStatement(
-    `INSERT INTO lens_values
-       (id, lens_id, value, display_name, description, parent_value_id, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      id,
-      input.lensId,
-      input.value,
-      input.displayName ?? null,
-      input.description ?? null,
-      input.parentValueId ?? null,
-      input.sortOrder ?? 0,
-    ]
-  )
-  const row = await selectOne<LensValueRow>('SELECT * FROM lens_values WHERE id = ?', [id])
+  await runStatementKeyed('lenses.createValue', [
+    id,
+    input.lensId,
+    input.value,
+    input.displayName ?? null,
+    input.description ?? null,
+    input.parentValueId ?? null,
+    input.sortOrder ?? 0,
+  ])
+  const row = await selectOneKeyed<LensValueRow>('lenses.getValueById', [id])
   if (!row) throw new Error(`Failed to create lens value ${input.value}`)
   return rowToValue(row)
 }
 
 export async function deleteLens(id: string): Promise<void> {
-  await runStatement('DELETE FROM lenses WHERE id = ?', [id])
+  await runStatementKeyed('lenses.deleteById', [id])
 }
 
 export async function deleteLensValue(id: string): Promise<void> {
-  await runStatement('DELETE FROM lens_values WHERE id = ?', [id])
+  await runStatementKeyed('lenses.deleteValueById', [id])
 }
 
 /**
@@ -135,9 +123,6 @@ export async function deleteLensValue(id: string): Promise<void> {
  * still use" before allowing destructive action.
  */
 export async function countProjectsUsingLens(lensId: string): Promise<number> {
-  const row = await selectOne<{ n: number }>(
-    'SELECT COUNT(*) AS n FROM project_lenses WHERE lens_id = ?',
-    [lensId]
-  )
+  const row = await selectOneKeyed<{ n: number }>('lenses.countProjectsUsing', [lensId])
   return row?.n ?? 0
 }
