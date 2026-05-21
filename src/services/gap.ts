@@ -1,5 +1,5 @@
 import { selectAll, selectOne, runStatement } from './db'
-import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
+import { listKeywords, listEnabledSynonymsForKeywords } from './keyword-lists'
 import { detectSections } from './sections'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
 import { findConceptSpans } from './_shared/keyword-match'
@@ -46,8 +46,7 @@ function docLabel(d: Document): string {
 }
 
 /** Per-document detected sections with local positive/counter match counts. */
-async function buildSections(docs: Document[], keywords: Keyword[]): Promise<SectionData[]> {
-  const synByKw = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
+async function buildSections(docs: Document[], keywords: Keyword[], synByKw: Map<string, string[]>): Promise<SectionData[]> {
   const out: SectionData[] = []
   for (const doc of docs) {
     const text = doc.extractedText ?? ''
@@ -71,9 +70,6 @@ async function buildSections(docs: Document[], keywords: Keyword[]): Promise<Sec
   }
   return out
 }
-
-export { buildSections, docLabel, substanceRatio, gapFromDiagonal, fitLine, gapFromResidual }
-export type { SectionData, GapReference }
 
 function hashSections(secs: SectionData[]): string {
   let h = 0
@@ -106,7 +102,7 @@ async function fillSectionTones(projectId: string, secs: SectionData[]): Promise
 const RESIDUAL_MIN_POINTS = 8
 
 function buildPoints(
-  secs: SectionData[], _docs: Document[], level: GapLevel, reference: GapReference
+  secs: SectionData[], level: GapLevel, reference: GapReference
 ): GapPoint[] {
   if (level === 'keyword') return []
   type Raw = { id: string; label: string; documentId: string; documentLabel: string; substance: number; tone: number; weight: number }
@@ -157,7 +153,7 @@ export async function computeGap(input: ComputeGapInput): Promise<GapDataset> {
   const keywords = (await listKeywords(input.keywordListId)).filter((k) => k.enabled)
   const synByKw = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
 
-  const secs = await buildSections(docs, keywords)
+  const secs = await buildSections(docs, keywords, synByKw)
   await fillSectionTones(input.projectId, secs)
 
   // keyword-level points: per (doc, keyword) freq + avg section tone
@@ -189,8 +185,8 @@ export async function computeGap(input: ComputeGapInput): Promise<GapDataset> {
   }
 
   const byLevel: Record<GapLevel, GapPoint[]> = {
-    document: buildPoints(secs, docs, 'document', input.reference),
-    section: buildPoints(secs, docs, 'section', input.reference),
+    document: buildPoints(secs, 'document', input.reference),
+    section: buildPoints(secs, 'section', input.reference),
     keyword: kwPoints,
   }
 
