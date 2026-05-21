@@ -28,7 +28,7 @@ import {
   type DocumentSection,
 } from './sections'
 import { getLens, listLensValues } from './lenses'
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import type { LensValue } from '@/types/data'
 
 const BATCH_SIZE = 50  // max sections per backend call — keeps single requests reasonable
@@ -85,19 +85,12 @@ export async function classifyProjectFunctions(
   }
 
   // Load project documents.
-  const docs = await selectAll<{
+  const docs = await selectAllKeyed<{
     id: string
     filename: string
     title: string | null
     extracted_text: string | null
-  }>(
-    `SELECT d.id, d.filename, d.title, d.extracted_text
-       FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.imported_at`,
-    [projectId]
-  )
+  }>('classification.projectDocsForClassify', [projectId])
 
   // Pre-compute the "domains" payload sent to the backend. We use each
   // value's display name + description as the label so the embedding
@@ -227,11 +220,8 @@ export async function getClassificationStatus(
   projectId: string,
   lensId: string
 ): Promise<ClassificationStatus> {
-  const docs = await selectAll<{ id: string; extracted_text: string | null }>(
-    `SELECT d.id, d.extracted_text
-       FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?`,
+  const docs = await selectAllKeyed<{ id: string; extracted_text: string | null }>(
+    'classification.projectDocText',
     [projectId]
   )
   let classifiedDocuments = 0

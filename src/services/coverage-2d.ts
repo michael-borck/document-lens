@@ -15,7 +15,7 @@
  * keyword has no SDG tag" or similar).
  */
 
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import {
@@ -91,13 +91,10 @@ export async function computeCoverage2D(
   }
 
   // Load keyword -> rowValueId mappings (keyword_tags joined to lens_id = rowLensId).
-  const keywordTagRows = await selectAll<KeywordTagRow>(
-    `SELECT kt.keyword_id, kt.value_id
-       FROM keyword_tags kt
-       JOIN keywords k ON k.id = kt.keyword_id
-      WHERE k.list_id = ? AND kt.lens_id = ?`,
-    [input.keywordListId, input.rowLensId]
-  )
+  const keywordTagRows = await selectAllKeyed<KeywordTagRow>('keywords.tagsForList', [
+    input.keywordListId,
+    input.rowLensId,
+  ])
   const keywordRowValueIds = new Map<string, string[]>()
   for (const row of keywordTagRows) {
     const list = keywordRowValueIds.get(row.keyword_id) ?? []
@@ -205,22 +202,13 @@ function emptyMatrix(
 }
 
 async function loadLensSummary(lensId: string): Promise<{ id: string; name: string }> {
-  const rows = await selectAll<{ id: string; name: string }>(
-    'SELECT id, name FROM lenses WHERE id = ?',
-    [lensId]
-  )
+  const rows = await selectAllKeyed<{ id: string; name: string }>('lenses.getIdName', [lensId])
   if (rows.length === 0) throw new Error(`Lens ${lensId} not found`)
   return rows[0]
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>(
-    `SELECT d.* FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.year, d.title, d.filename`,
-    [projectId]
-  )
+  const rows = await selectAllKeyed<DocumentRow>('documents.byProjectOrdered', [projectId])
   return rows.map(rowToDocument)
 }
 

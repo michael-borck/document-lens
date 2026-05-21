@@ -14,7 +14,7 @@
  * pages show for the same topic + year.
  */
 
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import {
   listKeywords,
   getKeywordListLenses,
@@ -183,14 +183,10 @@ async function resolveSeriesSpecs(input: ComputeTrackInput): Promise<SeriesSpec[
   if (input.group === 'company' || input.group === 'sector') {
     const field = input.group  // 'company' | 'sector'
     // Pull distinct attribute values from the project's docs (skipping null/empty).
-    const rows = await selectAll<{ value: string }>(
-      `SELECT DISTINCT ${field === 'company' ? 'd.company' : 'd.sector'} AS value
-         FROM documents d
-         JOIN project_documents pd ON pd.document_id = d.id
-        WHERE pd.project_id = ?
-          AND ${field === 'company' ? 'd.company' : 'd.sector'} IS NOT NULL
-          AND TRIM(${field === 'company' ? 'd.company' : 'd.sector'}) != ''
-        ORDER BY value`,
+    const rows = await selectAllKeyed<{ value: string }>(
+      field === 'company'
+        ? 'track.distinctCompanyInProject'
+        : 'track.distinctSectorInProject',
       [input.projectId]
     )
     if (rows.length === 0) {
@@ -241,12 +237,7 @@ async function buildSeriesForSpec(
   const topicKeywords = await filterToTopic(enabled, input.keywordListId, input.topic)
 
   // Load project documents.
-  const docRows = await selectAll<DocumentRow>(
-    `SELECT d.* FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?`,
-    [input.projectId]
-  )
+  const docRows = await selectAllKeyed<DocumentRow>('documents.byProject', [input.projectId])
   const allDocs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
   // Apply the per-series doc filter (e.g., this series is for company "Acme").
   const docs = spec.docFilter ? allDocs.filter(spec.docFilter) : allDocs
@@ -431,12 +422,10 @@ async function filterToTopic(
   const declaredLensIds = await getKeywordListLenses(keywordListId)
   if (!declaredLensIds.includes(topic.lensId)) return []
 
-  const tagRows = await selectAll<{ keyword_id: string }>(
-    `SELECT kt.keyword_id
-       FROM keyword_tags kt
-      WHERE kt.lens_id = ? AND kt.value_id = ?`,
-    [topic.lensId, topic.valueId]
-  )
+  const tagRows = await selectAllKeyed<{ keyword_id: string }>('keywords.idsByLensValue', [
+    topic.lensId,
+    topic.valueId,
+  ])
   const taggedIds = new Set(tagRows.map((r) => r.keyword_id))
   return keywords.filter((k) => taggedIds.has(k.id))
 }

@@ -28,7 +28,7 @@
  */
 
 import JSZip from 'jszip'
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import {
   listKeywords,
   listSynonyms,
@@ -312,8 +312,8 @@ export async function exportProjectBundle(
   let filesBytes = 0
   let actuallyIncludedFiles = false
   for (const doc of documents) {
-    const pages = await selectAll<{ page_number: number; text: string }>(
-      'SELECT page_number, text FROM document_pages WHERE document_id = ? ORDER BY page_number',
+    const pages = await selectAllKeyed<{ page_number: number; text: string }>(
+      'documentPages.byDocument',
       [doc.id]
     )
     const sections = await listSections(doc.id)
@@ -489,35 +489,17 @@ async function getAppVersion(): Promise<string> {
 }
 
 async function getProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>(
-    `SELECT d.* FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.imported_at`,
-    [projectId]
-  )
+  const rows = await selectAllKeyed<DocumentRow>('documents.byProjectImportOrder', [projectId])
   return rows.map(rowToDocument)
 }
 
 async function getProjectKeywordLists(projectId: string): Promise<KeywordList[]> {
-  const rows = await selectAll<KeywordListRow>(
-    `SELECT kl.* FROM keyword_lists kl
-       JOIN project_keyword_lists pkl ON pkl.list_id = kl.id
-      WHERE pkl.project_id = ?
-      ORDER BY kl.name`,
-    [projectId]
-  )
+  const rows = await selectAllKeyed<KeywordListRow>('keywordLists.byProject', [projectId])
   return rows.map(rowToKeywordList)
 }
 
 async function getProjectLenses(projectId: string): Promise<Lens[]> {
-  const rows = await selectAll<LensRow>(
-    `SELECT l.* FROM lenses l
-       JOIN project_lenses pl ON pl.lens_id = l.id
-      WHERE pl.project_id = ?
-      ORDER BY l.name`,
-    [projectId]
-  )
+  const rows = await selectAllKeyed<LensRow>('lenses.byProject', [projectId])
   return rows.map(rowToLens)
 }
 

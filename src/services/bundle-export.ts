@@ -15,7 +15,7 @@
  */
 
 import JSZip from 'jszip'
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import { stringifyCsv } from './csv'
 import type {
   TrackResult,
@@ -214,14 +214,7 @@ function composeDataCsv(result: TrackResult): string {
 }
 
 async function loadContributingDocuments(projectId: string): Promise<ProjectDocRow[]> {
-  return selectAll<ProjectDocRow>(
-    `SELECT d.id, d.title, d.filename, d.year, d.company, d.sector
-       FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.year, d.company, d.title, d.filename`,
-    [projectId]
-  )
+  return selectAllKeyed<ProjectDocRow>('bundleExport.projectDocs', [projectId])
 }
 
 function composeDocumentsCsv(docs: ProjectDocRow[]): string {

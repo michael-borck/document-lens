@@ -86,6 +86,88 @@ export const QUERIES = {
   'scoringRules.deleteById': 'DELETE FROM scoring_rules WHERE id = ?',
   'scoringRules.countProjectsUsing':
     'SELECT COUNT(*) AS n FROM projects WHERE scoring_rule_id = ?',
+
+  // project-document selects (compute workflows)
+  'documents.byProjectOrdered': `SELECT d.* FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?
+      ORDER BY d.year, d.title, d.filename`,
+  'documents.byProject': `SELECT d.* FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?`,
+  'documents.byProjectImportOrder': `SELECT d.* FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?
+      ORDER BY d.imported_at`,
+
+  // keyword tags
+  'keywords.tagsForList': `SELECT kt.keyword_id, kt.value_id
+       FROM keyword_tags kt
+       JOIN keywords k ON k.id = kt.keyword_id
+      WHERE k.list_id = ? AND kt.lens_id = ?`,
+  'keywords.idsByLensValue': `SELECT kt.keyword_id
+       FROM keyword_tags kt
+      WHERE kt.lens_id = ? AND kt.value_id = ?`,
+
+  // lens / keyword-list selects (compute + bundle export)
+  'lenses.getIdName': 'SELECT id, name FROM lenses WHERE id = ?',
+  'lenses.byProject': `SELECT l.* FROM lenses l
+       JOIN project_lenses pl ON pl.lens_id = l.id
+      WHERE pl.project_id = ?
+      ORDER BY l.name`,
+  'keywordLists.byProject': `SELECT kl.* FROM keyword_lists kl
+       JOIN project_keyword_lists pkl ON pkl.list_id = kl.id
+      WHERE pkl.project_id = ?
+      ORDER BY kl.name`,
+
+  // track — distinct attribute values (static per-column variants of the
+  // former d.company/d.sector dynamic select)
+  'track.distinctCompanyInProject': `SELECT DISTINCT d.company AS value
+         FROM documents d
+         JOIN project_documents pd ON pd.document_id = d.id
+        WHERE pd.project_id = ?
+          AND d.company IS NOT NULL
+          AND TRIM(d.company) != ''
+        ORDER BY value`,
+  'track.distinctSectorInProject': `SELECT DISTINCT d.sector AS value
+         FROM documents d
+         JOIN project_documents pd ON pd.document_id = d.id
+        WHERE pd.project_id = ?
+          AND d.sector IS NOT NULL
+          AND TRIM(d.sector) != ''
+        ORDER BY value`,
+
+  // document pages (Read concordance + bundle export)
+  'documentPages.byDocument':
+    'SELECT page_number, text FROM document_pages WHERE document_id = ? ORDER BY page_number',
+
+  // ngrams (Discover)
+  'ngrams.projectDocText': `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
+           FROM documents d
+           JOIN project_documents pd ON pd.document_id = d.id
+          WHERE pd.project_id = ? AND d.id = ? AND d.extracted_text IS NOT NULL`,
+  'ngrams.projectText': `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
+           FROM documents d
+           JOIN project_documents pd ON pd.document_id = d.id
+          WHERE pd.project_id = ? AND d.extracted_text IS NOT NULL`,
+
+  // bundle export (paper-ready)
+  'bundleExport.projectDocs': `SELECT d.id, d.title, d.filename, d.year, d.company, d.sector
+       FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?
+      ORDER BY d.year, d.company, d.title, d.filename`,
+
+  // classification (Function inference)
+  'classification.projectDocText': `SELECT d.id, d.extracted_text
+       FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?`,
+  'classification.projectDocsForClassify': `SELECT d.id, d.filename, d.title, d.extracted_text
+       FROM documents d
+       JOIN project_documents pd ON pd.document_id = d.id
+      WHERE pd.project_id = ?
+      ORDER BY d.imported_at`,
 } as const
 
 export type QueryKey = keyof typeof QUERIES

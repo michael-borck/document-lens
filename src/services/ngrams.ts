@@ -6,7 +6,7 @@
  * top results aren't drowned in "of the" / "in the".
  */
 
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 
 export type NgramSize = 2 | 3
 
@@ -85,20 +85,11 @@ export async function computeNgrams(input: ComputeNgramsInput): Promise<ComputeN
   const topN = input.topN ?? 100
 
   const rows = input.documentId
-    ? await selectAll<ProjectTextRow>(
-        `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
-           FROM documents d
-           JOIN project_documents pd ON pd.document_id = d.id
-          WHERE pd.project_id = ? AND d.id = ? AND d.extracted_text IS NOT NULL`,
-        [input.projectId, input.documentId]
-      )
-    : await selectAll<ProjectTextRow>(
-        `SELECT d.id, d.title, d.filename, d.year, d.extracted_text
-           FROM documents d
-           JOIN project_documents pd ON pd.document_id = d.id
-          WHERE pd.project_id = ? AND d.extracted_text IS NOT NULL`,
-        [input.projectId]
-      )
+    ? await selectAllKeyed<ProjectTextRow>('ngrams.projectDocText', [
+        input.projectId,
+        input.documentId,
+      ])
+    : await selectAllKeyed<ProjectTextRow>('ngrams.projectText', [input.projectId])
 
   // Doc metadata for source attribution on each n-gram.
   const docMeta = new Map<string, { title: string; year: number | null }>()

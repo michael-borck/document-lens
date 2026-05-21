@@ -10,7 +10,7 @@
  * Discover/Synonyms workflow is wired (Phase 5).
  */
 
-import { selectAll } from './db'
+import { selectAllKeyed } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
@@ -108,13 +108,7 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>(
-    `SELECT d.* FROM documents d
-       JOIN project_documents pd ON pd.document_id = d.id
-      WHERE pd.project_id = ?
-      ORDER BY d.year, d.title, d.filename`,
-    [projectId]
-  )
+  const rows = await selectAllKeyed<DocumentRow>('documents.byProjectOrdered', [projectId])
   return rows.map(rowToDocument)
 }
 
@@ -127,13 +121,7 @@ async function loadKeywordTagsForLens(
   keywordListId: string,
   lensId: string
 ): Promise<Map<string, string[]>> {
-  const rows = await selectAll<KeywordTagRow>(
-    `SELECT kt.keyword_id, kt.value_id
-       FROM keyword_tags kt
-       JOIN keywords k ON k.id = kt.keyword_id
-      WHERE k.list_id = ? AND kt.lens_id = ?`,
-    [keywordListId, lensId]
-  )
+  const rows = await selectAllKeyed<KeywordTagRow>('keywords.tagsForList', [keywordListId, lensId])
   const result = new Map<string, string[]>()
   for (const row of rows) {
     const list = result.get(row.keyword_id) ?? []
