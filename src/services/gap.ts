@@ -74,3 +74,31 @@ async function buildSections(docs: Document[], keywords: Keyword[]): Promise<Sec
 
 export { buildSections, docLabel, substanceRatio, gapFromDiagonal, fitLine, gapFromResidual }
 export type { SectionData, GapReference }
+
+function hashSections(secs: SectionData[]): string {
+  let h = 0
+  const key = secs.map((s) => `${s.documentId}:${s.index}:${s.start}-${s.end}`).join('|')
+  for (let i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) | 0 }
+  return String(h)
+}
+
+/** Fill section tones via the backend, cached per project+section-set. */
+async function fillSectionTones(projectId: string, secs: SectionData[]): Promise<void> {
+  if (secs.length === 0) return
+  const cacheKey = `gap-sentiment:${hashSections(secs)}`
+  const cached = await selectOne<{ result: string }>('analysisCache.get', [projectId, cacheKey])
+  if (cached) {
+    const scores: Record<string, number> = JSON.parse(cached.result)
+    secs.forEach((s, i) => { s.tone = scores[String(i)] ?? 0 })
+    return
+  }
+  const resp = await api.analyzeSentimentBatch(
+    secs.map((s, i) => ({ id: String(i), text: s.text }))
+  )
+  const scores: Record<string, number> = {}
+  for (const r of resp.results) scores[r.id] = r.sentiment.score
+  secs.forEach((s, i) => { s.tone = scores[String(i)] ?? 0 })
+  await runStatement('analysisCache.put', [
+    projectId, cacheKey, JSON.stringify(scores), new Date().toISOString(),
+  ])
+}
