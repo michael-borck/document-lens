@@ -369,26 +369,9 @@ ipcMain.handle('debug:getResourcesInfo', () => {
 // Database handlers.
 //
 // The renderer sends a registry KEY (resolved against electron/queries.ts),
-// never raw SQL — see the module docstring there for the threat model. The
-// legacy `db:query` raw-SQL handler is retained only until every service is
-// migrated to keyed queries, then removed (no DDL handler — schema changes
-// run in database.ts at init, never from the renderer).
-
-// Legacy raw-SQL passthrough — DEPRECATED, removed at migration cutover.
-ipcMain.handle('db:query', async (_, { sql, params }) => {
-  const db = getDatabase()
-  try {
-    const stmt = db.prepare(sql)
-    if (sql.trim().toUpperCase().startsWith('SELECT')) {
-      return params ? stmt.all(...params) : stmt.all()
-    } else {
-      return params ? stmt.run(...params) : stmt.run()
-    }
-  } catch (error) {
-    console.error('Database error:', error)
-    throw error
-  }
-})
+// never raw SQL — see the module docstring there for the threat model. There
+// is deliberately no raw-SQL or DDL handler: schema changes run in
+// database.ts at init, never from the renderer.
 
 // Keyed SELECT — resolves SQL from the registry, returns rows.
 ipcMain.handle('db:select', async (_, { key, params }) => {

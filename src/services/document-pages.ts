@@ -14,7 +14,7 @@
  * (file://…#page=N) into their PDF viewer.
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 
 export interface PageOffset {
   pageNumber: number
@@ -37,7 +37,7 @@ interface PageRow {
  * page rows (legacy imports, plain-text-only sources).
  */
 export async function getPageOffsets(documentId: string): Promise<PageOffset[]> {
-  const rows = await selectAllKeyed<PageRow>('documentPages.byDocument', [documentId])
+  const rows = await selectAll<PageRow>('documentPages.byDocument', [documentId])
   if (rows.length === 0) return []
 
   const out: PageOffset[] = []

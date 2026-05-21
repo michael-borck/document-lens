@@ -1,4 +1,4 @@
-import { selectAllKeyed, selectOneKeyed, runStatementKeyed, dbBool, toDbBool, newId, now } from './db'
+import { selectAll, selectOne, runStatement, dbBool, toDbBool, newId, now } from './db'
 import type { Lens, LensType, LensValue } from '@/types/data'
 
 interface LensRow {
@@ -46,17 +46,17 @@ function rowToValue(row: LensValueRow): LensValue {
 }
 
 export async function listLenses(): Promise<Lens[]> {
-  const rows = await selectAllKeyed<LensRow>('lenses.list')
+  const rows = await selectAll<LensRow>('lenses.list')
   return rows.map(rowToLens)
 }
 
 export async function getLens(id: string): Promise<Lens | null> {
-  const row = await selectOneKeyed<LensRow>('lenses.getById', [id])
+  const row = await selectOne<LensRow>('lenses.getById', [id])
   return row ? rowToLens(row) : null
 }
 
 export async function listLensValues(lensId: string): Promise<LensValue[]> {
-  const rows = await selectAllKeyed<LensValueRow>('lenses.listValues', [lensId])
+  const rows = await selectAll<LensValueRow>('lenses.listValues', [lensId])
   return rows.map(rowToValue)
 }
 
@@ -70,7 +70,7 @@ export interface CreateLensInput {
 
 export async function createLens(input: CreateLensInput): Promise<Lens> {
   const id = newId()
-  await runStatementKeyed('lenses.create', [
+  await runStatement('lenses.create', [
     id,
     input.name,
     input.description ?? null,
@@ -95,7 +95,7 @@ export interface CreateLensValueInput {
 
 export async function createLensValue(input: CreateLensValueInput): Promise<LensValue> {
   const id = newId()
-  await runStatementKeyed('lenses.createValue', [
+  await runStatement('lenses.createValue', [
     id,
     input.lensId,
     input.value,
@@ -104,17 +104,17 @@ export async function createLensValue(input: CreateLensValueInput): Promise<Lens
     input.parentValueId ?? null,
     input.sortOrder ?? 0,
   ])
-  const row = await selectOneKeyed<LensValueRow>('lenses.getValueById', [id])
+  const row = await selectOne<LensValueRow>('lenses.getValueById', [id])
   if (!row) throw new Error(`Failed to create lens value ${input.value}`)
   return rowToValue(row)
 }
 
 export async function deleteLens(id: string): Promise<void> {
-  await runStatementKeyed('lenses.deleteById', [id])
+  await runStatement('lenses.deleteById', [id])
 }
 
 export async function deleteLensValue(id: string): Promise<void> {
-  await runStatementKeyed('lenses.deleteValueById', [id])
+  await runStatement('lenses.deleteValueById', [id])
 }
 
 /**
@@ -123,6 +123,6 @@ export async function deleteLensValue(id: string): Promise<void> {
  * still use" before allowing destructive action.
  */
 export async function countProjectsUsingLens(lensId: string): Promise<number> {
-  const row = await selectOneKeyed<{ n: number }>('lenses.countProjectsUsing', [lensId])
+  const row = await selectOne<{ n: number }>('lenses.countProjectsUsing', [lensId])
   return row?.n ?? 0
 }

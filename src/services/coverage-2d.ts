@@ -15,7 +15,7 @@
  * keyword has no SDG tag" or similar).
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import {
@@ -91,7 +91,7 @@ export async function computeCoverage2D(
   }
 
   // Load keyword -> rowValueId mappings (keyword_tags joined to lens_id = rowLensId).
-  const keywordTagRows = await selectAllKeyed<KeywordTagRow>('keywords.tagsForList', [
+  const keywordTagRows = await selectAll<KeywordTagRow>('keywords.tagsForList', [
     input.keywordListId,
     input.rowLensId,
   ])
@@ -202,13 +202,13 @@ function emptyMatrix(
 }
 
 async function loadLensSummary(lensId: string): Promise<{ id: string; name: string }> {
-  const rows = await selectAllKeyed<{ id: string; name: string }>('lenses.getIdName', [lensId])
+  const rows = await selectAll<{ id: string; name: string }>('lenses.getIdName', [lensId])
   if (rows.length === 0) throw new Error(`Lens ${lensId} not found`)
   return rows[0]
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAllKeyed<DocumentRow>('documents.byProjectOrdered', [projectId])
+  const rows = await selectAll<DocumentRow>('documents.byProjectOrdered', [projectId])
   return rows.map(rowToDocument)
 }
 

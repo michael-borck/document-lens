@@ -1,10 +1,11 @@
 /**
  * Typed wrappers over the renderer-side database IPC.
  *
- * The Electron preload exposes three primitives on window.electron:
- *   - dbQuery(sql, params) — returns rows for SELECT, run-result otherwise
- *   - dbRun(sql, params)   — same IPC handler, different return type expected
- *   - dbExec(sql)          — multi-statement DDL
+ * The renderer never sends SQL over IPC — it passes a query KEY into the
+ * registry in electron/queries.ts, which main resolves to SQL from its own
+ * bundled copy. This is the security boundary: a compromised renderer can
+ * only invoke queries that already exist in the registry, never inject its
+ * own SQL/DDL. See that module's docstring for the threat model.
  *
  * The helpers below add type inference and a small ergonomic layer:
  *   - boolish columns (INTEGER 0/1) -> boolean
@@ -13,7 +14,7 @@
  *     `{ changes, lastInsertRowid }`
  *
  * Services in this folder build on these primitives. No service should
- * call window.electron.dbQuery directly.
+ * call window.electron.db* directly.
  */
 
 import type { DatabaseResult } from '@/types/electron'
@@ -26,46 +27,19 @@ function api() {
   return electron
 }
 
-// ---------------------------------------------------------------------------
-// Legacy raw-SQL helpers — DEPRECATED. Being migrated to the keyed helpers
-// below; removed once every service references query keys. runStatement now
-// routes through dbQuery (the same `db:query` handler the old dbRun used).
-// ---------------------------------------------------------------------------
-
-/** Run a SELECT and return typed rows. */
-export async function selectAll<T>(sql: string, params?: unknown[]): Promise<T[]> {
-  return api().dbQuery<T>(sql, params)
-}
-
-/** Run a SELECT and return the first row, or null if no row matches. */
-export async function selectOne<T>(sql: string, params?: unknown[]): Promise<T | null> {
-  const rows = await api().dbQuery<T>(sql, params)
-  return rows[0] ?? null
-}
-
-/** Run an INSERT/UPDATE/DELETE statement. Returns DatabaseResult. */
-export async function runStatement(sql: string, params?: unknown[]): Promise<DatabaseResult> {
-  return api().dbQuery(sql, params) as unknown as Promise<DatabaseResult>
-}
-
-// ---------------------------------------------------------------------------
-// Keyed helpers — the renderer passes a query KEY (see electron/queries.ts);
-// main resolves it to SQL. No SQL crosses the IPC boundary.
-// ---------------------------------------------------------------------------
-
 /** Run a registered SELECT and return typed rows. */
-export async function selectAllKeyed<T>(key: string, params?: unknown[]): Promise<T[]> {
+export async function selectAll<T>(key: string, params?: unknown[]): Promise<T[]> {
   return api().dbSelect<T>(key, params)
 }
 
 /** Run a registered SELECT and return the first row, or null. */
-export async function selectOneKeyed<T>(key: string, params?: unknown[]): Promise<T | null> {
+export async function selectOne<T>(key: string, params?: unknown[]): Promise<T | null> {
   const rows = await api().dbSelect<T>(key, params)
   return rows[0] ?? null
 }
 
 /** Run a registered INSERT/UPDATE/DELETE. Returns DatabaseResult. */
-export async function runStatementKeyed(key: string, params?: unknown[]): Promise<DatabaseResult> {
+export async function runStatement(key: string, params?: unknown[]): Promise<DatabaseResult> {
   return api().dbRunKeyed(key, params)
 }
 
@@ -88,7 +62,7 @@ export async function updateRow(
  * registry SQL holds an `__IN__` marker expanded in main; `ids` are bound
  * as the IN parameters.
  */
-export async function selectInListKeyed<T>(key: string, ids: unknown[]): Promise<T[]> {
+export async function selectInList<T>(key: string, ids: unknown[]): Promise<T[]> {
   return api().dbSelectIn<T>(key, ids)
 }
 

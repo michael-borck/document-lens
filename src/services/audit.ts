@@ -19,7 +19,7 @@
  * a sceptical reviewer.
  */
 
-import { selectAllKeyed, selectOneKeyed, runStatementKeyed, now } from './db'
+import { selectAll, selectOne, runStatement, now } from './db'
 import { listKeywords } from './keyword-lists'
 import { listLensValues, getLens } from './lenses'
 import { listSections, getSectionTagsForDocument } from './sections'
@@ -112,7 +112,7 @@ export async function runAudit(
   const domainLabels = lensValues.map((v) => domainLabelFor(v))
 
   // 2. Load project documents (with extracted text only).
-  const docs = await selectAllKeyed<ProjectDocRow>(
+  const docs = await selectAll<ProjectDocRow>(
     'audit.projectDocs',
     [input.projectId]
   )
@@ -313,7 +313,7 @@ async function readAuditCache(
   projectId: string,
   cacheKey: string
 ): Promise<StructuralMismatchResponse | null> {
-  const row = await selectOneKeyed<{ result: string }>('audit.getCache', [projectId, cacheKey])
+  const row = await selectOne<{ result: string }>('audit.getCache', [projectId, cacheKey])
   if (!row) return null
   try {
     return JSON.parse(row.result) as StructuralMismatchResponse
@@ -327,7 +327,7 @@ async function writeAuditCache(
   cacheKey: string,
   response: StructuralMismatchResponse
 ): Promise<void> {
-  await runStatementKeyed('audit.writeCache', [
+  await runStatement('audit.writeCache', [
     projectId,
     cacheKey,
     JSON.stringify(response),

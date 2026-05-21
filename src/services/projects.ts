@@ -1,7 +1,7 @@
 import {
-  selectAllKeyed,
-  selectOneKeyed,
-  runStatementKeyed,
+  selectAll,
+  selectOne,
+  runStatement,
   updateRow,
   parseJson,
   stringifyJson,
@@ -42,12 +42,12 @@ function rowToProject(row: ProjectRow): Project {
 
 /** List all projects, most recently updated first. */
 export async function listProjects(): Promise<Project[]> {
-  const rows = await selectAllKeyed<ProjectRow>('projects.list')
+  const rows = await selectAll<ProjectRow>('projects.list')
   return rows.map(rowToProject)
 }
 
 export async function getProject(id: string): Promise<Project | null> {
-  const row = await selectOneKeyed<ProjectRow>('projects.getById', [id])
+  const row = await selectOne<ProjectRow>('projects.getById', [id])
   return row ? rowToProject(row) : null
 }
 
@@ -60,9 +60,9 @@ export async function getProjectWithSetup(id: string): Promise<ProjectWithSetup 
   if (!project) return null
 
   const [documentRows, listRows, lensRows] = await Promise.all([
-    selectAllKeyed<{ document_id: string }>('projects.listDocumentIds', [id]),
-    selectAllKeyed<{ list_id: string }>('projects.listKeywordListIds', [id]),
-    selectAllKeyed<{ lens_id: string }>('projects.listLensIds', [id]),
+    selectAll<{ document_id: string }>('projects.listDocumentIds', [id]),
+    selectAll<{ list_id: string }>('projects.listKeywordListIds', [id]),
+    selectAll<{ lens_id: string }>('projects.listLensIds', [id]),
   ])
 
   return {
@@ -83,7 +83,7 @@ export interface CreateProjectInput {
 export async function createProject(input: CreateProjectInput): Promise<Project> {
   const id = newId()
   const timestamp = now()
-  await runStatementKeyed('projects.create', [
+  await runStatement('projects.create', [
     id,
     input.name,
     input.description ?? null,
@@ -142,7 +142,7 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  await runStatementKeyed('projects.deleteById', [id])
+  await runStatement('projects.deleteById', [id])
 }
 
 /**
@@ -167,13 +167,13 @@ export async function cloneProject(sourceId: string, newName: string): Promise<P
   // Replicate document / keyword-list / lens activations.
   const timestamp = now()
   for (const docId of source.documentIds) {
-    await runStatementKeyed('projects.addDocument', [cloned.id, docId, timestamp])
+    await runStatement('projects.addDocument', [cloned.id, docId, timestamp])
   }
   for (const listId of source.keywordListIds) {
-    await runStatementKeyed('projects.addKeywordList', [cloned.id, listId])
+    await runStatement('projects.addKeywordList', [cloned.id, listId])
   }
   for (const lensId of source.lensIds) {
-    await runStatementKeyed('projects.addLens', [cloned.id, lensId])
+    await runStatement('projects.addLens', [cloned.id, lensId])
   }
 
   return cloned
@@ -189,7 +189,7 @@ export async function addDocumentsToProject(
 ): Promise<void> {
   const timestamp = now()
   for (const docId of documentIds) {
-    await runStatementKeyed('projects.addDocumentIgnore', [projectId, docId, timestamp])
+    await runStatement('projects.addDocumentIgnore', [projectId, docId, timestamp])
   }
   await touchProject(projectId)
 }
@@ -198,7 +198,7 @@ export async function removeDocumentFromProject(
   projectId: string,
   documentId: string
 ): Promise<void> {
-  await runStatementKeyed('projects.removeDocument', [projectId, documentId])
+  await runStatement('projects.removeDocument', [projectId, documentId])
   await touchProject(projectId)
 }
 
@@ -208,8 +208,8 @@ export async function setProjectKeywordList(
 ): Promise<void> {
   // For now we model "one keyword list per project" via clear + insert.
   // The schema allows many; relax this helper when multi-list workflows arrive.
-  await runStatementKeyed('projects.clearKeywordLists', [projectId])
-  await runStatementKeyed('projects.addKeywordList', [projectId, listId])
+  await runStatement('projects.clearKeywordLists', [projectId])
+  await runStatement('projects.addKeywordList', [projectId, listId])
   await touchProject(projectId)
 }
 
@@ -217,13 +217,13 @@ export async function setProjectLenses(
   projectId: string,
   lensIds: string[]
 ): Promise<void> {
-  await runStatementKeyed('projects.clearLenses', [projectId])
+  await runStatement('projects.clearLenses', [projectId])
   for (const lensId of lensIds) {
-    await runStatementKeyed('projects.addLens', [projectId, lensId])
+    await runStatement('projects.addLens', [projectId, lensId])
   }
   await touchProject(projectId)
 }
 
 async function touchProject(projectId: string): Promise<void> {
-  await runStatementKeyed('projects.touch', [now(), projectId])
+  await runStatement('projects.touch', [now(), projectId])
 }

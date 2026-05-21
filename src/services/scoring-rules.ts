@@ -1,4 +1,4 @@
-import { selectAllKeyed, selectOneKeyed, runStatementKeyed, dbBool, toDbBool, newId, now, parseJson, stringifyJson } from './db'
+import { selectAll, selectOne, runStatement, dbBool, toDbBool, newId, now, parseJson, stringifyJson } from './db'
 import type { ScoringRule, ScoringRuleDefinition, ScoringRuleLevel } from '@/types/data'
 
 interface ScoringRuleRow {
@@ -26,12 +26,12 @@ function rowToRule(row: ScoringRuleRow): ScoringRule {
 }
 
 export async function listScoringRules(): Promise<ScoringRule[]> {
-  const rows = await selectAllKeyed<ScoringRuleRow>('scoringRules.list')
+  const rows = await selectAll<ScoringRuleRow>('scoringRules.list')
   return rows.map(rowToRule)
 }
 
 export async function getScoringRule(id: string): Promise<ScoringRule | null> {
-  const row = await selectOneKeyed<ScoringRuleRow>('scoringRules.getById', [id])
+  const row = await selectOne<ScoringRuleRow>('scoringRules.getById', [id])
   return row ? rowToRule(row) : null
 }
 
@@ -46,7 +46,7 @@ export interface CreateScoringRuleInput {
 export async function createScoringRule(input: CreateScoringRuleInput): Promise<ScoringRule> {
   const id = newId()
   const timestamp = now()
-  await runStatementKeyed('scoringRules.create', [
+  await runStatement('scoringRules.create', [
     id,
     input.name,
     input.description ?? null,
@@ -62,7 +62,7 @@ export async function createScoringRule(input: CreateScoringRuleInput): Promise<
 }
 
 export async function deleteScoringRule(id: string): Promise<void> {
-  await runStatementKeyed('scoringRules.deleteById', [id])
+  await runStatement('scoringRules.deleteById', [id])
 }
 
 /**
@@ -70,6 +70,6 @@ export async function deleteScoringRule(id: string): Promise<void> {
  * Settings rule editor to warn before destructive action.
  */
 export async function countProjectsUsingScoringRule(ruleId: string): Promise<number> {
-  const row = await selectOneKeyed<{ n: number }>('scoringRules.countProjectsUsing', [ruleId])
+  const row = await selectOne<{ n: number }>('scoringRules.countProjectsUsing', [ruleId])
   return row?.n ?? 0
 }

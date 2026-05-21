@@ -78,8 +78,6 @@ export interface ElectronAPI {
   getBackendUrl: () => Promise<string>
   onBackendStatusChanged: (callback: (status: BackendStatus) => void) => () => void
 
-  // Database — legacy raw-SQL passthrough (DEPRECATED, removed at cutover)
-  dbQuery: <T = unknown>(sql: string, params?: unknown[]) => Promise<T[]>
   // Database — keyed access (SQL resolved from electron/queries.ts in main)
   dbSelect: <T = unknown>(key: string, params?: unknown[]) => Promise<T[]>
   dbRunKeyed: (key: string, params?: unknown[]) => Promise<DatabaseResult>

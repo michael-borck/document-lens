@@ -33,7 +33,7 @@
  */
 
 import JSZip from 'jszip'
-import { runStatementKeyed, selectAllKeyed, newId, stringifyJson } from './db'
+import { runStatement, selectAll, newId, stringifyJson } from './db'
 import {
   createProject,
   addDocumentsToProject,
@@ -272,7 +272,7 @@ export async function applyBundle(
         const child = createdValuesByName.get(v.value)
         const parent = createdValuesByName.get(v.parentValueName)
         if (child && parent) {
-          await runStatementKeyed('bundleImport.updateLensValueParent', [parent.id, child.id])
+          await runStatement('bundleImport.updateLensValueParent', [parent.id, child.id])
         }
       }
     }
@@ -437,7 +437,7 @@ export async function applyBundle(
       }
 
       docId = newId()
-      await runStatementKeyed('bundleImport.insertDocument', [
+      await runStatement('bundleImport.insertDocument', [
           docId,
           bd.filename,
           filePath,
@@ -461,7 +461,7 @@ export async function applyBundle(
 
       // Per-page text.
       for (const page of bd.pages) {
-        await runStatementKeyed('documentPages.insert', [docId, page.pageNumber, page.text])
+        await runStatement('documentPages.insert', [docId, page.pageNumber, page.text])
       }
 
       // Sections + section tags.
@@ -469,7 +469,7 @@ export async function applyBundle(
       const sectionIdByIndex = new Map<number, string>()
       for (const s of bd.sections) {
         const sectionId = newId()
-        await runStatementKeyed('bundleImport.insertSection', [
+        await runStatement('bundleImport.insertSection', [
           sectionId,
           docId,
           s.sectionIndex,
@@ -593,7 +593,7 @@ function uniqueName(desired: string, taken: string[]): string {
 }
 
 async function uniqueProjectName(desired: string): Promise<string> {
-  const existing = await selectAllKeyed<{ name: string }>('projects.listNames')
+  const existing = await selectAll<{ name: string }>('projects.listNames')
   const taken = existing.map((r) => r.name)
   return uniqueName(desired, taken)
 }

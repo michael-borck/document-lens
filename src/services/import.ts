@@ -23,7 +23,7 @@ import {
   createDocument,
   getDocument,
 } from './documents'
-import { runStatementKeyed, now, stringifyJson } from './db'
+import { runStatement, now, stringifyJson } from './db'
 import { api } from './api'
 import type { Document } from '@/types/data'
 
@@ -186,7 +186,7 @@ async function importOne(
       ?? response.inferred?.probable_company?.trim()
       ?? null
 
-    await runStatementKeyed('import.updateExtraction', [
+    await runStatement('import.updateExtraction', [
       title,
       year,
       company,
@@ -206,10 +206,10 @@ async function importOne(
     if (pages.length > 0) {
       // Clear any prior page rows for this document (defensive — would
       // only matter on a re-extract path that doesn't exist yet).
-      await runStatementKeyed('documentPages.deleteByDocument', [created.id])
+      await runStatement('documentPages.deleteByDocument', [created.id])
       for (const page of pages) {
         if (page.text && page.text.trim().length > 0) {
-          await runStatementKeyed('documentPages.insert', [
+          await runStatement('documentPages.insert', [
             created.id,
             page.page_number,
             page.text,
@@ -228,7 +228,7 @@ async function importOne(
     }
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    await runStatementKeyed('import.markFailed', [message, created.id])
+    await runStatement('import.markFailed', [message, created.id])
     return {
       filePath,
       filename,

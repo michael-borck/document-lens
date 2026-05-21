@@ -12,7 +12,7 @@
  * groupings later).
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 
 interface ReferenceRow {
   code: string
@@ -25,7 +25,7 @@ export interface ReferenceItem {
 }
 
 export async function listIndustries(): Promise<ReferenceItem[]> {
-  const rows = await selectAllKeyed<ReferenceRow>('reference.listIndustries')
+  const rows = await selectAll<ReferenceRow>('reference.listIndustries')
   return rows
 }
 

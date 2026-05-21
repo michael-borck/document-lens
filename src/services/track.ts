@@ -14,7 +14,7 @@
  * pages show for the same topic + year.
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 import {
   listKeywords,
   getKeywordListLenses,
@@ -183,7 +183,7 @@ async function resolveSeriesSpecs(input: ComputeTrackInput): Promise<SeriesSpec[
   if (input.group === 'company' || input.group === 'sector') {
     const field = input.group  // 'company' | 'sector'
     // Pull distinct attribute values from the project's docs (skipping null/empty).
-    const rows = await selectAllKeyed<{ value: string }>(
+    const rows = await selectAll<{ value: string }>(
       field === 'company'
         ? 'track.distinctCompanyInProject'
         : 'track.distinctSectorInProject',
@@ -237,7 +237,7 @@ async function buildSeriesForSpec(
   const topicKeywords = await filterToTopic(enabled, input.keywordListId, input.topic)
 
   // Load project documents.
-  const docRows = await selectAllKeyed<DocumentRow>('documents.byProject', [input.projectId])
+  const docRows = await selectAll<DocumentRow>('documents.byProject', [input.projectId])
   const allDocs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
   // Apply the per-series doc filter (e.g., this series is for company "Acme").
   const docs = spec.docFilter ? allDocs.filter(spec.docFilter) : allDocs
@@ -422,7 +422,7 @@ async function filterToTopic(
   const declaredLensIds = await getKeywordListLenses(keywordListId)
   if (!declaredLensIds.includes(topic.lensId)) return []
 
-  const tagRows = await selectAllKeyed<{ keyword_id: string }>('keywords.idsByLensValue', [
+  const tagRows = await selectAll<{ keyword_id: string }>('keywords.idsByLensValue', [
     topic.lensId,
     topic.valueId,
   ])

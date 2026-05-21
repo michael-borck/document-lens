@@ -1,9 +1,9 @@
 import {
-  selectAllKeyed,
-  selectOneKeyed,
-  runStatementKeyed,
+  selectAll,
+  selectOne,
+  runStatement,
   updateRow,
-  selectInListKeyed,
+  selectInList,
   dbBool,
   toDbBool,
   newId,
@@ -74,12 +74,12 @@ function rowToKeyword(row: KeywordRow): Keyword {
 // ---------------------------------------------------------------------------
 
 export async function listKeywordLists(): Promise<KeywordList[]> {
-  const rows = await selectAllKeyed<KeywordListRow>('keywordLists.list')
+  const rows = await selectAll<KeywordListRow>('keywordLists.list')
   return rows.map(rowToList)
 }
 
 export async function getKeywordList(id: string): Promise<KeywordList | null> {
-  const row = await selectOneKeyed<KeywordListRow>('keywordLists.getById', [id])
+  const row = await selectOne<KeywordListRow>('keywordLists.getById', [id])
   return row ? rowToList(row) : null
 }
 
@@ -94,7 +94,7 @@ export interface CreateKeywordListInput {
 export async function createKeywordList(input: CreateKeywordListInput): Promise<KeywordList> {
   const id = newId()
   const timestamp = now()
-  await runStatementKeyed('keywordLists.create', [
+  await runStatement('keywordLists.create', [
     id,
     input.name,
     input.description ?? null,
@@ -110,18 +110,18 @@ export async function createKeywordList(input: CreateKeywordListInput): Promise<
 }
 
 export async function deleteKeywordList(id: string): Promise<void> {
-  await runStatementKeyed('keywordLists.deleteById', [id])
+  await runStatement('keywordLists.deleteById', [id])
 }
 
 export async function setKeywordListLenses(listId: string, lensIds: string[]): Promise<void> {
-  await runStatementKeyed('keywordLists.clearLenses', [listId])
+  await runStatement('keywordLists.clearLenses', [listId])
   for (const lensId of lensIds) {
-    await runStatementKeyed('keywordLists.addLens', [listId, lensId])
+    await runStatement('keywordLists.addLens', [listId, lensId])
   }
 }
 
 export async function getKeywordListLenses(listId: string): Promise<string[]> {
-  const rows = await selectAllKeyed<{ lens_id: string }>('keywordLists.listLensIds', [listId])
+  const rows = await selectAll<{ lens_id: string }>('keywordLists.listLensIds', [listId])
   return rows.map((r) => r.lens_id)
 }
 
@@ -130,7 +130,7 @@ export async function getKeywordListLenses(listId: string): Promise<string[]> {
 // ---------------------------------------------------------------------------
 
 export async function listKeywords(listId: string): Promise<Keyword[]> {
-  const rows = await selectAllKeyed<KeywordRow>('keywords.listByList', [listId])
+  const rows = await selectAll<KeywordRow>('keywords.listByList', [listId])
   return rows.map(rowToKeyword)
 }
 
@@ -145,7 +145,7 @@ export interface CreateKeywordInput {
 
 export async function createKeyword(input: CreateKeywordInput): Promise<Keyword> {
   const id = newId()
-  await runStatementKeyed('keywords.create', [
+  await runStatement('keywords.create', [
     id,
     input.listId,
     input.text,
@@ -154,13 +154,13 @@ export async function createKeyword(input: CreateKeywordInput): Promise<Keyword>
     input.notes ?? null,
     input.sortOrder ?? 0,
   ])
-  const row = await selectOneKeyed<KeywordRow>('keywords.getById', [id])
+  const row = await selectOne<KeywordRow>('keywords.getById', [id])
   if (!row) throw new Error(`Failed to create keyword ${input.text}`)
   return rowToKeyword(row)
 }
 
 export async function setKeywordEnabled(id: string, enabled: boolean): Promise<void> {
-  await runStatementKeyed('keywords.setEnabled', [toDbBool(enabled), id])
+  await runStatement('keywords.setEnabled', [toDbBool(enabled), id])
 }
 
 export interface UpdateKeywordInput {
@@ -201,7 +201,7 @@ export async function updateKeyword(id: string, patch: UpdateKeywordInput): Prom
 }
 
 export async function deleteKeyword(id: string): Promise<void> {
-  await runStatementKeyed('keywords.deleteById', [id])
+  await runStatement('keywords.deleteById', [id])
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +209,7 @@ export async function deleteKeyword(id: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function listKeywordTags(keywordId: string): Promise<KeywordTag[]> {
-  const rows = await selectAllKeyed<KeywordTagRow>('keywords.listTags', [keywordId])
+  const rows = await selectAll<KeywordTagRow>('keywords.listTags', [keywordId])
   return rows.map((r) => ({
     keywordId: r.keyword_id,
     lensId: r.lens_id,
@@ -222,11 +222,11 @@ export async function setKeywordTag(
   lensId: string,
   valueId: string
 ): Promise<void> {
-  await runStatementKeyed('keywords.addTag', [keywordId, lensId, valueId])
+  await runStatement('keywords.addTag', [keywordId, lensId, valueId])
 }
 
 export async function clearKeywordTagsForLens(keywordId: string, lensId: string): Promise<void> {
-  await runStatementKeyed('keywords.clearTagsForLens', [keywordId, lensId])
+  await runStatement('keywords.clearTagsForLens', [keywordId, lensId])
 }
 
 // ---------------------------------------------------------------------------
@@ -256,7 +256,7 @@ function rowToSynonym(row: SynonymRow): Synonym {
 }
 
 export async function listSynonyms(keywordId: string): Promise<Synonym[]> {
-  const rows = await selectAllKeyed<SynonymRow>('synonyms.listByKeyword', [keywordId])
+  const rows = await selectAll<SynonymRow>('synonyms.listByKeyword', [keywordId])
   return rows.map(rowToSynonym)
 }
 
@@ -268,7 +268,7 @@ export interface CreateSynonymInput {
 
 export async function createSynonym(input: CreateSynonymInput): Promise<Synonym> {
   const id = newId()
-  await runStatementKeyed('synonyms.create', [
+  await runStatement('synonyms.create', [
     id,
     input.keywordId,
     input.text,
@@ -276,17 +276,17 @@ export async function createSynonym(input: CreateSynonymInput): Promise<Synonym>
     input.source ?? 'user',
     now(),
   ])
-  const row = await selectOneKeyed<SynonymRow>('synonyms.getById', [id])
+  const row = await selectOne<SynonymRow>('synonyms.getById', [id])
   if (!row) throw new Error(`Failed to create synonym ${input.text}`)
   return rowToSynonym(row)
 }
 
 export async function deleteSynonym(id: string): Promise<void> {
-  await runStatementKeyed('synonyms.deleteById', [id])
+  await runStatement('synonyms.deleteById', [id])
 }
 
 export async function setSynonymEnabled(id: string, enabled: boolean): Promise<void> {
-  await runStatementKeyed('synonyms.setEnabled', [toDbBool(enabled), id])
+  await runStatement('synonyms.setEnabled', [toDbBool(enabled), id])
 }
 
 /**
@@ -300,7 +300,7 @@ export async function listExistingSynonymsForKeywords(
 ): Promise<Map<string, Set<string>>> {
   const out = new Map<string, Set<string>>()
   if (keywordIds.length === 0) return out
-  const rows = await selectInListKeyed<{ keyword_id: string; text: string }>(
+  const rows = await selectInList<{ keyword_id: string; text: string }>(
     'synonyms.byKeywordIds',
     keywordIds
   )

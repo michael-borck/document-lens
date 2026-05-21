@@ -28,7 +28,7 @@ import {
   type DocumentSection,
 } from './sections'
 import { getLens, listLensValues } from './lenses'
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 import type { LensValue } from '@/types/data'
 
 const BATCH_SIZE = 50  // max sections per backend call — keeps single requests reasonable
@@ -85,7 +85,7 @@ export async function classifyProjectFunctions(
   }
 
   // Load project documents.
-  const docs = await selectAllKeyed<{
+  const docs = await selectAll<{
     id: string
     filename: string
     title: string | null
@@ -220,7 +220,7 @@ export async function getClassificationStatus(
   projectId: string,
   lensId: string
 ): Promise<ClassificationStatus> {
-  const docs = await selectAllKeyed<{ id: string; extracted_text: string | null }>(
+  const docs = await selectAll<{ id: string; extracted_text: string | null }>(
     'classification.projectDocText',
     [projectId]
   )

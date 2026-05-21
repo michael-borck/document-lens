@@ -1,19 +1,19 @@
-import { selectAllKeyed, selectOneKeyed, runStatementKeyed, updateRow, newId, now } from './db'
+import { selectAll, selectOne, runStatement, updateRow, newId, now } from './db'
 import type { Document } from '@/types/data'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
 
 export async function listDocuments(): Promise<Document[]> {
-  const rows = await selectAllKeyed<DocumentRow>('documents.list')
+  const rows = await selectAll<DocumentRow>('documents.list')
   return rows.map(rowToDocument)
 }
 
 export async function getDocument(id: string): Promise<Document | null> {
-  const row = await selectOneKeyed<DocumentRow>('documents.getById', [id])
+  const row = await selectOne<DocumentRow>('documents.getById', [id])
   return row ? rowToDocument(row) : null
 }
 
 export async function getDocumentByHash(fileHash: string): Promise<Document | null> {
-  const row = await selectOneKeyed<DocumentRow>('documents.getByHash', [fileHash])
+  const row = await selectOne<DocumentRow>('documents.getByHash', [fileHash])
   return row ? rowToDocument(row) : null
 }
 
@@ -35,7 +35,7 @@ export interface CreateDocumentInput {
  */
 export async function createDocument(input: CreateDocumentInput): Promise<Document> {
   const id = newId()
-  await runStatementKeyed('documents.create', [
+  await runStatement('documents.create', [
     id,
     input.filename,
     input.filePath,
@@ -82,11 +82,11 @@ export async function updateDocumentAttributes(
 }
 
 export async function deleteDocument(id: string): Promise<void> {
-  await runStatementKeyed('documents.deleteById', [id])
+  await runStatement('documents.deleteById', [id])
 }
 
 export async function countDocumentsInProject(projectId: string): Promise<number> {
-  const row = await selectOneKeyed<{ n: number }>('documents.countInProject', [projectId])
+  const row = await selectOne<{ n: number }>('documents.countInProject', [projectId])
   return row?.n ?? 0
 }
 
@@ -140,6 +140,6 @@ export async function relinkDocumentSource(
     }
   }
 
-  await runStatementKeyed('documents.updateFilePath', [candidatePath, documentId])
+  await runStatement('documents.updateFilePath', [candidatePath, documentId])
   return { ok: true }
 }

@@ -10,7 +10,7 @@
  * Discover/Synonyms workflow is wired (Phase 5).
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
@@ -108,7 +108,7 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAllKeyed<DocumentRow>('documents.byProjectOrdered', [projectId])
+  const rows = await selectAll<DocumentRow>('documents.byProjectOrdered', [projectId])
   return rows.map(rowToDocument)
 }
 
@@ -121,7 +121,7 @@ async function loadKeywordTagsForLens(
   keywordListId: string,
   lensId: string
 ): Promise<Map<string, string[]>> {
-  const rows = await selectAllKeyed<KeywordTagRow>('keywords.tagsForList', [keywordListId, lensId])
+  const rows = await selectAll<KeywordTagRow>('keywords.tagsForList', [keywordListId, lensId])
   const result = new Map<string, string[]>()
   for (const row of rows) {
     const list = result.get(row.keyword_id) ?? []

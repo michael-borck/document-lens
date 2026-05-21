@@ -6,7 +6,7 @@
  * Useful for "which company / report scores highest on this framework".
  */
 
-import { selectAllKeyed } from './db'
+import { selectAll } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import { computeCoverage } from './coverage'
@@ -97,7 +97,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
   }
 
   // 2. Load + filter project documents.
-  const docRows = await selectAllKeyed<DocumentRow>('documents.byProject', [input.projectId])
+  const docRows = await selectAll<DocumentRow>('documents.byProject', [input.projectId])
   const allDocs = docRows.map(rowToDocument)
   const usableDocs = allDocs.filter((d) => d.extractedText && d.extractedText.length > 0)
   const excluded = allDocs.length - usableDocs.length
