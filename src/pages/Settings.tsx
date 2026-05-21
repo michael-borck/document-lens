@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Lock, Award } from 'lucide-react'
+import { Plus, Trash2, Lock, Award, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { NewScoringRuleDialog } from '@/components/dialogs/NewScoringRuleDialog'
@@ -24,7 +24,6 @@ export function Settings() {
       <div className="space-y-10">
         <ScoringRulesSection />
         <BackendSection />
-        <DataSection />
       </div>
     </div>
   )
@@ -168,28 +167,50 @@ function ScoringRulesSection() {
 }
 
 // ---------------------------------------------------------------------------
-// Other sections (placeholders for now)
+// Backend section
 // ---------------------------------------------------------------------------
 
 function BackendSection() {
-  return (
-    <section>
-      <SectionHeader title="Backend" />
-      <p className="text-sm text-muted-foreground">
-        The analysis engine is bundled with this app. The status indicator in the top bar shows
-        its current state. Backend management UI (logs, restart) lands later.
-      </p>
-    </section>
-  )
-}
+  const [restarting, setRestarting] = useState(false)
 
-function DataSection() {
+  const handleRestart = async () => {
+    if (!window.electron) return
+    setRestarting(true)
+    try {
+      const result = await window.electron.restartBackend()
+      if (result.success) {
+        toast.success('Analysis engine restarted')
+      } else {
+        toast.error(result.error ?? 'Failed to restart the engine')
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to restart the engine')
+    } finally {
+      setRestarting(false)
+    }
+  }
+
   return (
     <section>
-      <SectionHeader title="Data" />
+      <SectionHeader
+        title="Backend"
+        action={
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleRestart}
+            disabled={restarting}
+            className="gap-2"
+          >
+            <RotateCw className={`h-4 w-4 ${restarting ? 'animate-spin' : ''}`} />
+            {restarting ? 'Restarting…' : 'Restart engine'}
+          </Button>
+        }
+      />
       <p className="text-sm text-muted-foreground">
-        Project data is stored in your user data directory. Bulk-correction CSV upload and
-        project export/import refinements land in a follow-up.
+        The analysis engine is bundled with this app; the status indicator in the top bar shows
+        its current state. The engine auto-restarts on crash, but caps out after a few attempts —
+        if it shows as crashed or unreachable, restart it here.
       </p>
     </section>
   )

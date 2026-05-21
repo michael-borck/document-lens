@@ -76,6 +76,7 @@ export interface ElectronAPI {
   // Backend
   getBackendStatus: () => Promise<BackendStatus>
   getBackendUrl: () => Promise<string>
+  restartBackend: () => Promise<{ success: boolean; error?: string }>
   onBackendStatusChanged: (callback: (status: BackendStatus) => void) => () => void
 
   // Database — keyed access (SQL resolved from electron/queries.ts in main)

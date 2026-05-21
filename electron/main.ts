@@ -338,6 +338,17 @@ ipcMain.handle('backend:getUrl', () => {
   return backendManager?.getUrl() ?? BACKEND_URL
 })
 
+ipcMain.handle('backend:restart', async () => {
+  if (!backendManager) return { success: false, error: 'Backend manager not initialised' }
+  try {
+    await backendManager.restart()
+    return { success: true }
+  } catch (error) {
+    console.error('Backend restart failed:', error)
+    return { success: false, error: String(error) }
+  }
+})
+
 // Debug: get resources path info
 ipcMain.handle('debug:getResourcesInfo', () => {
   const resourcesPath = process.resourcesPath

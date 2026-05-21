@@ -389,6 +389,24 @@ export class BackendManager extends EventEmitter {
     })
   }
 
+  /**
+   * Manual restart from the UI (Settings → Backend). Resets the auto-
+   * restart attempt counter and cancels any pending backoff timer so a
+   * user-initiated restart always gets a fresh start — even after the
+   * automatic restart cap (MAX_RESTART_ATTEMPTS) has been exhausted, which
+   * is exactly the state where a manual restart is the only recovery.
+   */
+  async restart(): Promise<void> {
+    console.log('[Backend] manual restart requested')
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer)
+      this.restartTimer = null
+    }
+    this.restartAttempts = 0
+    await this.stop()
+    await this.start()
+  }
+
   getUrl(): string {
     return `http://${this.host}:${this.port}`
   }
