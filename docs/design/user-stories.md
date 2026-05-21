@@ -207,10 +207,15 @@ Project ──< (selects) Document
 
 ## Workflows and user stories
 
-Status legend:
+Status legend (the **Status** column in the tables below records *design
+confirmation*, not whether a story shipped):
 - **CONFIRMED** — explicitly validated by the user
 - **DRAFT** — synthesis of the user's mental model; awaiting confirmation
 - **SPECULATIVE** — extension proposed by design; not yet discussed
+
+> **For what is actually built, see [Implementation status](#implementation-status)
+> below — the Status column above is a design-phase artefact and is no longer
+> a reliable indicator of build state.**
 
 ### A. Coverage — "Which of my documents discuss this framework?"
 
@@ -379,6 +384,42 @@ These don't belong to a single workflow — they shape multiple.
 | US-X-11 | As a researcher, I want positive keywords and counter-keywords to live in the same Keyword List, distinguished by a polarity flag rather than maintained as two separate lists, so that the relationship between them is visible (the counter-keyword *for SDG 13* sits next to the positive keywords *for SDG 13*). | CONFIRMED |
 | US-X-12 | As a researcher, I want Tag Axes to be first-class entities I can mix and match per project (some come with the Keyword List I picked, others I activate independently), so that the same SDG keyword list can be combined with different lenses (Function, Pillar, Sector) without me forking the keyword list. | CONFIRMED |
 | US-X-13 | As a sustainability researcher, I want the SDG keyword list, the Wedding Cake Pillar axis, the Function axis, and the 5-level Wedding Cake Score to be pre-loaded out of the box, so that I can open the app and run a meaningful first analysis without learning the configuration model. | CONFIRMED (per principle #9) |
+
+---
+
+## Implementation status
+
+*As of v0.16.0 (2026-05-21). This section is the authoritative record of
+what is built; the per-table Status column reflects design confirmation
+only.*
+
+**Shipped:** all eight workflows (A Coverage, B Compare, C Track, D
+Discover, E Map, F Audit, G Read, H Score) and the cross-cutting stories
+(US-X-01 … US-X-13) are implemented, **except** the items listed below.
+This includes several stories whose Status column still reads DRAFT or
+SPECULATIVE but which in fact shipped — e.g. US-B-01/US-B-03 (Compare,
+completeness score), US-C-03 (multi-company trend overlay), US-E-05
+(context-inferred Function axis via embedding classification), US-X-03
+(import a `.lens` bundle), US-X-07 (bulk-CSV attribute correction).
+
+US-A-04 (accepted synonyms counted toward their parent keyword in
+Coverage / Map / Track / Compare / Read) shipped in v0.16.0.
+
+**Not yet built:**
+- **US-B-02** — compare a single company across multiple frameworks
+  side-by-side. (SPECULATIVE; no current workflow.)
+- **US-C-02** — language/rhetorical shift over time beyond raw counts
+  (needs a sentiment/embedding-over-time pass). (DRAFT; not started.)
+
+**Deferred polish (not full stories):**
+- First-run wizard **Cybersecurity focus** is disabled ("Coming soon").
+  The cyber framework JSONs exist (`nist-csf`, `iso-27001`, `cis-controls`,
+  `mitre-attack`, …) but the seed design — which keyword list, which lenses,
+  which scoring rule to pre-load — is not yet defined. Sustainability and
+  "Other" focuses work.
+- Keyword-list **CSV import** on the Keywords page is "coming soon"
+  (document-attribute bulk CSV, US-X-07, is built and lives on the Library
+  page — these are different features).
 
 ---
 
