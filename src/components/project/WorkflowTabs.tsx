@@ -16,6 +16,7 @@ const TABS: WorkflowTab[] = [
   { to: 'track', label: 'Track', requiresSetup: true },
   { to: 'compare', label: 'Compare', requiresSetup: true },
   { to: 'audit', label: 'Audit', requiresSetup: true },
+  { to: 'gap', label: 'Gap', requiresSetup: true },
   { to: 'discover', label: 'Discover', requiresSetup: true },
   { to: 'read', label: 'Read', requiresSetup: true },
 ]

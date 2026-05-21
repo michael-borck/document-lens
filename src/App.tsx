@@ -12,7 +12,7 @@ const Lenses = lazy(() => import('./pages/Lenses').then(m => ({ default: m.Lense
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 
-// Project workspace + 9 workflow tabs
+// Project workspace + 10 workflow tabs
 const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace').then(m => ({ default: m.ProjectWorkspace })))
 const Setup = lazy(() => import('./pages/workflow/Setup').then(m => ({ default: m.Setup })))
 const Coverage = lazy(() => import('./pages/workflow/Coverage').then(m => ({ default: m.Coverage })))
@@ -21,6 +21,7 @@ const Score = lazy(() => import('./pages/workflow/Score').then(m => ({ default: 
 const Track = lazy(() => import('./pages/workflow/Track').then(m => ({ default: m.Track })))
 const Compare = lazy(() => import('./pages/workflow/Compare').then(m => ({ default: m.Compare })))
 const Audit = lazy(() => import('./pages/workflow/Audit').then(m => ({ default: m.Audit })))
+const Gap = lazy(() => import('./pages/workflow/Gap').then(m => ({ default: m.Gap })))
 const Discover = lazy(() => import('./pages/workflow/Discover').then(m => ({ default: m.Discover })))
 const Read = lazy(() => import('./pages/workflow/Read').then(m => ({ default: m.Read })))
 
@@ -64,6 +65,7 @@ function App() {
             <Route path="track" element={<Track />} />
             <Route path="compare" element={<Compare />} />
             <Route path="audit" element={<Audit />} />
+            <Route path="gap" element={<Gap />} />
             <Route path="discover" element={<Discover />} />
             <Route path="read" element={<Read />} />
           </Route>
