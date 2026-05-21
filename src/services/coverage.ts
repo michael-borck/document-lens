@@ -13,11 +13,11 @@
 import { selectAll } from './db'
 import { listKeywords, getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
+import { type DocumentRow, rowToDocument } from './_shared/document-row'
 import type {
   Document,
   Keyword,
   KeywordPolarity,
-  Lens,
   LensValue,
 } from '@/types/data'
 
@@ -32,48 +32,6 @@ export interface CoverageMatrix {
   polarity: KeywordPolarity | 'both'
   /** Human-readable summary for the context strip. */
   summary: string
-}
-
-interface ProjectDocsRow {
-  id: string
-  filename: string
-  file_path: string
-  file_hash: string
-  file_size: number | null
-  title: string | null
-  year: number | null
-  company: string | null
-  sector: string | null
-  page_count: number | null
-  word_count: number | null
-  extracted_text: string | null
-  pdf_metadata: string | null
-  status: 'pending' | 'extracting' | 'extracted' | 'failed'
-  status_error: string | null
-  imported_at: string
-  extracted_at: string | null
-}
-
-function rowToDocument(row: ProjectDocsRow): Document {
-  return {
-    id: row.id,
-    filename: row.filename,
-    filePath: row.file_path,
-    fileHash: row.file_hash,
-    fileSize: row.file_size,
-    title: row.title,
-    year: row.year,
-    company: row.company,
-    sector: row.sector,
-    pageCount: row.page_count,
-    wordCount: row.word_count,
-    extractedText: row.extracted_text,
-    pdfMetadata: null,
-    status: row.status,
-    statusError: row.status_error,
-    importedAt: row.imported_at,
-    extractedAt: row.extracted_at,
-  }
 }
 
 export interface ComputeCoverageInput {
@@ -150,7 +108,7 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<ProjectDocsRow>(
+  const rows = await selectAll<DocumentRow>(
     `SELECT d.* FROM documents d
        JOIN project_documents pd ON pd.document_id = d.id
       WHERE pd.project_id = ?
@@ -202,12 +160,3 @@ function countMatches(text: string, keyword: string): number {
   return matches ? matches.length : 0
 }
 
-/**
- * Helper for rendering: which lenses are appropriate for the Coverage
- * page's lens-axis selector. We exclude document-context lenses (e.g.,
- * Function) because they're not keyword-attached and require a separate
- * inference pass that hasn't been wired yet (Phase 3+).
- */
-export function isCoverageCompatibleLens(lens: Lens, declaredLensIds: string[]): boolean {
-  return lens.type === 'keyword-attached' && declaredLensIds.includes(lens.id)
-}

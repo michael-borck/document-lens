@@ -23,9 +23,9 @@ import {
   getSectionTagsForDocument,
   type DocumentSection,
 } from './sections'
+import { type DocumentRow, rowToDocument } from './_shared/document-row'
 import type {
   Document,
-  Keyword,
   KeywordPolarity,
   LensValue,
 } from '@/types/data'
@@ -48,48 +48,6 @@ export interface CoverageMatrix2D {
   unplacedNoSectionTag: number
   /** Matches dropped because the match position didn't land in any classified section. */
   unplacedOutsideSections: number
-}
-
-interface ProjectDocsRow {
-  id: string
-  filename: string
-  file_path: string
-  file_hash: string
-  file_size: number | null
-  title: string | null
-  year: number | null
-  company: string | null
-  sector: string | null
-  page_count: number | null
-  word_count: number | null
-  extracted_text: string | null
-  pdf_metadata: string | null
-  status: 'pending' | 'extracting' | 'extracted' | 'failed'
-  status_error: string | null
-  imported_at: string
-  extracted_at: string | null
-}
-
-function rowToDocument(row: ProjectDocsRow): Document {
-  return {
-    id: row.id,
-    filename: row.filename,
-    filePath: row.file_path,
-    fileHash: row.file_hash,
-    fileSize: row.file_size,
-    title: row.title,
-    year: row.year,
-    company: row.company,
-    sector: row.sector,
-    pageCount: row.page_count,
-    wordCount: row.word_count,
-    extractedText: row.extracted_text,
-    pdfMetadata: null,
-    status: row.status,
-    statusError: row.status_error,
-    importedAt: row.imported_at,
-    extractedAt: row.extracted_at,
-  }
 }
 
 interface KeywordTagRow {
@@ -256,7 +214,7 @@ async function loadLensSummary(lensId: string): Promise<{ id: string; name: stri
 }
 
 async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<ProjectDocsRow>(
+  const rows = await selectAll<DocumentRow>(
     `SELECT d.* FROM documents d
        JOIN project_documents pd ON pd.document_id = d.id
       WHERE pd.project_id = ?
@@ -311,6 +269,3 @@ function findMatchPositions(text: string, keyword: string): number[] {
 function countOccurrences(text: string, keyword: string): number {
   return findMatchPositions(text, keyword).length
 }
-
-// Suppress the `Keyword` import being unused if the file is imported only for types
-export type _Unused = Keyword

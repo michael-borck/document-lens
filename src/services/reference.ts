@@ -31,9 +31,3 @@ export async function listIndustries(): Promise<ReferenceItem[]> {
   return rows
 }
 
-export async function listCountries(): Promise<ReferenceItem[]> {
-  const rows = await selectAll<ReferenceRow>(
-    'SELECT code, name FROM countries ORDER BY name'
-  )
-  return rows
-}

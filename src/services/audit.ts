@@ -25,10 +25,8 @@ import { listLensValues, getLens } from './lenses'
 import { listSections, getSectionTagsForDocument } from './sections'
 import { api, type StructuralMismatchResponse } from './api'
 import type {
-  Document,
   KeywordPolarity,
   LensValue,
-  Lens,
 } from '@/types/data'
 
 export type AuditMode = 'anomalies' | 'confirmations'
@@ -410,8 +408,3 @@ function confidenceToSeverity(confidence: number): 'low' | 'medium' | 'high' {
   if (confidence >= 0.30) return 'medium'
   return 'low'
 }
-
-// Suppress unused-import warning for types imported only for JSDoc-level
-// reference (Document and Lens are used in service-internal type plumbing
-// that TypeScript's unused-vars rule sometimes misses).
-export type _Unused = Document | Lens

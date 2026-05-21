@@ -12,6 +12,7 @@ import { listLensValues } from './lenses'
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
 import { getClassificationStatus } from './classification'
+import { type DocumentRow, rowToDocument } from './_shared/document-row'
 import type {
   Document,
   KeywordPolarity,
@@ -79,48 +80,6 @@ export interface ComputeCompareInput {
   }
 }
 
-interface ProjectDocRow {
-  id: string
-  filename: string
-  file_path: string
-  file_hash: string
-  file_size: number | null
-  title: string | null
-  year: number | null
-  company: string | null
-  sector: string | null
-  page_count: number | null
-  word_count: number | null
-  extracted_text: string | null
-  pdf_metadata: string | null
-  status: 'pending' | 'extracting' | 'extracted' | 'failed'
-  status_error: string | null
-  imported_at: string
-  extracted_at: string | null
-}
-
-function rowToDocument(row: ProjectDocRow): Document {
-  return {
-    id: row.id,
-    filename: row.filename,
-    filePath: row.file_path,
-    fileHash: row.file_hash,
-    fileSize: row.file_size,
-    title: row.title,
-    year: row.year,
-    company: row.company,
-    sector: row.sector,
-    pageCount: row.page_count,
-    wordCount: row.word_count,
-    extractedText: row.extracted_text,
-    pdfMetadata: null,
-    status: row.status,
-    statusError: row.status_error,
-    importedAt: row.imported_at,
-    extractedAt: row.extracted_at,
-  }
-}
-
 export async function computeCompare(input: ComputeCompareInput): Promise<CompareResult> {
   // 1. Score-fallback detection (mirrors Score / Track logic).
   let scoreFallback = false
@@ -138,7 +97,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
   }
 
   // 2. Load + filter project documents.
-  const docRows = await selectAll<ProjectDocRow>(
+  const docRows = await selectAll<DocumentRow>(
     `SELECT d.* FROM documents d
        JOIN project_documents pd ON pd.document_id = d.id
       WHERE pd.project_id = ?`,

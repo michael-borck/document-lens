@@ -35,14 +35,3 @@ export async function getBackendUrl(): Promise<string> {
   return BACKEND_URL
 }
 
-/**
- * Validate a backend URL format
- */
-export function isValidBackendUrl(url: string): boolean {
-  try {
-    const parsed = new URL(url)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
-  } catch {
-    return false
-  }
-}

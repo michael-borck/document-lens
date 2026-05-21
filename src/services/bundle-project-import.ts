@@ -33,7 +33,7 @@
  */
 
 import JSZip from 'jszip'
-import { runStatement, selectOne, selectAll, newId, toDbBool, stringifyJson } from './db'
+import { runStatement, selectAll, newId, stringifyJson } from './db'
 import {
   createProject,
   addDocumentsToProject,
@@ -606,7 +606,3 @@ async function uniqueProjectName(desired: string): Promise<string> {
   const taken = existing.map((r) => r.name)
   return uniqueName(desired, taken)
 }
-
-// Suppress unused-import warning for selectOne (kept for future
-// hash-collision recovery paths).
-export type _Unused = typeof selectOne | typeof toDbBool
