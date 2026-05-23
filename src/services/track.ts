@@ -15,22 +15,14 @@
  */
 
 import { selectAll } from './db'
-import {
-  listKeywords,
-  getKeywordListLenses,
-  listEnabledSynonymsForKeywords,
-} from './keyword-lists'
-import { listLensValues } from './lenses'
-import { computeCoverage } from './coverage'
-import { computeCoverage2D } from './coverage-2d'
-import { getClassificationStatus } from './classification'
-import { type DocumentRow, rowToDocument } from './_shared/document-row'
-import { countConcept } from './_shared/keyword-match'
+import { getKeywordListLenses } from './keyword-lists'
+import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
+import { evaluateScore, type ScoreEvaluation, type ScoringMode } from './scoring'
 import type {
   Document,
   Keyword,
   KeywordPolarity,
-  LensValue,
+  ScoringRuleDefinition,
 } from '@/types/data'
 
 export type TrackMeasure = 'match-count' | 'coverage-percent' | 'score'
@@ -101,12 +93,8 @@ export interface ComputeTrackInput {
   /** Inclusive year bounds to clamp the trend (helpful for filtering noisy edges). */
   yearMin?: number
   yearMax?: number
-  /** Active scoring rule definition — required when measure='score'. */
-  scoringRule?: {
-    pillarLensId: string
-    functionLensId?: string
-    requiredPillars: string[]
-  }
+  /** Active scoring rule definition (raw, carries `type`) — required when measure='score'. */
+  scoringRule?: ScoringRuleDefinition
 }
 
 /**
@@ -122,24 +110,31 @@ interface SeriesSpec {
 }
 
 export async function computeTrack(input: ComputeTrackInput): Promise<TrackResult> {
-  // Determine if score-measure can use the full Wedding Cake (function-tagged)
-  // or must fall back to the v1 Pillar coverage prerequisite.
-  let scoreFallback = false
+  // Build the list of series we need to compute.
+  const seriesSpecs = await resolveSeriesSpecs(input)
+
+  // For the score measure, evaluate the rule once per distinct polarity the
+  // series need (the Score Evaluator owns mode + matrix selection + counting).
+  // Mode is project-uniform, so scoreFallback follows from it.
+  let scoreEvalByPolarity: Map<KeywordPolarity, ScoreEvaluation> | null = null
+  let scoreMode: ScoringMode | undefined
   if (input.measure === 'score') {
     if (!input.scoringRule) {
       throw new Error('Score measure requires a scoring rule definition')
     }
-    if (input.scoringRule.functionLensId) {
-      const status = await getClassificationStatus(input.projectId, input.scoringRule.functionLensId)
-      const allClassified = status.totalDocuments > 0 && status.classifiedDocuments === status.totalDocuments
-      scoreFallback = !allClassified
-    } else {
-      scoreFallback = true
+    scoreEvalByPolarity = new Map()
+    for (const pol of new Set(seriesSpecs.map((s) => s.polarity))) {
+      const evaluation = await evaluateScore({
+        projectId: input.projectId,
+        keywordListId: input.keywordListId,
+        definition: input.scoringRule,
+        polarity: pol,
+      })
+      scoreEvalByPolarity.set(pol, evaluation)
+      scoreMode = evaluation.mode
     }
   }
-
-  // Build the list of series we need to compute.
-  const seriesSpecs = await resolveSeriesSpecs(input)
+  const scoreFallback = scoreMode === 'v1-prerequisite'
 
   const series: TrackSeries[] = []
   const perDocument: TrackPerDocPoint[] = []
@@ -150,7 +145,7 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   let yearMax: number | null = null
 
   for (const spec of seriesSpecs) {
-    const oneSeries = await buildSeriesForSpec(input, spec, scoreFallback)
+    const oneSeries = await buildSeriesForSpec(input, spec, scoreEvalByPolarity?.get(spec.polarity) ?? null)
     series.push(oneSeries.series)
     yearUnknownDocs = Math.max(yearUnknownDocs, oneSeries.yearUnknownDocs)
     yearUnknownMatches += oneSeries.yearUnknownMatches
@@ -230,18 +225,19 @@ interface SeriesBuildResult {
 async function buildSeriesForSpec(
   input: ComputeTrackInput,
   spec: SeriesSpec,
-  scoreFallback: boolean
+  scoreEval: ScoreEvaluation | null
 ): Promise<SeriesBuildResult> {
   const polarity = spec.polarity
-  // Resolve which keywords contribute to this topic + polarity.
-  const allKeywords = await listKeywords(input.keywordListId)
-  const enabled = allKeywords.filter((k) => k.enabled && k.polarity === polarity)
-  const topicKeywords = await filterToTopic(enabled, input.keywordListId, input.topic)
+  // Load the corpus for this polarity (usable docs + enabled keywords + counts).
+  const corpus = await loadProjectCorpus({
+    projectId: input.projectId,
+    keywordListId: input.keywordListId,
+    polarity,
+  })
+  const topicKeywords = await filterToTopic(corpus.keywords, input.keywordListId, input.topic)
 
-  // Load project documents.
-  const docRows = await selectAll<DocumentRow>('documents.byProject', [input.projectId])
-  const allDocs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
   // Apply the per-series doc filter (e.g., this series is for company "Acme").
+  const allDocs = corpus.docs
   const docs = spec.docFilter ? allDocs.filter(spec.docFilter) : allDocs
 
   // Apply the year-min / year-max filter for the trend (year-unknown docs
@@ -261,10 +257,10 @@ async function buildSeriesForSpec(
   // whether ≥1 keyword in the topic matched.
   const perDocMeasure = await computePerDocumentMeasure(
     input,
+    corpus,
     topicKeywords,
     yearFilteredDocs,
-    polarity,
-    scoreFallback
+    scoreEval
   )
 
   // Aggregate by year.
@@ -342,70 +338,33 @@ interface PerDocMeasure {
 
 async function computePerDocumentMeasure(
   input: ComputeTrackInput,
+  corpus: ProjectCorpus,
   topicKeywords: Keyword[],
   docs: Document[],
-  polarity: KeywordPolarity,
-  scoreFallback: boolean
+  scoreEval: ScoreEvaluation | null
 ): Promise<Map<string, PerDocMeasure>> {
   const out = new Map<string, PerDocMeasure>()
 
   // Match-count + coverage-% both need per-doc match counts of the topic
-  // keywords. We do a fast local regex pass rather than going through
-  // computeCoverage (avoids the extra lens-totals work we don't need here).
+  // keywords. The corpus's synonym-aware counts are the same ones Coverage
+  // uses, so the numbers reconcile across tabs by construction.
   if (input.measure === 'match-count' || input.measure === 'coverage-percent') {
-    // Fold accepted (enabled) synonyms into each keyword's count (US-A-04).
-    const synonymsByKeyword = await listEnabledSynonymsForKeywords(topicKeywords.map((k) => k.id))
     for (const doc of docs) {
-      const text = doc.extractedText ?? ''
       let total = 0
       for (const kw of topicKeywords) {
-        total += countConcept(text, [kw.text, ...(synonymsByKeyword.get(kw.id) ?? [])])
+        total += corpus.countFor(doc.id, kw.id)
       }
       out.set(doc.id, { matchCount: total, hasMatch: total > 0, score: 0 })
     }
     return out
   }
 
-  // Score measure: need per-document score on the active scoring rule.
-  if (input.measure === 'score' && input.scoringRule) {
-    if (scoreFallback) {
-      // v1 Pillar coverage: count required pillars positively mentioned.
-      const matrix = await computeCoverage({
-        projectId: input.projectId,
-        keywordListId: input.keywordListId,
-        polarity,
-        lensId: input.scoringRule.pillarLensId,
-      })
-      const pillarValues = await listLensValues(input.scoringRule.pillarLensId)
-      const required = input.scoringRule.requiredPillars
-        .map((name) => pillarValues.find((v) => v.value === name))
-        .filter((v): v is LensValue => Boolean(v))
-      for (const doc of docs) {
-        const totals = matrix.lensTotals?.[doc.id] ?? {}
-        const score = required.filter((p) => (totals[p.id] ?? 0) > 0).length
-        out.set(doc.id, { matchCount: 0, hasMatch: score > 0, score })
-      }
-    } else if (input.scoringRule.functionLensId) {
-      // Full Wedding Cake: count Function values that satisfy all required pillars.
-      const matrix2D = await computeCoverage2D({
-        projectId: input.projectId,
-        keywordListId: input.keywordListId,
-        rowLensId: input.scoringRule.pillarLensId,
-        colLensId: input.scoringRule.functionLensId,
-        polarity,
-      })
-      const pillarValues = await listLensValues(input.scoringRule.pillarLensId)
-      const functionValues = await listLensValues(input.scoringRule.functionLensId)
-      const required = input.scoringRule.requiredPillars
-        .map((name) => pillarValues.find((v) => v.value === name))
-        .filter((v): v is LensValue => Boolean(v))
-      for (const doc of docs) {
-        const cells = matrix2D.cells[doc.id] ?? {}
-        const score = functionValues.filter((fn) =>
-          required.every((p) => (cells[p.id]?.[fn.id] ?? 0) > 0)
-        ).length
-        out.set(doc.id, { matchCount: 0, hasMatch: score > 0, score })
-      }
+  // Score measure: read the per-document score from the Score Evaluator (which
+  // owns the Wedding-Cake math + full/v1 mode decision).
+  if (input.measure === 'score') {
+    for (const doc of docs) {
+      const score = scoreEval?.perDocument.get(doc.id)?.score ?? 0
+      out.set(doc.id, { matchCount: 0, hasMatch: score > 0, score })
     }
     return out
   }

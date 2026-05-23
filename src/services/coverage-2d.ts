@@ -16,15 +16,14 @@
  */
 
 import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
-import { findConceptSpans } from './_shared/keyword-match'
+import { getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import {
   listSections,
   getSectionTagsForDocument,
   type DocumentSection,
 } from './sections'
-import { type DocumentRow, rowToDocument } from './_shared/document-row'
+import { loadProjectCorpus } from './_shared/project-corpus'
 import type {
   Document,
   KeywordPolarity,
@@ -84,21 +83,18 @@ export async function computeCoverage2D(
     )
   }
 
-  // Load keywords filtered by polarity.
-  const allKeywords = await listKeywords(input.keywordListId)
-  const keywords = allKeywords.filter((k) => k.enabled && k.polarity === input.polarity)
+  // Load the corpus (usable docs + enabled keywords for the polarity +
+  // synonym-aware match positions). A synonym match contributes a mention at
+  // its position, attributed to the parent keyword's row-lens tags (US-A-04).
+  const corpus = await loadProjectCorpus({
+    projectId: input.projectId,
+    keywordListId: input.keywordListId,
+    polarity: input.polarity,
+  })
+  const keywords = corpus.keywords
   if (keywords.length === 0) {
     return emptyMatrix(rowLens, colLens, rowValues, colValues)
   }
-
-  // Accepted (enabled) synonyms fold into their parent keyword (US-A-04):
-  // a synonym match contributes a mention at its position, attributed to
-  // the parent keyword's row-lens tags.
-  const synonymsByKeyword = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
-  const termsFor = (kw: { id: string; text: string }) => [
-    kw.text,
-    ...(synonymsByKeyword.get(kw.id) ?? []),
-  ]
 
   // Load keyword -> rowValueId mappings (keyword_tags joined to lens_id = rowLensId).
   const keywordTagRows = await selectAll<KeywordTagRow>('keywords.tagsForList', [
@@ -112,9 +108,8 @@ export async function computeCoverage2D(
     keywordRowValueIds.set(row.keyword_id, list)
   }
 
-  // Load project documents.
-  const documents = await loadProjectDocuments(input.projectId)
-  const usableDocs = documents.filter((d) => d.extractedText && d.extractedText.length > 0)
+  // Usable project documents come from the corpus.
+  const usableDocs = corpus.docs
 
   // Initialise cell maps.
   const cells: Record<string, Record<string, Record<string, number>>> = {}
@@ -140,10 +135,9 @@ export async function computeCoverage2D(
     if (sections.length === 0) continue
     const sectionTags = await getSectionTagsForDocument(doc.id, input.colLensId)
 
-    const text = doc.extractedText ?? ''
     for (const kw of keywords) {
       const rowValueIds = keywordRowValueIds.get(kw.id)
-      const spans = findConceptSpans(text, termsFor(kw))
+      const spans = corpus.spansFor(doc.id, kw.id)
       if (!rowValueIds || rowValueIds.length === 0) {
         // Count once per match — we need to know how many matches this contributes.
         unplacedNoKeywordTag += spans.length
@@ -215,11 +209,6 @@ async function loadLensSummary(lensId: string): Promise<{ id: string; name: stri
   const rows = await selectAll<{ id: string; name: string }>('lenses.getIdName', [lensId])
   if (rows.length === 0) throw new Error(`Lens ${lensId} not found`)
   return rows[0]
-}
-
-async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>('documents.byProjectOrdered', [projectId])
-  return rows.map(rowToDocument)
 }
 
 /**

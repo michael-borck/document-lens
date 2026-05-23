@@ -113,9 +113,8 @@ export function Track() {
     setError(null)
     setResult(null)
     try {
-      const ruleDef = vm.scoringRule?.definition as
-        | { type?: string; pillarLensId?: string; functionLensId?: string; requiredPillars?: string[] }
-        | undefined
+      // The Score Evaluator parses the rule definition + decides full/v1 mode;
+      // the page just hands it the raw definition for the score measure.
       const out = await computeTrack({
         projectId: vm.project.id,
         keywordListId: vm.keywordList.id,
@@ -125,14 +124,7 @@ export function Track() {
         polarity,
         yearMin: yearMin ? Number(yearMin) : undefined,
         yearMax: yearMax ? Number(yearMax) : undefined,
-        scoringRule:
-          measure === 'score' && ruleDef?.type === 'wedding-cake' && ruleDef.pillarLensId
-            ? {
-                pillarLensId: ruleDef.pillarLensId,
-                functionLensId: ruleDef.functionLensId,
-                requiredPillars: ruleDef.requiredPillars ?? [],
-              }
-            : undefined,
+        scoringRule: measure === 'score' ? vm.scoringRule?.definition : undefined,
       })
       setResult(out)
     } catch (err) {

@@ -5,28 +5,25 @@ import type { GapReference } from '@/services/_shared/gap-math'
 import { GapScatter } from '@/components/gap/GapScatter'
 import { GapOverTime } from '@/components/gap/GapOverTime'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 
 const RESIDUAL_MIN_POINTS = 8
 
 export function Gap() {
   const vm = useOutletContext<ProjectViewModel>()
-  const [data, setData] = useState<GapDataset | null>(null)
   const [level, setLevel] = useState<GapLevel>('document')
   const [reference, setReference] = useState<GapReference>('diagonal')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!vm.keywordList) return
-    let cancelled = false
-    setLoading(true); setError(null)
-    computeGap({ projectId: vm.project.id, keywordListId: vm.keywordList.id, reference })
-      .then((d) => { if (!cancelled) setData(d) })
-      .catch((e) => { if (!cancelled) setError(e instanceof Error ? e.message : String(e)) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [vm.project.id, vm.keywordList, reference])
+  // Auto-runs on project / keyword-list / reference change. The hook's run-id
+  // guard supersedes stale runs — the cancel-safety this page used to hand-roll.
+  const { result: data, running: loading, error } = useAnalysis<GapDataset | null>(
+    async () => {
+      if (!vm.keywordList) return null
+      return computeGap({ projectId: vm.project.id, keywordListId: vm.keywordList.id, reference })
+    },
+    [vm.project.id, vm.keywordList?.id, reference]
+  )
 
   useEffect(() => { if (data?.singleDocument && level === 'document') setLevel('section') }, [data, level])
 

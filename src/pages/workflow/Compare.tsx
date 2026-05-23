@@ -113,9 +113,8 @@ export function Compare() {
     setError(null)
     setResult(null)
     try {
-      const ruleDef = vm.scoringRule?.definition as
-        | { type?: string; pillarLensId?: string; functionLensId?: string; requiredPillars?: string[] }
-        | undefined
+      // The Score Evaluator parses the rule definition + decides full/v1 mode;
+      // the page just hands it the raw definition for the score metric.
       const out = await computeCompare({
         projectId: vm.project.id,
         keywordListId: vm.keywordList.id,
@@ -127,14 +126,7 @@ export function Compare() {
         yearMax: yearMax ? Number(yearMax) : undefined,
         companies: companies.size > 0 ? Array.from(companies) : undefined,
         sectors: sectors.size > 0 ? Array.from(sectors) : undefined,
-        scoringRule:
-          metric === 'score' && ruleDef?.type === 'wedding-cake' && ruleDef.pillarLensId
-            ? {
-                pillarLensId: ruleDef.pillarLensId,
-                functionLensId: ruleDef.functionLensId,
-                requiredPillars: ruleDef.requiredPillars ?? [],
-              }
-            : undefined,
+        scoringRule: metric === 'score' ? vm.scoringRule?.definition : undefined,
       })
       setResult(out)
     } catch (err) {

@@ -6,18 +6,13 @@
  * Useful for "which company / report scores highest on this framework".
  */
 
-import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
-import { countConcept } from './_shared/keyword-match'
-import { listLensValues } from './lenses'
-import { computeCoverage } from './coverage'
-import { computeCoverage2D } from './coverage-2d'
-import { getClassificationStatus } from './classification'
-import { type DocumentRow, rowToDocument } from './_shared/document-row'
+import { selectOne } from './db'
+import { loadProjectCorpus } from './_shared/project-corpus'
+import { evaluateScore } from './scoring'
 import type {
   Document,
   KeywordPolarity,
-  LensValue,
+  ScoringRuleDefinition,
 } from '@/types/data'
 
 export type CompareMetric =
@@ -73,37 +68,29 @@ export interface ComputeCompareInput {
   keywordId?: string
   /** Visual grouping (colours bars by attribute; doesn't change ranking order). */
   group: CompareGroup
-  /** Required for score metric. */
-  scoringRule?: {
-    pillarLensId: string
-    functionLensId?: string
-    requiredPillars: string[]
-  }
+  /** Required for score metric — raw rule definition (carries `type`). */
+  scoringRule?: ScoringRuleDefinition
 }
 
 export async function computeCompare(input: ComputeCompareInput): Promise<CompareResult> {
-  // 1. Score-fallback detection (mirrors Score / Track logic).
-  let scoreFallback = false
-  if (input.metric === 'score') {
-    if (!input.scoringRule) {
-      throw new Error('Score metric requires a scoring rule definition')
-    }
-    if (input.scoringRule.functionLensId) {
-      const status = await getClassificationStatus(input.projectId, input.scoringRule.functionLensId)
-      const allClassified = status.totalDocuments > 0 && status.classifiedDocuments === status.totalDocuments
-      scoreFallback = !allClassified
-    } else {
-      scoreFallback = true
-    }
+  // 1. Score metric needs a rule; the Score Evaluator decides full vs v1 mode.
+  if (input.metric === 'score' && !input.scoringRule) {
+    throw new Error('Score metric requires a scoring rule definition')
   }
+  let scoreFallback: boolean | undefined
 
-  // 2. Load + filter project documents.
-  const docRows = await selectAll<DocumentRow>('documents.byProject', [input.projectId])
-  const allDocs = docRows.map(rowToDocument)
-  const usableDocs = allDocs.filter((d) => d.extractedText && d.extractedText.length > 0)
-  const excluded = allDocs.length - usableDocs.length
+  // 2. Load the corpus (usable docs + enabled keywords both polarities +
+  //    synonym-aware counts), then figure out how many docs were excluded.
+  const corpus = await loadProjectCorpus({
+    projectId: input.projectId,
+    keywordListId: input.keywordListId,
+    polarity: 'both',
+  })
+  const totalDocs =
+    (await selectOne<{ n: number }>('documents.countInProject', [input.projectId]))?.n ?? 0
+  const excluded = totalDocs - corpus.docs.length
 
-  const filteredDocs = usableDocs.filter((d) => {
+  const filteredDocs = corpus.docs.filter((d) => {
     if (input.yearMin !== undefined && (d.year === null || d.year < input.yearMin)) return false
     if (input.yearMax !== undefined && (d.year === null || d.year > input.yearMax)) return false
     if (input.companies && input.companies.length > 0 && !(d.company && input.companies.includes(d.company))) return false
@@ -115,33 +102,20 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     return { metric: input.metric, points: [], group: input.group, excluded }
   }
 
-  // Accepted (enabled) synonyms fold into their parent keyword's count
-  // (US-A-04). Loaded once for the whole list; termsFor() yields the
-  // keyword text plus its synonyms for the matcher.
-  const synonymsByKeyword = await listEnabledSynonymsForKeywords(
-    (await listKeywords(input.keywordListId)).map((k) => k.id)
-  )
-  const termsFor = (kw: { id: string; text: string }) => [
-    kw.text,
-    ...(synonymsByKeyword.get(kw.id) ?? []),
-  ]
-
   // 3. Compute per-doc metric value.
   const points: ComparePoint[] = []
   let keywordLabel: string | undefined
   if (input.metric === 'match-count' || input.metric === 'distinct-keywords') {
-    let keywords = (await listKeywords(input.keywordListId))
-      .filter((k) => k.enabled && k.polarity === input.polarity)
+    let keywords = corpus.keywords.filter((k) => k.polarity === input.polarity)
     if (input.keywordId) {
       keywords = keywords.filter((k) => k.id === input.keywordId)
       keywordLabel = keywords[0]?.text
     }
     for (const doc of filteredDocs) {
-      const text = doc.extractedText ?? ''
       let total = 0
       let distinctHits = 0
       for (const kw of keywords) {
-        const n = countConcept(text, termsFor(kw))
+        const n = corpus.countFor(doc.id, kw.id)
         total += n
         if (n > 0) distinctHits++
       }
@@ -149,63 +123,29 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
       points.push(makePoint(doc, value))
     }
   } else if (input.metric === 'pos-minus-counter') {
-    const allKeywords = await listKeywords(input.keywordListId)
-    const positives = allKeywords.filter((k) => k.enabled && k.polarity === 'positive')
-    const counters = allKeywords.filter((k) => k.enabled && k.polarity === 'counter')
+    const positives = corpus.keywords.filter((k) => k.polarity === 'positive')
+    const counters = corpus.keywords.filter((k) => k.polarity === 'counter')
     for (const doc of filteredDocs) {
-      const text = doc.extractedText ?? ''
       let pos = 0, neg = 0
-      for (const kw of positives) pos += countConcept(text, termsFor(kw))
-      for (const kw of counters) neg += countConcept(text, termsFor(kw))
+      for (const kw of positives) pos += corpus.countFor(doc.id, kw.id)
+      for (const kw of counters) neg += corpus.countFor(doc.id, kw.id)
       points.push(makePoint(doc, pos - neg, { positive: pos, counter: neg }))
     }
   } else if (input.metric === 'score' && input.scoringRule) {
-    const pillarValues = await listLensValues(input.scoringRule.pillarLensId)
-    const required = input.scoringRule.requiredPillars
-      .map((name) => pillarValues.find((v) => v.value === name))
-      .filter((v): v is LensValue => Boolean(v))
-
-    if (scoreFallback) {
-      // v1 Pillar coverage prerequisite.
-      const matrix = await computeCoverage({
-        projectId: input.projectId,
-        keywordListId: input.keywordListId,
-        polarity: 'positive',
-        lensId: input.scoringRule.pillarLensId,
-      })
-      for (const doc of filteredDocs) {
-        const totals = matrix.lensTotals?.[doc.id] ?? {}
-        const score = required.filter((p) => (totals[p.id] ?? 0) > 0).length
-        const breakdown: Record<string, number> = {}
-        for (const p of required) breakdown[p.displayName ?? p.value] = totals[p.id] ?? 0
-        points.push(makePoint(doc, score, breakdown))
-      }
-    } else if (input.scoringRule.functionLensId) {
-      // Full Wedding Cake.
-      const functionValues = await listLensValues(input.scoringRule.functionLensId)
-      const declaredLensIds = await getKeywordListLenses(input.keywordListId)
-      if (!declaredLensIds.includes(input.scoringRule.pillarLensId)) {
-        throw new Error('Active keyword list does not declare the Pillar lens; cannot score.')
-      }
-      const matrix2D = await computeCoverage2D({
-        projectId: input.projectId,
-        keywordListId: input.keywordListId,
-        rowLensId: input.scoringRule.pillarLensId,
-        colLensId: input.scoringRule.functionLensId,
-        polarity: 'positive',
-      })
-      for (const doc of filteredDocs) {
-        const cells = matrix2D.cells[doc.id] ?? {}
-        const score = functionValues.filter((fn) =>
-          required.every((p) => (cells[p.id]?.[fn.id] ?? 0) > 0)
-        ).length
-        const breakdown: Record<string, number> = {}
-        for (const fn of functionValues) {
-          const satisfies = required.every((p) => (cells[p.id]?.[fn.id] ?? 0) > 0)
-          breakdown[fn.displayName ?? fn.value] = satisfies ? 1 : 0
-        }
-        points.push(makePoint(doc, score, breakdown))
-      }
+    // The Score Evaluator owns the Wedding-Cake math + full/v1 mode decision.
+    // Compare flattens each doc's Evaluation Trace into a bar breakdown.
+    const evaluation = await evaluateScore({
+      projectId: input.projectId,
+      keywordListId: input.keywordListId,
+      definition: input.scoringRule,
+      polarity: 'positive',
+    })
+    scoreFallback = evaluation.mode === 'v1-prerequisite'
+    for (const doc of filteredDocs) {
+      const ds = evaluation.perDocument.get(doc.id)
+      const breakdown: Record<string, number> = {}
+      for (const step of ds?.trace ?? []) breakdown[step.label] = step.count
+      points.push(makePoint(doc, ds?.score ?? 0, breakdown))
     }
   }
 
@@ -216,7 +156,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     metric: input.metric,
     points,
     group: input.group,
-    scoreFallback: input.metric === 'score' ? scoreFallback : undefined,
+    scoreFallback,
     excluded,
     keywordLabel,
   }

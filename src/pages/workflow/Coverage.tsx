@@ -13,10 +13,14 @@ import { computeCoverage, type CoverageMatrix } from '@/services/coverage'
 import { getKeywordListLenses } from '@/services/keyword-lists'
 import { CoverageHeatmap } from '@/components/coverage/CoverageHeatmap'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
+import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { KeywordPolarity } from '@/types/data'
 
-type Polarity = KeywordPolarity | 'both'
+interface CoverageResult {
+  positive: CoverageMatrix | null
+  counter: CoverageMatrix | null
+}
 
 export function Coverage() {
   const vm = useOutletContext<ProjectViewModel>()
@@ -24,9 +28,28 @@ export function Coverage() {
   // Lens id to roll up by, or '' meaning "keyword level (no roll-up)".
   const [lensId, setLensId] = useState<string>('')
   const [eligibleLensIds, setEligibleLensIds] = useState<string[]>([])
-  const [running, setRunning] = useState(false)
-  const [positive, setPositive] = useState<CoverageMatrix | null>(null)
-  const [counter, setCounter] = useState<CoverageMatrix | null>(null)
+
+  // The run lifecycle (running / clear-before-run / cancel-safety) lives in the
+  // hook; Coverage's dual-polarity Promise.all just lives inside the fn.
+  const { run, running, result } = useAnalysis<CoverageResult>(async () => {
+    const lensIdOrNull = lensId || null
+    if (polarity === 'both') {
+      const [pos, cnt] = await Promise.all([
+        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'positive', lensId: lensIdOrNull }),
+        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'counter', lensId: lensIdOrNull }),
+      ])
+      return { positive: pos, counter: cnt }
+    }
+    const m = await computeCoverage({
+      projectId: vm.project.id,
+      keywordListId: vm.keywordList!.id,
+      polarity,
+      lensId: lensIdOrNull,
+    })
+    return polarity === 'positive' ? { positive: m, counter: null } : { positive: null, counter: m }
+  })
+  const positive = result?.positive ?? null
+  const counter = result?.counter ?? null
 
   // Resolve which of the project's active lenses are usable for Coverage
   // (keyword-attached only, AND declared by the active keyword list).
@@ -44,45 +67,6 @@ export function Coverage() {
   const eligibleLenses = vm.lenses.filter(
     (l) => l.type === 'keyword-attached' && eligibleLensIds.includes(l.id)
   )
-
-  const handleRun = async () => {
-    if (!vm.keywordList) return
-    setRunning(true)
-    setPositive(null)
-    setCounter(null)
-    try {
-      const lensIdOrNull = lensId || null
-      if (polarity === 'both') {
-        const [pos, cnt] = await Promise.all([
-          computeCoverage({
-            projectId: vm.project.id,
-            keywordListId: vm.keywordList.id,
-            polarity: 'positive',
-            lensId: lensIdOrNull,
-          }),
-          computeCoverage({
-            projectId: vm.project.id,
-            keywordListId: vm.keywordList.id,
-            polarity: 'counter',
-            lensId: lensIdOrNull,
-          }),
-        ])
-        setPositive(pos)
-        setCounter(cnt)
-      } else {
-        const m = await computeCoverage({
-          projectId: vm.project.id,
-          keywordListId: vm.keywordList.id,
-          polarity,
-          lensId: lensIdOrNull,
-        })
-        if (polarity === 'positive') setPositive(m)
-        else setCounter(m)
-      }
-    } finally {
-      setRunning(false)
-    }
-  }
 
   if (!vm.keywordList) {
     return (
@@ -117,14 +101,17 @@ export function Coverage() {
       <Header />
 
       <div className="flex items-end gap-4 mb-6 flex-wrap">
-        <PolarityField value={polarity} onChange={setPolarity} />
+        <div className="space-y-1">
+          <label className="text-xs uppercase tracking-wide text-muted-foreground">Polarity</label>
+          <PolaritySelector value={polarity} onChange={setPolarity} />
+        </div>
         <LensField
           value={lensId}
           onChange={setLensId}
           options={eligibleLenses.map((l) => ({ id: l.id, label: l.name }))}
         />
         <div className="flex-1" />
-        <Button onClick={handleRun} disabled={running} className="gap-2">
+        <Button onClick={run} disabled={running} className="gap-2">
           {running ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -170,30 +157,6 @@ function Header() {
         Which of your documents discuss this framework?
       </p>
     </header>
-  )
-}
-
-function PolarityField({
-  value,
-  onChange,
-}: {
-  value: Polarity
-  onChange: (v: Polarity) => void
-}) {
-  return (
-    <div className="space-y-1">
-      <label className="text-xs uppercase tracking-wide text-muted-foreground">Polarity</label>
-      <Select value={value} onValueChange={(v) => onChange(v as Polarity)}>
-        <SelectTrigger className="w-44">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="both">Both (stacked)</SelectItem>
-          <SelectItem value="positive">Positive only</SelectItem>
-          <SelectItem value="counter">Counter only</SelectItem>
-        </SelectContent>
-      </Select>
-    </div>
   )
 }
 

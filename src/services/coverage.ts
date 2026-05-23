@@ -4,17 +4,15 @@
  *
  * All matching is local-only — no backend round-trip per analysis. The
  * extracted text is already in the documents table from the import
- * pipeline. Search is case-insensitive whole-word (escaped regex).
- *
- * Synonym matching is NOT included in v1; will be added when the
- * Discover/Synonyms workflow is wired (Phase 5).
+ * pipeline. Counting (case-insensitive whole-word / phrase, with accepted
+ * synonyms folded in) comes from the shared Project Corpus so Coverage,
+ * Track, and Compare reconcile by construction.
  */
 
 import { selectAll } from './db'
-import { listKeywords, getKeywordListLenses, listEnabledSynonymsForKeywords } from './keyword-lists'
+import { getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
-import { type DocumentRow, rowToDocument } from './_shared/document-row'
-import { countConcept } from './_shared/keyword-match'
+import { loadProjectCorpus } from './_shared/project-corpus'
 import type {
   Document,
   Keyword,
@@ -48,32 +46,27 @@ export interface ComputeCoverageInput {
  * (once per polarity).
  */
 export async function computeCoverage(input: ComputeCoverageInput): Promise<CoverageMatrix> {
-  // 1. Load project documents (only those with extracted text are usable).
-  const documents = await loadProjectDocuments(input.projectId)
-  const usableDocs = documents.filter((d) => d.extractedText && d.extractedText.length > 0)
+  // 1. Load the corpus (usable docs + enabled keywords for the polarity +
+  //    synonym-aware counting).
+  const corpus = await loadProjectCorpus({
+    projectId: input.projectId,
+    keywordListId: input.keywordListId,
+    polarity: input.polarity,
+  })
+  const usableDocs = corpus.docs
+  const keywords = corpus.keywords
 
-  // 2. Load keywords filtered by polarity.
-  const allKeywords = await listKeywords(input.keywordListId)
-  const enabled = allKeywords.filter((k) => k.enabled)
-  const keywords = input.polarity === 'both'
-    ? enabled
-    : enabled.filter((k) => k.polarity === input.polarity)
-
-  // 3. Per-document, per-keyword count. Each keyword's tally folds in its
-  //    accepted (enabled) synonyms — a match on a synonym counts toward the
-  //    parent keyword (US-A-04).
-  const synonymsByKeyword = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
+  // 2. Per-document, per-keyword count. Each keyword's tally folds in its
+  //    accepted (enabled) synonyms (US-A-04) — handled inside the corpus.
   const counts: Record<string, Record<string, number>> = {}
   for (const doc of usableDocs) {
     counts[doc.id] = {}
-    const text = doc.extractedText ?? ''
     for (const kw of keywords) {
-      const terms = [kw.text, ...(synonymsByKeyword.get(kw.id) ?? [])]
-      counts[doc.id][kw.id] = countConcept(text, terms)
+      counts[doc.id][kw.id] = corpus.countFor(doc.id, kw.id)
     }
   }
 
-  // 4. Optional lens roll-up.
+  // 3. Optional lens roll-up.
   let lensTotals: Record<string, Record<string, number>> | null = null
   let lensValues: LensValue[] | null = null
 
@@ -112,11 +105,6 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
   }
 }
 
-async function loadProjectDocuments(projectId: string): Promise<Document[]> {
-  const rows = await selectAll<DocumentRow>('documents.byProjectOrdered', [projectId])
-  return rows.map(rowToDocument)
-}
-
 interface KeywordTagRow {
   keyword_id: string
   value_id: string
@@ -135,5 +123,3 @@ async function loadKeywordTagsForLens(
   }
   return result
 }
-
-
