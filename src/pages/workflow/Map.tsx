@@ -14,13 +14,20 @@ import { computeCoverage2D, type CoverageMatrix2D } from '@/services/coverage-2d
 import { getKeywordListLenses } from '@/services/keyword-lists'
 import { getClassificationStatus } from '@/services/classification'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
+import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
+import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Lens, LensValue, KeywordPolarity } from '@/types/data'
 import { cn } from '@/lib/utils'
 
 type Mode = 'one-axis' | 'two-axis'
 type ViewMode = 'per-document' | 'aggregate'
-type Polarity = KeywordPolarity | 'both'
+
+interface MapResult {
+  matrix: CoverageMatrix | null
+  matrix2D: CoverageMatrix2D | null
+}
 
 /**
  * Map workflow.
@@ -44,9 +51,6 @@ export function Map() {
   const [colLensId, setColLensId] = useState<string>('')
   const [polarity, setPolarity] = useState<Polarity>('positive')
   const [view, setView] = useState<ViewMode>('per-document')
-  const [running, setRunning] = useState(false)
-  const [matrix, setMatrix] = useState<CoverageMatrix | null>(null)
-  const [matrix2D, setMatrix2D] = useState<CoverageMatrix2D | null>(null)
   const [classifiedDocs, setClassifiedDocs] = useState<number | null>(null)
 
   // Eligible row lenses = active project lenses that are keyword-attached
@@ -87,38 +91,34 @@ export function Map() {
     })
   }, [mode, colLensId, vm.project.id, vm.documentCount])
 
-  const handleRun = async () => {
-    if (!vm.keywordList || !lensId) return
-    setRunning(true)
-    setMatrix(null)
-    setMatrix2D(null)
-    try {
-      if (mode === 'one-axis') {
-        const m = await computeCoverage({
-          projectId: vm.project.id,
-          keywordListId: vm.keywordList.id,
-          polarity,
-          lensId,
-        })
-        setMatrix(m)
-      } else {
-        if (!colLensId) return
-        // Two-axis: polarity 'both' would need two passes. For v1, the
-        // matrix is positive-only; counter and both come later.
-        const polarityForMatrix: KeywordPolarity = polarity === 'counter' ? 'counter' : 'positive'
-        const m = await computeCoverage2D({
-          projectId: vm.project.id,
-          keywordListId: vm.keywordList.id,
-          rowLensId: lensId,
-          colLensId,
-          polarity: polarityForMatrix,
-        })
-        setMatrix2D(m)
-      }
-    } finally {
-      setRunning(false)
+  // Manual run; the hook owns running/error/result + cancel-safety. The page's
+  // one-axis vs two-axis branch just lives inside the fn.
+  const { run, running, result, reset } = useAnalysis<MapResult>(async () => {
+    if (!vm.keywordList || !lensId) throw new Error('Pick a keyword list and a lens.')
+    if (mode === 'one-axis') {
+      const m = await computeCoverage({
+        projectId: vm.project.id,
+        keywordListId: vm.keywordList.id,
+        polarity,
+        lensId,
+      })
+      return { matrix: m, matrix2D: null }
     }
-  }
+    if (!colLensId) throw new Error('Pick a second lens for the two-axis matrix.')
+    // Two-axis: polarity 'both' would need two passes. For v1, the matrix is
+    // positive-only; counter and both come later.
+    const polarityForMatrix: KeywordPolarity = polarity === 'counter' ? 'counter' : 'positive'
+    const m = await computeCoverage2D({
+      projectId: vm.project.id,
+      keywordListId: vm.keywordList.id,
+      rowLensId: lensId,
+      colLensId,
+      polarity: polarityForMatrix,
+    })
+    return { matrix: null, matrix2D: m }
+  })
+  const matrix = result?.matrix ?? null
+  const matrix2D = result?.matrix2D ?? null
 
   if (!vm.keywordList) {
     return (
@@ -177,8 +177,7 @@ export function Map() {
             value={mode}
             onValueChange={(v) => {
               setMode(v as Mode)
-              setMatrix(null)
-              setMatrix2D(null)
+              reset()
             }}
           >
             <SelectTrigger className="w-48">
@@ -219,16 +218,11 @@ export function Map() {
           </Field>
         )}
         <Field label="Polarity">
-          <Select value={polarity} onValueChange={(v) => setPolarity(v as Polarity)}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="positive">Positive only</SelectItem>
-              <SelectItem value="counter">Counter only</SelectItem>
-              {mode === 'one-axis' && <SelectItem value="both">Both combined</SelectItem>}
-            </SelectContent>
-          </Select>
+          <PolaritySelector
+            value={polarity}
+            onChange={setPolarity}
+            options={mode === 'one-axis' ? ['positive', 'counter', 'both'] : ['positive', 'counter']}
+          />
         </Field>
         {mode === 'one-axis' && (
           <Field label="View">
@@ -244,7 +238,7 @@ export function Map() {
           </Field>
         )}
         <div className="flex-1" />
-        <Button onClick={handleRun} disabled={running} className="gap-2">
+        <Button onClick={run} disabled={running} className="gap-2">
           {running ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -258,6 +252,14 @@ export function Map() {
           )}
         </Button>
       </div>
+
+      {mode === 'two-axis' && (
+        <MLCaveatBanner id="map-semantic">
+          Lens classifications use semantic similarity (sentence embeddings). The
+          same model gives the same answer every time, but it's approximate —
+          treat each cell as a strong signal, not a precise category assignment.
+        </MLCaveatBanner>
+      )}
 
       {mode === 'two-axis' && classifiedDocs !== null && classifiedDocs < vm.documentCount && (
         <div className="mb-4 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3">

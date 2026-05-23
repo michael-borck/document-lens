@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
 import { Loader2, Play, CheckCircle2, Circle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import {
   type TraceStep,
 } from '@/services/scoring'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Document } from '@/types/data'
 import { cn } from '@/lib/utils'
@@ -40,32 +41,26 @@ export function Score() {
     [vm.scoringRule]
   )
 
-  const [evaluation, setEvaluation] = useState<ScoreEvaluation | null>(null)
   const [view, setView] = useState<ViewMode>('per-document')
   const [selectedDocId, setSelectedDocId] = useState<string>('')
-  const [running, setRunning] = useState(false)
-  const [error, setError] = useState<string | null>(null)
 
-  const handleRun = async () => {
-    if (!vm.keywordList || !vm.scoringRule) return
-    setRunning(true)
-    setError(null)
-    setEvaluation(null)
-    try {
-      const ev = await evaluateScore({
-        projectId: vm.project.id,
-        keywordListId: vm.keywordList.id,
-        definition: vm.scoringRule.definition,
-        polarity: 'positive',
-      })
-      setEvaluation(ev)
-      setSelectedDocId(ev.documents[0]?.id ?? '')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setRunning(false)
+  // Manual run; the hook owns running/error/result + cancel-safety.
+  const { run, running, error, result: evaluation } = useAnalysis<ScoreEvaluation>(async () => {
+    if (!vm.keywordList || !vm.scoringRule) {
+      throw new Error('Pick a keyword list and scoring rule on the Setup tab.')
     }
-  }
+    return evaluateScore({
+      projectId: vm.project.id,
+      keywordListId: vm.keywordList.id,
+      definition: vm.scoringRule.definition,
+      polarity: 'positive',
+    })
+  })
+
+  // Default the document picker to the first scored document after each run.
+  useEffect(() => {
+    if (evaluation) setSelectedDocId(evaluation.documents[0]?.id ?? '')
+  }, [evaluation])
 
   // Empty / unsupported gates.
   if (!vm.keywordList) {
@@ -157,7 +152,7 @@ export function Score() {
           </Field>
         )}
         <div className="flex-1" />
-        <Button onClick={handleRun} disabled={running} className="gap-2">
+        <Button onClick={run} disabled={running} className="gap-2">
           {running ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />

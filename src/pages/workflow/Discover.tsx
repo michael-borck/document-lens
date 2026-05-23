@@ -20,6 +20,8 @@ import {
 } from '@/services/synonym-discovery'
 import { toast } from '@/stores/toastStore'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
+import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import { cn } from '@/lib/utils'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Document, Keyword, KeywordPolarity } from '@/types/data'
@@ -121,8 +123,6 @@ function PhrasesTab({ vm }: { vm: ProjectViewModel }) {
   const [scope, setScope] = useState<Scope>('all')
   const [singleDocId, setSingleDocId] = useState<string>('')
   const [docs, setDocs] = useState<Document[]>([])
-  const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<ComputeNgramsResult | null>(null)
   // Existing-keyword phrases on the active list (lower-cased) so the
   // "Add as keyword" button can show "Already added" instead of
   // letting the user create a duplicate. Refreshed on mount + after
@@ -156,29 +156,23 @@ function PhrasesTab({ vm }: { vm: ProjectViewModel }) {
     })
   }
 
-  const handleRun = async () => {
-    if (scope === 'single' && !singleDocId) return
-    setRunning(true)
-    try {
-      const sizes: NgramSize[] = size === '2' ? [2] : size === '3' ? [3] : [2, 3]
-      const r = await computeNgrams({
-        projectId,
-        documentId: scope === 'single' ? singleDocId : undefined,
-        sizes,
-        minCount,
-        topN: 200,
-      })
-      setResult(r)
-    } finally {
-      setRunning(false)
-    }
-  }
+  const { run, running, result, reset } = useAnalysis<ComputeNgramsResult>(async () => {
+    if (scope === 'single' && !singleDocId) throw new Error('Pick a document for single-document scope.')
+    const sizes: NgramSize[] = size === '2' ? [2] : size === '3' ? [3] : [2, 3]
+    return computeNgrams({
+      projectId,
+      documentId: scope === 'single' ? singleDocId : undefined,
+      sizes,
+      minCount,
+      topN: 200,
+    })
+  })
 
   return (
     <div>
       <div className="flex items-end gap-4 mb-6 flex-wrap">
         <Field label="Scope">
-          <Select value={scope} onValueChange={(v) => { setScope(v as Scope); setResult(null) }}>
+          <Select value={scope} onValueChange={(v) => { setScope(v as Scope); reset() }}>
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
@@ -231,7 +225,7 @@ function PhrasesTab({ vm }: { vm: ProjectViewModel }) {
         </Field>
         <div className="flex-1" />
         <Button
-          onClick={handleRun}
+          onClick={run}
           disabled={running || (scope === 'single' && !singleDocId)}
           className="gap-2"
         >
@@ -501,10 +495,8 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
   const [polarity, setPolarity] = useState<KeywordPolarity>('positive')
   const [minSimilarity, setMinSimilarity] = useState<number>(0.5)
   const [topN, setTopN] = useState<number>(8)
-  const [running, setRunning] = useState(false)
+  // Rich per-keyword progress stays local; useAnalysis owns running/error/result.
   const [progress, setProgress] = useState<DiscoverSynonymsProgress | null>(null)
-  const [result, setResult] = useState<DiscoverSynonymsResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
   // Per-keyword rejected candidates (kept in component state; nothing
   // is persisted — Rejects just hide locally so the user can focus on
   // the remaining list).
@@ -528,11 +520,8 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
     })
   }, [vm.keywordList?.id])
 
-  const handleRun = async () => {
-    if (!vm.keywordList) return
-    setRunning(true)
-    setError(null)
-    setResult(null)
+  const { run, running, result, error } = useAnalysis<DiscoverSynonymsResult>(async () => {
+    if (!vm.keywordList) throw new Error('Pick a keyword list on the Setup tab.')
     setRejected({})
     setAccepted({})
     setProgress(null)
@@ -547,7 +536,6 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
         },
         setProgress
       )
-      setResult(out)
       if (out.unavailable) {
         toast.error('Embedding model unavailable — backend returned 503.')
       } else {
@@ -556,13 +544,11 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
           `Found ${total} candidate${total === 1 ? '' : 's'} across ${out.perKeyword.filter((k) => k.candidates.length > 0).length} keyword${out.perKeyword.length === 1 ? '' : 's'}`
         )
       }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
+      return out
     } finally {
-      setRunning(false)
       setProgress(null)
     }
-  }
+  })
 
   const handleAccept = async (keyword: Keyword, candidate: SynonymCandidate) => {
     try {
@@ -632,13 +618,13 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
 
   return (
     <div>
-      <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
+      <MLCaveatBanner id="discover-synonyms">
         Candidates are <strong>suggestions only</strong> from a sentence-embedding model — they're
         approximate. Treat each one as a hint to evaluate. Two ways to keep one:{' '}
         <strong>Synonym</strong> attaches it under the parent keyword (preserves provenance);{' '}
         <strong>Keyword</strong> adds it as a first-class entry on the list with the same polarity
         — useful when the candidate stands on its own (e.g., a new {polarity === 'counter' ? 'counter-' : 'positive '}term that the list should start tracking directly).
-      </div>
+      </MLCaveatBanner>
 
       <div className="flex items-end gap-4 mb-6 flex-wrap">
         <Field label="Polarity">
@@ -674,7 +660,7 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
           </Select>
         </Field>
         <div className="flex-1" />
-        <Button onClick={handleRun} disabled={running} className="gap-2">
+        <Button onClick={run} disabled={running} className="gap-2">
           {running ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />

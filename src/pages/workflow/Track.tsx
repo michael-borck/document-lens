@@ -33,6 +33,7 @@ import {
 import { exportPaperBundle } from '@/services/bundle-export'
 import { toast } from '@/stores/toastStore'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Keyword, KeywordPolarity, Lens, LensValue } from '@/types/data'
 
@@ -69,9 +70,6 @@ export function Track() {
   const [group, setGroup] = useState<TrackGroup>('none')
   const [yearMin, setYearMin] = useState<string>('')
   const [yearMax, setYearMax] = useState<string>('')
-  const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<TrackResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   // Load keywords + lenses for the topic picker.
   useEffect(() => {
@@ -98,41 +96,28 @@ export function Track() {
     return keywords.filter((k) => k.polarity === polarity)
   }, [keywords, polarity])
 
-  const handleRun = async () => {
-    if (!vm.keywordList) return
+  // Manual run; the hook owns running/error/result + cancel-safety.
+  const { run, running, result, error } = useAnalysis<TrackResult>(async () => {
+    if (!vm.keywordList) throw new Error('Pick a keyword list on the Setup tab.')
     const topic = buildTopic(topicKind, topicKeywordId, topicLensId, topicValueId)
-    if (!topic) {
-      setError('Pick a topic.')
-      return
-    }
+    if (!topic) throw new Error('Pick a topic.')
     if (measure === 'score' && !vm.scoringRule) {
-      setError('Score measure needs a scoring rule on the Setup tab.')
-      return
+      throw new Error('Score measure needs a scoring rule on the Setup tab.')
     }
-    setRunning(true)
-    setError(null)
-    setResult(null)
-    try {
-      // The Score Evaluator parses the rule definition + decides full/v1 mode;
-      // the page just hands it the raw definition for the score measure.
-      const out = await computeTrack({
-        projectId: vm.project.id,
-        keywordListId: vm.keywordList.id,
-        topic,
-        measure,
-        group,
-        polarity,
-        yearMin: yearMin ? Number(yearMin) : undefined,
-        yearMax: yearMax ? Number(yearMax) : undefined,
-        scoringRule: measure === 'score' ? vm.scoringRule?.definition : undefined,
-      })
-      setResult(out)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setRunning(false)
-    }
-  }
+    // The Score Evaluator parses the rule definition + decides full/v1 mode;
+    // the page just hands it the raw definition for the score measure.
+    return computeTrack({
+      projectId: vm.project.id,
+      keywordListId: vm.keywordList.id,
+      topic,
+      measure,
+      group,
+      polarity,
+      yearMin: yearMin ? Number(yearMin) : undefined,
+      yearMax: yearMax ? Number(yearMax) : undefined,
+      scoringRule: measure === 'score' ? vm.scoringRule?.definition : undefined,
+    })
+  })
 
   // Empty / error states.
   if (!vm.keywordList) {
@@ -288,7 +273,7 @@ export function Track() {
           />
         </Field>
         <div className="flex items-end">
-          <Button onClick={handleRun} disabled={running} className="gap-2 w-full">
+          <Button onClick={run} disabled={running} className="gap-2 w-full">
             {running ? (<><Loader2 className="h-4 w-4 animate-spin" /> Running…</>) :
               (<><Play className="h-4 w-4" /> {result ? 'Re-run' : 'Run track'}</>)}
           </Button>

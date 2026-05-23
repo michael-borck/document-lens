@@ -31,6 +31,7 @@ import {
 import { listKeywords } from '@/services/keyword-lists'
 import { selectAll } from '@/services/db'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Keyword, KeywordPolarity } from '@/types/data'
 
@@ -60,9 +61,6 @@ export function Compare() {
   const [allCompanies, setAllCompanies] = useState<string[]>([])
   const [allSectors, setAllSectors] = useState<string[]>([])
 
-  const [running, setRunning] = useState(false)
-  const [result, setResult] = useState<CompareResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   // Load enabled keywords for the per-keyword narrowing dropdown.
   useEffect(() => {
@@ -103,38 +101,28 @@ export function Compare() {
     ).then((rows) => setAllSectors(rows.map((r) => r.value)))
   }, [vm.project.id])
 
-  const handleRun = async () => {
-    if (!vm.keywordList) return
+  // Manual run; the hook owns running/error/result + cancel-safety.
+  const { run, running, result, error } = useAnalysis<CompareResult>(async () => {
+    if (!vm.keywordList) throw new Error('Pick a keyword list on the Setup tab.')
     if (metric === 'score' && !vm.scoringRule) {
-      setError('Score metric needs a scoring rule on the Setup tab.')
-      return
+      throw new Error('Score metric needs a scoring rule on the Setup tab.')
     }
-    setRunning(true)
-    setError(null)
-    setResult(null)
-    try {
-      // The Score Evaluator parses the rule definition + decides full/v1 mode;
-      // the page just hands it the raw definition for the score metric.
-      const out = await computeCompare({
-        projectId: vm.project.id,
-        keywordListId: vm.keywordList.id,
-        metric,
-        polarity,
-        keywordId: keywordId || undefined,
-        group,
-        yearMin: yearMin ? Number(yearMin) : undefined,
-        yearMax: yearMax ? Number(yearMax) : undefined,
-        companies: companies.size > 0 ? Array.from(companies) : undefined,
-        sectors: sectors.size > 0 ? Array.from(sectors) : undefined,
-        scoringRule: metric === 'score' ? vm.scoringRule?.definition : undefined,
-      })
-      setResult(out)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    } finally {
-      setRunning(false)
-    }
-  }
+    // The Score Evaluator parses the rule definition + decides full/v1 mode;
+    // the page just hands it the raw definition for the score metric.
+    return computeCompare({
+      projectId: vm.project.id,
+      keywordListId: vm.keywordList.id,
+      metric,
+      polarity,
+      keywordId: keywordId || undefined,
+      group,
+      yearMin: yearMin ? Number(yearMin) : undefined,
+      yearMax: yearMax ? Number(yearMax) : undefined,
+      companies: companies.size > 0 ? Array.from(companies) : undefined,
+      sectors: sectors.size > 0 ? Array.from(sectors) : undefined,
+      scoringRule: metric === 'score' ? vm.scoringRule?.definition : undefined,
+    })
+  })
 
   const toggleCompany = (c: string) => {
     const next = new Set(companies)
@@ -230,7 +218,7 @@ export function Compare() {
           <Input type="number" value={yearMax} onChange={(e) => setYearMax(e.target.value)} placeholder="(no upper bound)" />
         </Field>
         <div className="flex items-end">
-          <Button onClick={handleRun} disabled={running} className="gap-2 w-full">
+          <Button onClick={run} disabled={running} className="gap-2 w-full">
             {running ? (<><Loader2 className="h-4 w-4 animate-spin" /> Running…</>) :
               (<><Play className="h-4 w-4" /> {result ? 'Re-run' : 'Run compare'}</>)}
           </Button>

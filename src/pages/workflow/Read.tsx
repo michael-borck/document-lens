@@ -16,11 +16,12 @@ import { listSections, type DocumentSection } from '@/services/sections'
 import { getPageOffsets, findPageForOffset, type PageOffset } from '@/services/document-pages'
 import { PdfViewerModal } from '@/components/pdf-viewer/PdfViewerModal'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
+import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Document, Keyword, KeywordPolarity } from '@/types/data'
+import type { Document, Keyword } from '@/types/data'
 
 type ContextWindow = 50 | 100 | 250
-type PolarityFilter = KeywordPolarity | 'all'
 
 export function Read() {
   const vm = useOutletContext<ProjectViewModel>()
@@ -33,9 +34,7 @@ export function Read() {
   const [docId, setDocId] = useState<string>('')
   const [keywordId, setKeywordId] = useState<string>('')
   const [contextWords, setContextWords] = useState<ContextWindow>(50)
-  const [polarityFilter, setPolarityFilter] = useState<PolarityFilter>('all')
-  const [result, setResult] = useState<ConcordanceResult | null>(null)
-  const [searching, setSearching] = useState(false)
+  const [polarityFilter, setPolarityFilter] = useState<Polarity>('both')
   // Per-document keyword match counts (keywordId -> count). Computed
   // after a document is picked so the keyword dropdown can be filtered
   // to "what's actually in this document". null = not yet computed.
@@ -128,31 +127,29 @@ export function Read() {
   const filteredKeywords = useMemo(() => {
     return keywords
       .filter((k) => k.enabled)
-      .filter((k) => polarityFilter === 'all' ? true : k.polarity === polarityFilter)
+      .filter((k) => polarityFilter === 'both' ? true : k.polarity === polarityFilter)
       // After a document is picked, hide keywords with zero matches in
       // that document. Before a document is picked (matchCounts === null),
       // show everything so the user can see what's available.
       .filter((k) => matchCounts === null || (matchCounts[k.id] ?? 0) > 0)
   }, [keywords, polarityFilter, matchCounts])
 
-  // Run search whenever doc + keyword + contextWords are all set.
-  useEffect(() => {
-    if (!docId || !keywordId) {
-      setResult(null)
-      return
-    }
-    const keyword = keywords.find((k) => k.id === keywordId)
-    if (!keyword) return
-    setSearching(true)
-    findConcordance({
-      documentId: docId,
-      keyword: keyword.text,
-      synonyms: synonymsByKeyword.get(keyword.id) ?? [],
-      contextWords,
-    })
-      .then(setResult)
-      .finally(() => setSearching(false))
-  }, [docId, keywordId, contextWords, keywords, synonymsByKeyword])
+  // Run concordance whenever doc + keyword + context are set. useAnalysis's
+  // run-id guard means a fast keyword change can't commit a stale result.
+  const { result, running: searching } = useAnalysis<ConcordanceResult | null>(
+    async () => {
+      if (!docId || !keywordId) return null
+      const keyword = keywords.find((k) => k.id === keywordId)
+      if (!keyword) return null
+      return findConcordance({
+        documentId: docId,
+        keyword: keyword.text,
+        synonyms: synonymsByKeyword.get(keyword.id) ?? [],
+        contextWords,
+      })
+    },
+    [docId, keywordId, contextWords, keywords, synonymsByKeyword]
+  )
 
   if (!vm.keywordList) {
     return (
@@ -200,19 +197,7 @@ export function Read() {
           </Select>
         </Field>
         <Field label="Polarity">
-          <Select
-            value={polarityFilter}
-            onValueChange={(v) => setPolarityFilter(v as PolarityFilter)}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="positive">Positive</SelectItem>
-              <SelectItem value="counter">Counter</SelectItem>
-            </SelectContent>
-          </Select>
+          <PolaritySelector value={polarityFilter} onChange={setPolarityFilter} width="w-full" />
         </Field>
         <Field label={`Keyword${matchCounts ? ` (${filteredKeywords.length} with hits)` : ''}`}>
           <Select value={keywordId} onValueChange={setKeywordId} disabled={!docId || countingMatches}>
@@ -234,7 +219,7 @@ export function Read() {
                 <div className="px-3 py-2 text-sm text-muted-foreground">
                   {matchCounts === null
                     ? 'No keywords match'
-                    : `No ${polarityFilter === 'all' ? '' : polarityFilter + ' '}keywords appear in this document.`}
+                    : `No ${polarityFilter === 'both' ? '' : polarityFilter + ' '}keywords appear in this document.`}
                 </div>
               ) : (
                 filteredKeywords.map((kw) => (
