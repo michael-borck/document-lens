@@ -27,23 +27,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decide which platforms to build. macOS code signing + notarization can
+  # only run on release (tag) builds — they need a real signing identity and
+  # secrets a PR can't use, and with hardenedRuntime electron-builder forces
+  # an arm64 codesign that fails on PRs. So PRs validate Linux + Windows (the
+  # JS build steps — typecheck, vite, etc. — are identical across platforms);
+  # tags build all three and sign/notarize/publish macOS.
+  setup:
+    name: Decide build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - name: Select platforms
+        id: matrix
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'value={"include":[{"os":"ubuntu-latest","platform":"linux","backend_ext":""},{"os":"windows-latest","platform":"win","backend_ext":".exe"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'value={"include":[{"os":"macos-latest","platform":"mac","backend_ext":""},{"os":"ubuntu-latest","platform":"linux","backend_ext":""},{"os":"windows-latest","platform":"win","backend_ext":".exe"}]}' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: setup
     strategy:
       # One platform failing must not cancel the others — we want
-      # parallel signal across all three OSes when iterating on PyInstaller
+      # parallel signal across all OSes when iterating on PyInstaller
       # collect/hidden-import issues, not "first failure poisons the run".
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            platform: mac
-            backend_ext: ""
-          - os: ubuntu-latest
-            platform: linux
-            backend_ext: ""
-          - os: windows-latest
-            platform: win
-            backend_ext: ".exe"
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
 
