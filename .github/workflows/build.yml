@@ -456,19 +456,25 @@ jobs:
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Code signing: electron-builder picks these up automatically
-          # on macOS and uses them to set up a temporary keychain +
-          # codesign the .app. Setting them on Linux/Windows is a no-op.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Code signing + notarization run on tag/release builds only.
+          # On PRs we build UNSIGNED: signing the macOS .app on PRs is
+          # fragile (electron-builder's PR detection is inconsistent across
+          # the x64/arm64 pair) and notarization shouldn't be spent on
+          # every PR. PR CI still validates compile + packaging on all
+          # three OSes; signing/notarization are exercised at release.
+          # On PRs CSC_* are blank and auto-discovery is off → unsigned;
+          # scripts/notarize.js then skips (its codesign precheck).
+          CSC_LINK: ${{ github.event_name == 'pull_request' && '' || secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '' || secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}
           # Notarization: read by scripts/notarize.js (the afterSign
           # hook). Renamed from APPLE_* so electron-builder's own broken
           # auto-notarize wrapper can't see them and fire alongside the
           # hook (would crash with `Cannot destructure property
-          # 'appBundleId' of 'options'`).
-          NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
-          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # 'appBundleId' of 'options'`). Blank on PRs (skipped anyway).
+          NOTARIZE_APPLE_ID: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_ID }}
+          NOTARIZE_APPLE_PASSWORD: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          NOTARIZE_APPLE_TEAM_ID: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
