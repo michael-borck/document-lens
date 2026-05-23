@@ -39,6 +39,19 @@ exports.default = async function notarizing(context) {
   const appPath = `${appOutDir}/${appName}.app`
   const appBundleId = context.packager.appInfo.id
 
+  // Notarization requires a code-signed app. electron-builder skips signing
+  // on pull-request builds ("code signing will be skipped"), so the .app is
+  // unsigned and @electron/notarize would fail in its checkSignatures step.
+  // Detect that and skip rather than fail — PR CI still validates the full
+  // build + packaging, just not signing/notarization (which need secrets a
+  // PR can't safely use). Tag/release builds are signed, so this passes there.
+  try {
+    execFileSync('codesign', ['-dv', appPath], { stdio: 'ignore' })
+  } catch {
+    console.log('[notarize] Skipping — app is not code-signed (e.g. a PR build without signing)')
+    return
+  }
+
   console.log(`[notarize] Notarizing ${appPath} (bundleId=${appBundleId}, teamId=${teamId})`)
   await notarize({
     tool: 'notarytool',

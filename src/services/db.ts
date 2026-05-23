@@ -19,7 +19,32 @@
 
 import type { DatabaseResult } from '@/types/electron'
 
-function api() {
+/**
+ * The swappable backing store behind the helpers below. In production the
+ * default {@link ipcDriver} forwards to `window.electron` (which sends query
+ * KEYS over IPC; main resolves them against the Query Registry). Tests call
+ * {@link setDbDriver} with an in-memory adapter that runs the same registry
+ * against better-sqlite3 — making this interface a reachable test surface.
+ *
+ * Two adapters keep the seam honest: IPC in prod, in-memory in tests.
+ */
+export interface DbDriver {
+  select<T>(key: string, params?: unknown[]): Promise<T[]>
+  run(key: string, params?: unknown[]): Promise<DatabaseResult>
+  update(table: string, columns: string[], idColumn: string, params: unknown[]): Promise<DatabaseResult>
+  selectIn<T>(key: string, ids: unknown[]): Promise<T[]>
+}
+
+/** Production driver: forwards to the preload IPC bridge. */
+const ipcDriver: DbDriver = {
+  select: (key, params) => requireElectron().dbSelect(key, params),
+  run: (key, params) => requireElectron().dbRunKeyed(key, params),
+  update: (table, columns, idColumn, params) =>
+    requireElectron().dbUpdate(table, columns, idColumn, params),
+  selectIn: (key, ids) => requireElectron().dbSelectIn(key, ids),
+}
+
+function requireElectron() {
   const electron = window.electron
   if (!electron) {
     throw new Error('Database IPC not available — window.electron is undefined')
@@ -27,20 +52,32 @@ function api() {
   return electron
 }
 
+let driver: DbDriver = ipcDriver
+
+/** Swap the backing store. Used by tests to inject the in-memory adapter. */
+export function setDbDriver(next: DbDriver): void {
+  driver = next
+}
+
+/** Restore the default IPC driver. */
+export function resetDbDriver(): void {
+  driver = ipcDriver
+}
+
 /** Run a registered SELECT and return typed rows. */
 export async function selectAll<T>(key: string, params?: unknown[]): Promise<T[]> {
-  return api().dbSelect<T>(key, params)
+  return driver.select<T>(key, params)
 }
 
 /** Run a registered SELECT and return the first row, or null. */
 export async function selectOne<T>(key: string, params?: unknown[]): Promise<T | null> {
-  const rows = await api().dbSelect<T>(key, params)
+  const rows = await driver.select<T>(key, params)
   return rows[0] ?? null
 }
 
 /** Run a registered INSERT/UPDATE/DELETE. Returns DatabaseResult. */
 export async function runStatement(key: string, params?: unknown[]): Promise<DatabaseResult> {
-  return api().dbRunKeyed(key, params)
+  return driver.run(key, params)
 }
 
 /**
@@ -54,7 +91,7 @@ export async function updateRow(
   idColumn: string,
   params: unknown[]
 ): Promise<DatabaseResult> {
-  return api().dbUpdate(table, columns, idColumn, params)
+  return driver.update(table, columns, idColumn, params)
 }
 
 /**
@@ -63,7 +100,7 @@ export async function updateRow(
  * as the IN parameters.
  */
 export async function selectInList<T>(key: string, ids: unknown[]): Promise<T[]> {
-  return api().dbSelectIn<T>(key, ids)
+  return driver.selectIn<T>(key, ids)
 }
 
 // ---------------------------------------------------------------------------

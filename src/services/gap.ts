@@ -1,8 +1,7 @@
-import { selectAll, selectOne, runStatement } from './db'
-import { listKeywords, listEnabledSynonymsForKeywords } from './keyword-lists'
+import { selectOne, runStatement } from './db'
 import { detectSections } from './sections'
-import { type DocumentRow, rowToDocument } from './_shared/document-row'
 import { findConceptSpans } from './_shared/keyword-match'
+import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
 import {
   substanceRatio, gapFromDiagonal, fitLine, gapFromResidual, type GapReference,
 } from './_shared/gap-math'
@@ -46,7 +45,7 @@ function docLabel(d: Document): string {
 }
 
 /** Per-document detected sections with local positive/counter match counts. */
-async function buildSections(docs: Document[], keywords: Keyword[], synByKw: Map<string, string[]>): Promise<SectionData[]> {
+async function buildSections(corpus: ProjectCorpus, docs: Document[], keywords: Keyword[]): Promise<SectionData[]> {
   const out: SectionData[] = []
   for (const doc of docs) {
     const text = doc.extractedText ?? ''
@@ -55,7 +54,7 @@ async function buildSections(docs: Document[], keywords: Keyword[], synByKw: Map
     for (const sec of sections) {
       let positive = 0, counter = 0
       for (const kw of keywords) {
-        const terms = [kw.text, ...(synByKw.get(kw.id) ?? [])]
+        const terms = corpus.termsFor(kw)
         const n = findConceptSpans(sec.text, terms).length
         if (n === 0) continue
         if (kw.polarity === 'counter') counter += n
@@ -148,12 +147,15 @@ export interface ComputeGapInput {
 }
 
 export async function computeGap(input: ComputeGapInput): Promise<GapDataset> {
-  const docRows = await selectAll<DocumentRow>('documents.byProject', [input.projectId])
-  const docs = docRows.map(rowToDocument).filter((d) => d.extractedText && d.extractedText.length > 0)
-  const keywords = (await listKeywords(input.keywordListId)).filter((k) => k.enabled)
-  const synByKw = await listEnabledSynonymsForKeywords(keywords.map((k) => k.id))
+  const corpus = await loadProjectCorpus({
+    projectId: input.projectId,
+    keywordListId: input.keywordListId,
+    polarity: 'both',
+  })
+  const docs = corpus.docs
+  const keywords = corpus.keywords
 
-  const secs = await buildSections(docs, keywords, synByKw)
+  const secs = await buildSections(corpus, docs, keywords)
   await fillSectionTones(input.projectId, secs)
 
   // keyword-level points: per (doc, keyword) freq + avg section tone
@@ -163,7 +165,7 @@ export async function computeGap(input: ComputeGapInput): Promise<GapDataset> {
     const acc = new Map<string, Acc>()
     for (const s of secs) {
       for (const kw of keywords) {
-        const terms = [kw.text, ...(synByKw.get(kw.id) ?? [])]
+        const terms = corpus.termsFor(kw)
         const n = findConceptSpans(s.text, terms).length
         if (n === 0) continue
         const key = `${s.documentId}:${kw.id}`

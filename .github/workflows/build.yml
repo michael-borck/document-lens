@@ -27,23 +27,36 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decide which platforms to build. macOS code signing + notarization can
+  # only run on release (tag) builds — they need a real signing identity and
+  # secrets a PR can't use, and with hardenedRuntime electron-builder forces
+  # an arm64 codesign that fails on PRs. So PRs validate Linux + Windows (the
+  # JS build steps — typecheck, vite, etc. — are identical across platforms);
+  # tags build all three and sign/notarize/publish macOS.
+  setup:
+    name: Decide build matrix
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.value }}
+    steps:
+      - name: Select platforms
+        id: matrix
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo 'value={"include":[{"os":"ubuntu-latest","platform":"linux","backend_ext":""},{"os":"windows-latest","platform":"win","backend_ext":".exe"}]}' >> "$GITHUB_OUTPUT"
+          else
+            echo 'value={"include":[{"os":"macos-latest","platform":"mac","backend_ext":""},{"os":"ubuntu-latest","platform":"linux","backend_ext":""},{"os":"windows-latest","platform":"win","backend_ext":".exe"}]}' >> "$GITHUB_OUTPUT"
+          fi
+
   build:
+    needs: setup
     strategy:
       # One platform failing must not cancel the others — we want
-      # parallel signal across all three OSes when iterating on PyInstaller
+      # parallel signal across all OSes when iterating on PyInstaller
       # collect/hidden-import issues, not "first failure poisons the run".
       fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            platform: mac
-            backend_ext: ""
-          - os: ubuntu-latest
-            platform: linux
-            backend_ext: ""
-          - os: windows-latest
-            platform: win
-            backend_ext: ".exe"
+      matrix: ${{ fromJSON(needs.setup.outputs.matrix) }}
 
     runs-on: ${{ matrix.os }}
 
@@ -456,19 +469,25 @@ jobs:
         run: npx electron-builder --${{ matrix.platform }} --publish never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Code signing: electron-builder picks these up automatically
-          # on macOS and uses them to set up a temporary keychain +
-          # codesign the .app. Setting them on Linux/Windows is a no-op.
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Code signing + notarization run on tag/release builds only.
+          # On PRs we build UNSIGNED: signing the macOS .app on PRs is
+          # fragile (electron-builder's PR detection is inconsistent across
+          # the x64/arm64 pair) and notarization shouldn't be spent on
+          # every PR. PR CI still validates compile + packaging on all
+          # three OSes; signing/notarization are exercised at release.
+          # On PRs CSC_* are blank and auto-discovery is off → unsigned;
+          # scripts/notarize.js then skips (its codesign precheck).
+          CSC_LINK: ${{ github.event_name == 'pull_request' && '' || secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ github.event_name == 'pull_request' && '' || secrets.CSC_KEY_PASSWORD }}
+          CSC_IDENTITY_AUTO_DISCOVERY: ${{ github.event_name == 'pull_request' && 'false' || 'true' }}
           # Notarization: read by scripts/notarize.js (the afterSign
           # hook). Renamed from APPLE_* so electron-builder's own broken
           # auto-notarize wrapper can't see them and fire alongside the
           # hook (would crash with `Cannot destructure property
-          # 'appBundleId' of 'options'`).
-          NOTARIZE_APPLE_ID: ${{ secrets.APPLE_ID }}
-          NOTARIZE_APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
-          NOTARIZE_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # 'appBundleId' of 'options'`). Blank on PRs (skipped anyway).
+          NOTARIZE_APPLE_ID: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_ID }}
+          NOTARIZE_APPLE_PASSWORD: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          NOTARIZE_APPLE_TEAM_ID: ${{ github.event_name == 'pull_request' && '' || secrets.APPLE_TEAM_ID }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

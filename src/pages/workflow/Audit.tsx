@@ -11,9 +11,12 @@ import {
 } from '@/components/ui/select'
 import { runAudit, type AuditResult, type AuditProgress, type AuditFinding, type AuditMode } from '@/services/audit'
 import { EmptyState } from '@/components/EmptyState'
+import { useAnalysis } from '@/hooks/useAnalysis'
+import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
+import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import { toast } from '@/stores/toastStore'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Lens, KeywordPolarity } from '@/types/data'
+import type { Lens } from '@/types/data'
 import { cn } from '@/lib/utils'
 
 type Severity = 'high' | 'medium' | 'low'
@@ -37,14 +40,13 @@ export function Audit() {
   const [mode, setMode] = useState<AuditMode>('anomalies')
   const [contextLenses, setContextLenses] = useState<Lens[]>([])
   const [lensId, setLensId] = useState<string>('')
-  const [polarity, setPolarity] = useState<KeywordPolarity | 'all'>('all')
+  const [polarity, setPolarity] = useState<Polarity>('both')
   const [threshold, setThreshold] = useState<number>(0.3)
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all')
 
-  const [running, setRunning] = useState(false)
+  // Audit's progress is a rich object (per-document), so it keeps its own
+  // progress state; useAnalysis owns running / error / result + cancel-safety.
   const [progress, setProgress] = useState<AuditProgress | null>(null)
-  const [result, setResult] = useState<AuditResult | null>(null)
-  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     const docContextLenses = vm.lenses.filter((l) => l.type === 'document-context')
@@ -52,11 +54,8 @@ export function Audit() {
     setLensId((current) => current || docContextLenses[0]?.id || '')
   }, [vm.lenses])
 
-  const handleRun = async () => {
-    if (!vm.keywordList || !lensId) return
-    setRunning(true)
-    setError(null)
-    setResult(null)
+  const { run, running, error, result, reset } = useAnalysis<AuditResult>(async () => {
+    if (!vm.keywordList || !lensId) throw new Error('Pick a keyword list and a context lens.')
     setProgress(null)
     try {
       const out = await runAudit(
@@ -66,25 +65,26 @@ export function Audit() {
           lensId,
           mode,
           threshold,
-          polarity: polarity === 'all' ? undefined : polarity,
+          polarity: polarity === 'both' ? undefined : polarity,
         },
         setProgress
       )
-      setResult(out)
       const noun = mode === 'confirmations' ? 'confirmation' : 'anomaly'
       const plural = mode === 'confirmations' ? 'confirmations' : 'anomalies'
       const label = out.findings.length === 1 ? noun : plural
       toast.success(
         `Found ${out.findings.length} ${label} in ${out.documentsAnalysed} document${out.documentsAnalysed === 1 ? '' : 's'}`
       )
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      toast.error('Audit failed')
+      return out
     } finally {
-      setRunning(false)
       setProgress(null)
     }
-  }
+  })
+
+  // Preserve the failure toast the hand-rolled catch used to fire.
+  useEffect(() => {
+    if (error) toast.error('Audit failed')
+  }, [error])
 
   if (!vm.keywordList) {
     return (
@@ -130,7 +130,7 @@ export function Audit() {
     <div className="px-8 py-8 max-w-6xl">
       <Header />
 
-      <ModeToggle mode={mode} onChange={(m) => { setMode(m); setResult(null) }} />
+      <ModeToggle mode={mode} onChange={(m) => { setMode(m); reset() }} />
 
       <CaveatBanner mode={mode} />
 
@@ -146,14 +146,7 @@ export function Audit() {
           </Select>
         </Field>
         <Field label="Polarity">
-          <Select value={polarity} onValueChange={(v) => setPolarity(v as KeywordPolarity | 'all')}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="positive">Positive</SelectItem>
-              <SelectItem value="counter">Counter</SelectItem>
-            </SelectContent>
-          </Select>
+          <PolaritySelector value={polarity} onChange={setPolarity} width="w-full" />
         </Field>
         {mode === 'anomalies' ? (
           <Field label="Threshold (sensitivity)">
@@ -171,7 +164,7 @@ export function Audit() {
           <div /> /* keep grid layout stable when threshold hides */
         )}
         <div className="flex items-end">
-          <Button onClick={handleRun} disabled={running} className="gap-2 w-full">
+          <Button onClick={run} disabled={running} className="gap-2 w-full">
             {running ? (<><Loader2 className="h-4 w-4 animate-spin" /> Running…</>) :
               (<><Play className="h-4 w-4" /> {result ? 'Re-run' : `Run ${mode === 'confirmations' ? 'confirmations' : 'audit'}`}</>)}
           </Button>
@@ -250,14 +243,14 @@ function CaveatBanner({ mode }: { mode: AuditMode }) {
     )
   }
   return (
-    <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
+    <MLCaveatBanner id="audit-anomalies">
       <strong>Anomalies mode.</strong> Surfaces sentences whose own
       semantic domain differs from their parent section's. When such a
       sentence contains an active keyword, it's flagged as an anomaly to
       investigate. Section + sentence domains are inferred from sentence-
       embedding similarity — treat each finding as a strong signal worth
       reading, not a definitive verdict.
-    </div>
+    </MLCaveatBanner>
   )
 }
 
