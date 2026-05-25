@@ -254,7 +254,7 @@ jobs:
           try:
               import uvicorn
               print("Uvicorn imported", file=sys.stderr, flush=True)
-              from document_analyser.main import document_analyser as fastapi_app
+              from document_analyser.api import app as fastapi_app
               print("App imported", file=sys.stderr, flush=True)
           except Exception as e:
               import traceback

@@ -186,14 +186,14 @@ export class BackendManager extends EventEmitter {
 
     if (fs.existsSync(venvPython)) {
       command = venvPython
-      args = ['-m', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
+      args = ['-m', 'uvicorn', 'document_analyser.api:app', '--host', this.host, '--port', String(this.port)]
     } else if (fs.existsSync(venvPythonWin)) {
       command = venvPythonWin
-      args = ['-m', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
+      args = ['-m', 'uvicorn', 'document_analyser.api:app', '--host', this.host, '--port', String(this.port)]
     } else {
       // Try `uv run` — assumes uv is on PATH
       command = 'uv'
-      args = ['run', 'uvicorn', 'document_analyser.main:document_analyser', '--host', this.host, '--port', String(this.port)]
+      args = ['run', 'uvicorn', 'document_analyser.api:app', '--host', this.host, '--port', String(this.port)]
     }
 
     this.setPhase('starting')
