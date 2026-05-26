@@ -62,7 +62,9 @@ export class BackendManager extends EventEmitter {
       path.resolve(process.cwd(), '..', 'document-analyser'),
     ]
     for (const candidate of candidates) {
-      if (fs.existsSync(path.join(candidate, 'document_analyser', 'main.py'))) {
+      // The FastAPI app moved from main.py to the api package in document-analyser
+      // 0.5.0 (launched as document_analyser.api:app).
+      if (fs.existsSync(path.join(candidate, 'document_analyser', 'api', '__init__.py'))) {
         return candidate
       }
     }
