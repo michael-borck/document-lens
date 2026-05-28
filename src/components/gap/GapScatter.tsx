@@ -1,9 +1,10 @@
 import { useMemo } from 'react'
 import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, ReferenceLine, Tooltip,
-  ResponsiveContainer, CartesianGrid,
+  CartesianGrid,
 } from 'recharts'
 import type { GapDataset, GapLevel, GapPoint } from '@/services/gap'
+import { ChartContainer } from '@/components/charts/ChartContainer'
 
 const DOC_COLORS = ['#16a085', '#e67e22', '#8e44ad', '#2980b9', '#c0392b', '#27ae60', '#f39c12', '#2c3e50']
 
@@ -45,7 +46,7 @@ export function GapScatter({ data, level, onLevelChange }: Props) {
           <span className="absolute left-12 bottom-10 text-[11px] font-medium text-[#7f8c8d]">Honest gaps</span>
           <span className="absolute right-8 bottom-10 text-[11px] font-medium text-[#2980b9]">Understated</span>
         </div>
-        <ResponsiveContainer width="100%" height={420}>
+        <ChartContainer height={420}>
           <ScatterChart margin={{ top: 20, right: 30, bottom: 30, left: 10 }}>
             <CartesianGrid strokeDasharray="3 3" />
             <XAxis type="number" dataKey="substance" name="Substance" domain={[-1, 1]}
@@ -70,7 +71,7 @@ export function GapScatter({ data, level, onLevelChange }: Props) {
               <Scatter key={docId} data={pts} fill={docColor.get(docId)} fillOpacity={0.75} />
             ))}
           </ScatterChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
       <p className="text-xs text-muted-foreground mt-2">
         Top-left (high tone, low substance) = performative. Distance above the dashed diagonal = greenwashing intensity.

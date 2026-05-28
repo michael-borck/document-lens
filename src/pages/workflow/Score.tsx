@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play, CheckCircle2, Circle } from 'lucide-react'
+import { Link, useOutletContext } from 'react-router-dom'
+import { Loader2, Play, CheckCircle2, Circle, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -212,13 +212,21 @@ function Header() {
 
 function V1Banner() {
   return (
-    <div className="mb-6 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
-      <strong>Mode: v1 Pillar coverage prerequisite.</strong> Documents in this
-      project haven't been Function-classified yet, so we can't compute the
-      full 5-level Wedding Cake Score. This view shows the structural
-      prerequisite: how many of the required pillars the document mentions
-      positively. Run <strong>Function classification</strong> on the Setup
-      tab to upgrade to the full score.
+    <div className="mb-6 flex items-start gap-3 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
+      <div className="flex-1 min-w-0">
+        <strong>Mode: v1 Pillar coverage prerequisite.</strong> Documents in this
+        project haven't been Function-classified yet, so we can't compute the
+        full 5-level Wedding Cake Score. This view shows the structural
+        prerequisite: how many of the required pillars the document mentions
+        positively. Run <strong>Function classification</strong> on the Setup
+        tab to upgrade to the full score.
+      </div>
+      <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
+        <Link to={{ pathname: '../setup', hash: '#classification' }}>
+          Classify now
+          <ArrowRight className="h-3.5 w-3.5" />
+        </Link>
+      </Button>
     </div>
   )
 }

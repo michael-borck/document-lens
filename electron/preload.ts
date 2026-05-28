@@ -148,7 +148,16 @@ const electronAPI = {
     const handler = (_event: Electron.IpcRendererEvent, error: string) => callback(error)
     ipcRenderer.on('update-error', handler)
     return () => ipcRenderer.removeListener('update-error', handler)
-  }
+  },
+
+  // Help-menu navigation — fired by the native Help > Documentation submenu
+  // (see electron/menu.ts). Renderer subscribes in src/App.tsx and routes to
+  // /help?topic=<id>; Help.tsx reads the search param to select the topic.
+  onHelpNavigate: (callback: (topicId: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, topicId: string) => callback(topicId)
+    ipcRenderer.on('help:navigate', handler)
+    return () => ipcRenderer.removeListener('help:navigate', handler)
+  },
 }
 
 // Expose the API to the renderer process

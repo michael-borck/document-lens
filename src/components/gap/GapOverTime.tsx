@@ -1,5 +1,6 @@
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine } from 'recharts'
 import type { GapDataset } from '@/services/gap'
+import { ChartContainer } from '@/components/charts/ChartContainer'
 
 export function GapOverTime({ data }: { data: GapDataset }) {
   if (!data.overTimeAvailable) {
@@ -10,7 +11,7 @@ export function GapOverTime({ data }: { data: GapDataset }) {
     )
   }
   return (
-    <ResponsiveContainer width="100%" height={240}>
+    <ChartContainer height={240}>
       <LineChart data={data.overTime} margin={{ top: 16, right: 30, bottom: 20, left: 10 }}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="year" />
@@ -19,6 +20,6 @@ export function GapOverTime({ data }: { data: GapDataset }) {
         <Tooltip formatter={(v: number) => [(v as number).toFixed(2), 'avg gap']} />
         <Line type="monotone" dataKey="avgGap" stroke="#c0392b" strokeWidth={2} dot />
       </LineChart>
-    </ResponsiveContainer>
+    </ChartContainer>
   )
 }

@@ -107,6 +107,9 @@ export interface ElectronAPI {
   onUpdateDownloadProgress: (callback: (progress: UpdateProgress) => void) => () => void
   onUpdateDownloaded: (callback: (info: UpdateInfo) => void) => () => void
   onUpdateError: (callback: (error: string) => void) => () => void
+
+  // Help-menu navigation event (from the native Help > Documentation submenu).
+  onHelpNavigate: (callback: (topicId: string) => void) => () => void
 }
 
 declare global {

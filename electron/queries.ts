@@ -29,6 +29,9 @@ export const QUERIES = {
   'documents.deleteById': 'DELETE FROM documents WHERE id = ?',
   'documents.countInProject':
     'SELECT COUNT(*) AS n FROM project_documents WHERE project_id = ?',
+  // Used by Library to show 'this document is in N projects' before delete-confirm.
+  'documents.countProjectsContaining':
+    'SELECT COUNT(*) AS n FROM project_documents WHERE document_id = ?',
   'documents.updateFilePath': 'UPDATE documents SET file_path = ? WHERE id = ?',
 
   // reference

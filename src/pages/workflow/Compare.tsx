@@ -8,9 +8,9 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
   Cell,
 } from 'recharts'
+import { ChartContainer } from '@/components/charts/ChartContainer'
 import { Loader2, Play } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -401,7 +401,7 @@ function ResultsView({ result }: { result: CompareResult }) {
       )}
 
       <div className="border border-border rounded-md p-2 overflow-y-auto" style={{ maxHeight: '600px' }}>
-        <ResponsiveContainer width="100%" height={chartHeight}>
+        <ChartContainer height={chartHeight}>
           <BarChart data={chartData} layout="vertical" margin={{ top: 8, right: 32, left: 8, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" horizontal={false} />
             <XAxis type="number" stroke="currentColor" fontSize={11} />
@@ -431,7 +431,7 @@ function ResultsView({ result }: { result: CompareResult }) {
               ))}
             </Bar>
           </BarChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
       <DataTable result={result} />

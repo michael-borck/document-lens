@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import crypto from 'crypto'
@@ -6,6 +6,7 @@ import { autoUpdater } from 'electron-updater'
 import { initDatabase, getDatabase, closeDatabase } from './database'
 import { getQuery, getInQuery, buildUpdate } from './queries'
 import { BackendManager, BACKEND_URL } from './backend-manager'
+import { buildMenu } from './menu'
 
 // The built directory structure
 //
@@ -144,6 +145,11 @@ app.whenReady().then(async () => {
 
   // Create window FIRST so user sees the app immediately
   createWindow()
+
+  // Install the custom application menu — populates Help with the same
+  // topics the in-app sidebar exposes (see electron/menu.ts). Built after
+  // the window exists so menu 'click' handlers can target its webContents.
+  Menu.setApplicationMenu(buildMenu(mainWindow))
 
   // Initialize backend manager
   backendManager = new BackendManager()

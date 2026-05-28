@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon } from 'lucide-react'
+import { useLocation, useOutletContext } from 'react-router-dom'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -79,6 +79,20 @@ export function Setup() {
     }
   }
 
+  // Scroll-to-section when arriving via a #classification hash (from Map/Score's
+  // "Jump to Classification" buttons). Done in a small useEffect so the smooth
+  // scroll fires after the sections have rendered.
+  const location = useLocation()
+  useEffect(() => {
+    if (location.hash) {
+      const id = location.hash.slice(1)
+      // Defer one tick so the target element is in the DOM.
+      requestAnimationFrame(() => {
+        document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      })
+    }
+  }, [location.hash])
+
   return (
     <div className="px-8 py-8 max-w-4xl">
       <header className="mb-8 flex items-start justify-between gap-4">
@@ -100,6 +114,12 @@ export function Setup() {
         </Button>
       </header>
 
+      {/* Surfaces incomplete-classification status near the top of the page so
+          it's not buried inside section #4 of 5. Renders nothing when the
+          project has no document-context lens (classification doesn't apply),
+          no documents (nothing to classify), or all docs already classified. */}
+      <ClassificationBanner vm={vm} />
+
       <div className="space-y-8">
         <DocumentsSection vm={vm} />
         <KeywordsSection
@@ -119,6 +139,66 @@ export function Setup() {
           onSelect={handleSelectScoringRule}
         />
       </div>
+    </div>
+  )
+}
+
+/**
+ * Banner shown above the Setup sections when Function classification is
+ * incomplete. Companion to ClassificationSection (which lives in section 4
+ * of 5 and is easy to scroll past). Both components independently fetch the
+ * classification status — a single SQLite query each, faster than the
+ * refactor needed to share state.
+ */
+function ClassificationBanner({ vm }: { vm: ProjectViewModel }) {
+  const contextLenses = vm.lenses.filter((l) => l.type === 'document-context')
+  const activeLensId = contextLenses[0]?.id ?? ''
+  const [status, setStatus] = useState<ClassificationStatus | null>(null)
+
+  useEffect(() => {
+    if (!activeLensId || vm.documentCount === 0) {
+      setStatus(null)
+      return
+    }
+    getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
+  }, [vm.project.id, vm.documentCount, activeLensId])
+
+  // Don't render when there's nothing actionable: no context lens, no docs,
+  // status not loaded yet, or all docs already classified.
+  if (!status || contextLenses.length === 0 || vm.documentCount === 0) return null
+  if (status.classifiedDocuments === status.totalDocuments) return null
+
+  const remaining = status.totalDocuments - status.classifiedDocuments
+  const lensName = contextLenses[0]?.name ?? 'document-context'
+
+  return (
+    <div
+      role="status"
+      className="mb-6 flex items-start gap-3 border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/20 rounded-md p-4"
+    >
+      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-foreground">
+          Function classification incomplete
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          <strong>{remaining}</strong> of <strong>{status.totalDocuments}</strong> document
+          {status.totalDocuments === 1 ? '' : 's'} need classifying on the{' '}
+          <strong>{lensName}</strong> lens before the <strong>Map</strong> two-axis matrix and the
+          full <strong>Wedding Cake Score</strong> can compute.
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="gap-1.5 shrink-0"
+        onClick={() => document.getElementById('classification')?.scrollIntoView({
+          behavior: 'smooth', block: 'start',
+        })}
+      >
+        <ArrowDown className="h-3.5 w-3.5" />
+        Jump to Classification
+      </Button>
     </div>
   )
 }
@@ -441,7 +521,7 @@ function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
   }
 
   return (
-    <section>
+    <section id="classification">
       <SectionHeader
         icon={<Sparkles className="h-5 w-5" />}
         title="Function classification"

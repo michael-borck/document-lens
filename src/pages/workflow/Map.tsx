@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Loader2, Play } from 'lucide-react'
+import { Link, useOutletContext } from 'react-router-dom'
+import { Loader2, Play, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -262,12 +262,20 @@ export function Map() {
       )}
 
       {mode === 'two-axis' && classifiedDocs !== null && classifiedDocs < vm.documentCount && (
-        <div className="mb-4 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3">
-          <strong>Function classification incomplete:</strong>{' '}
-          {classifiedDocs} of {vm.documentCount} documents classified on{' '}
-          <strong>{selectedColLens?.name}</strong>. Run classification on the
-          Setup tab to populate the rest of the matrix — until then unclassified
-          documents contribute zero to every cell.
+        <div className="mb-4 flex items-start gap-3 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3">
+          <div className="flex-1 min-w-0">
+            <strong>Function classification incomplete:</strong>{' '}
+            {classifiedDocs} of {vm.documentCount} documents classified on{' '}
+            <strong>{selectedColLens?.name}</strong>. Run classification on the
+            Setup tab to populate the rest of the matrix — until then unclassified
+            documents contribute zero to every cell.
+          </div>
+          <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
+            <Link to={{ pathname: '../setup', hash: '#classification' }}>
+              Classify now
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </Button>
         </div>
       )}
 

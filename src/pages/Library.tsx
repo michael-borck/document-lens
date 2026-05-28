@@ -196,8 +196,12 @@ function DocumentTable({
     // Surface how many projects this document is in so the user knows
     // the blast radius before confirming. project_documents has ON DELETE
     // CASCADE so the rows go away with the document.
+    //
+    // NB: selectOne expects a *registered query key* (resolved server-side from
+    // electron/queries.ts), not raw SQL. Passing raw SQL here threw silently and
+    // prevented setPendingDelete from running — making the trash icon look broken.
     const row = await selectOne<{ n: number }>(
-      'SELECT COUNT(*) AS n FROM project_documents WHERE document_id = ?',
+      'documents.countProjectsContaining',
       [doc.id]
     )
     setPendingDelete({ doc, projectCount: row?.n ?? 0 })

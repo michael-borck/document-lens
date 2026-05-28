@@ -21,12 +21,16 @@ asar: true
 asarUnpack:
   - node_modules/better-sqlite3/**/*
 
-# Bundle the Python backend executable
+# Bundle the Python backend executable AND the user-manual PDF.
+# The PDF is reachable via process.resourcesPath in production, and
+# referenced by the Help > Open User Manual menu item (see electron/menu.ts).
 extraResources:
   - from: backend/
     to: backend
     filter:
       - "**/*"
+  - from: Document-Lens-User-Manual.pdf
+    to: Document-Lens-User-Manual.pdf
 
 # macOS notarization hook — see scripts/notarize.js for the full
 # rationale. We run @electron/notarize directly here rather than

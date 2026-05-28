@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
 import { lazy, Suspense, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/shell/AppShell'
@@ -34,6 +34,8 @@ function PageLoader() {
 }
 
 function App() {
+  const navigate = useNavigate()
+
   // Seed the SDG keyword list, the SDG/Pillar/Function lenses, and the
   // 5-level Wedding Cake Score on first launch (idempotent — no-ops if
   // the defaults are already in place). Per design principle #9.
@@ -42,6 +44,18 @@ function App() {
       console.error('[seed] Failed to seed sustainability defaults:', err)
     })
   }, [])
+
+  // Subscribe to native Help menu clicks (see electron/menu.ts). Each topic
+  // item in Help > Documentation sends `help:navigate` with a topic id;
+  // route to /help?topic=<id> and Help.tsx reads it from the search params.
+  // No-op when window.electron isn't present (e.g. unit-test or web build).
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.electron?.onHelpNavigate) return
+    const unsubscribe = window.electron.onHelpNavigate((topicId: string) => {
+      navigate(`/help?topic=${encodeURIComponent(topicId)}`)
+    })
+    return unsubscribe
+  }, [navigate])
 
   return (
     <Suspense fallback={<PageLoader />}>

@@ -6,7 +6,8 @@
  * already split by topic via the sidebar nav.
  */
 
-import { useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   HelpCircle,
   Compass,
@@ -52,7 +53,18 @@ const TOPICS: Topic[] = [
 const GROUPS: Topic['group'][] = ['Start here', 'Setup', 'Workflows', 'Sharing & export']
 
 export function Help() {
-  const [activeId, setActiveId] = useState<string>(TOPICS[0].id)
+  // Topic selection lives in the URL (`?topic=<id>`) for two reasons:
+  //   1. The native Help menu (electron/menu.ts) can deep-link in by
+  //      navigating to /help?topic=<id> — single source of truth, no
+  //      cross-component event dance.
+  //   2. Back/forward buttons work naturally — moving between topics
+  //      pushes history entries.
+  const [searchParams, setSearchParams] = useSearchParams()
+  const topicFromUrl = searchParams.get('topic')
+  const activeId = TOPICS.find((t) => t.id === topicFromUrl)?.id ?? TOPICS[0].id
+  const setActiveId = (id: string) => {
+    setSearchParams({ topic: id }, { replace: false })
+  }
   const active = TOPICS.find((t) => t.id === activeId) ?? TOPICS[0]
 
   return (

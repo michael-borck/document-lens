@@ -9,8 +9,8 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
 } from 'recharts'
+import { ChartContainer } from '@/components/charts/ChartContainer'
 import { Loader2, Play, AlertTriangle, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -506,7 +506,7 @@ function ResultsView({ result, exportable }: { result: TrackResult; exportable: 
       )}
 
       <div ref={chartContainerRef} className="border border-border rounded-md p-4">
-        <ResponsiveContainer width="100%" height={360}>
+        <ChartContainer height={360}>
           <ComposedChart data={chartData} margin={{ top: 8, right: 16, left: 0, bottom: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.06)" />
             <XAxis
@@ -569,7 +569,7 @@ function ResultsView({ result, exportable }: { result: TrackResult; exportable: 
               />
             )}
           </ComposedChart>
-        </ResponsiveContainer>
+        </ChartContainer>
       </div>
 
       {showScatter && <PerDocumentTable result={result} />}
