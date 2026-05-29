@@ -82,6 +82,8 @@ const electronAPI = {
     ipcRenderer.invoke('backend:getStatus'),
   getBackendUrl: (): Promise<string> =>
     ipcRenderer.invoke('backend:getUrl'),
+  getBackendToken: (): Promise<string> =>
+    ipcRenderer.invoke('backend:getToken'),
   restartBackend: (): Promise<{ success: boolean; error?: string }> =>
     ipcRenderer.invoke('backend:restart'),
   onBackendStatusChanged: (callback: (status: BackendStatus) => void) => {

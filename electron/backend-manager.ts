@@ -55,6 +55,30 @@ export class BackendManager extends EventEmitter {
   private static readonly MAX_RESTART_ATTEMPTS = 3
   private static readonly RESTART_BACKOFF_MS = 2000
 
+  /**
+   * Per-launch bearer token. Passed to the spawned backend via
+   * DOCUMENT_ANALYSER_AUTH_TOKEN; the backend's lens-contract add_auth then
+   * requires it on every request except /health and /manifest. Undefined =>
+   * no token passed (backend stays unauthenticated, e.g. older builds).
+   */
+  private readonly authToken: string | undefined
+
+  constructor(authToken?: string) {
+    super()
+    this.authToken = authToken
+  }
+
+  /** Env entries shared by both spawn paths (embedded + dev-auto). */
+  private backendEnv(): NodeJS.ProcessEnv {
+    return {
+      ...process.env,
+      DOCUMENT_ANALYSER_PORT: String(this.port),
+      DOCUMENT_ANALYSER_HOST: this.host,
+      DOCUMENT_ANALYSER_MODE: 'desktop',
+      ...(this.authToken ? { DOCUMENT_ANALYSER_AUTH_TOKEN: this.authToken } : {}),
+    }
+  }
+
   /** Locate the Python dev backend repo (sibling directory) */
   private findDevBackendRepo(): string | null {
     const candidates = [
@@ -146,12 +170,7 @@ export class BackendManager extends EventEmitter {
     this.process = spawn(backendPath, ['--port', String(this.port), '--host', this.host], {
       stdio: ['ignore', 'pipe', 'pipe'],
       detached: false,
-      env: {
-        ...process.env,
-        DOCUMENT_ANALYSER_PORT: String(this.port),
-        DOCUMENT_ANALYSER_HOST: this.host,
-        DOCUMENT_ANALYSER_MODE: 'desktop'
-      }
+      env: this.backendEnv()
     })
 
     this.wireChildProcess()
@@ -205,13 +224,7 @@ export class BackendManager extends EventEmitter {
         cwd: repoPath,
         stdio: ['ignore', 'pipe', 'pipe'],
         detached: false,
-        env: {
-          ...process.env,
-          DOCUMENT_ANALYSER_PORT: String(this.port),
-          DOCUMENT_ANALYSER_HOST: this.host,
-          DOCUMENT_ANALYSER_MODE: 'desktop',
-          PYTHONUNBUFFERED: '1',
-        }
+        env: { ...this.backendEnv(), PYTHONUNBUFFERED: '1' }
       })
     } catch (error) {
       this.setPhase('crashed', `Failed to spawn: ${error instanceof Error ? error.message : String(error)}`)

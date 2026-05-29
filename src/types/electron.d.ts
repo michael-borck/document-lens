@@ -76,6 +76,7 @@ export interface ElectronAPI {
   // Backend
   getBackendStatus: () => Promise<BackendStatus>
   getBackendUrl: () => Promise<string>
+  getBackendToken: () => Promise<string>
   restartBackend: () => Promise<{ success: boolean; error?: string }>
   onBackendStatusChanged: (callback: (status: BackendStatus) => void) => () => void
 

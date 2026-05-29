@@ -35,3 +35,20 @@ export async function getBackendUrl(): Promise<string> {
   return BACKEND_URL
 }
 
+/**
+ * Get the per-launch backend auth token from Electron, or null if unavailable
+ * (e.g. running the renderer outside Electron, or an older main process). When
+ * null, requests are sent without an Authorization header — fine against a
+ * backend that has auth disabled.
+ */
+export async function getBackendToken(): Promise<string | null> {
+  try {
+    if (window.electron?.getBackendToken) {
+      return await window.electron.getBackendToken()
+    }
+  } catch (error) {
+    console.warn('[Config] Could not get backend token from Electron:', error)
+  }
+  return null
+}
+

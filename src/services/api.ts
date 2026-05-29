@@ -5,10 +5,11 @@
  * Backend repo: https://github.com/michaelborck-education/document-analyser
  */
 
-import { getBackendUrl, getDefaultBackendUrl } from '@/config/backend'
+import { getBackendUrl, getBackendToken, getDefaultBackendUrl } from '@/config/backend'
 
 class ApiClient {
   private baseUrl: string = getDefaultBackendUrl()
+  private authToken: string | null = null
   private urlInitialized: boolean = false
   private initPromise: Promise<void> | null = null
 
@@ -22,7 +23,17 @@ class ApiClient {
     } catch (_error) {
       console.warn('[API] Could not get backend URL, using default:', this.baseUrl)
     }
+    try {
+      this.authToken = await getBackendToken()
+    } catch (_error) {
+      console.warn('[API] Could not get backend token; sending unauthenticated requests')
+    }
     this.urlInitialized = true
+  }
+
+  /** Authorization header for the backend, or {} when no token is available. */
+  private authHeaders(): Record<string, string> {
+    return this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {}
   }
 
   // Ensure URL is initialized before making requests
@@ -52,6 +63,7 @@ class ApiClient {
       ...options,
       headers: {
         'Content-Type': 'application/json',
+        ...this.authHeaders(),
         ...options.headers,
       },
     })
@@ -75,6 +87,7 @@ class ApiClient {
       method: 'POST',
       body: formData,
       // Don't set Content-Type for FormData - browser will set it with boundary
+      headers: this.authHeaders(),
     })
 
     if (!response.ok) {
@@ -127,6 +140,7 @@ class ApiClient {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...this.authHeaders(),
         },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
@@ -215,7 +229,7 @@ class ApiClient {
     try {
       response = await fetch(url, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...this.authHeaders() },
         body: JSON.stringify(requestBody),
         signal: controller.signal,
       })

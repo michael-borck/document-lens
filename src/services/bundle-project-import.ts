@@ -430,9 +430,16 @@ export async function applyBundle(
         }
         const fileBytes = await zip.file(`files/${bd.bundledFile}`)?.async('arraybuffer')
         if (fileBytes) {
-          const targetPath = `${importedFilesDir}/${bd.bundledFile}`
-          await electron.writeFile(targetPath, fileBytes)
-          filePath = targetPath
+          // Zip-slip guard: the in-zip name is attacker-controlled, so write
+          // only to a basename under importedFilesDir — never let `..` or an
+          // absolute path escape the imports directory. (main's fs:writeFile
+          // guard enforces this again as defence in depth.)
+          const safeName = bd.bundledFile.replace(/^.*[\\/]/, '')
+          if (safeName && safeName !== '.' && safeName !== '..') {
+            const targetPath = `${importedFilesDir}/${safeName}`
+            await electron.writeFile(targetPath, fileBytes)
+            filePath = targetPath
+          }
         }
       }
 

@@ -7,6 +7,33 @@ import { initDatabase, getDatabase, closeDatabase } from './database'
 import { getQuery, getInQuery, buildUpdate } from './queries'
 import { BackendManager, BACKEND_URL } from './backend-manager'
 import { buildMenu } from './menu'
+import {
+  rememberDialogFiles,
+  rememberDialogDirs,
+  assertReadable,
+  assertWritable,
+} from './fs-guard'
+
+/** True for the only URL schemes we'll hand to the OS browser/mail client. */
+function isWebUrl(url: string): boolean {
+  try {
+    const { protocol } = new URL(url)
+    return protocol === 'https:' || protocol === 'http:' || protocol === 'mailto:'
+  } catch {
+    return false
+  }
+}
+
+/** Has the DB ever recorded this exact path as a document source? */
+function isRegisteredDocument(rawPath: string): boolean {
+  try {
+    return !!getDatabase()
+      .prepare('SELECT 1 FROM documents WHERE file_path = ? LIMIT 1')
+      .get(rawPath)
+  } catch {
+    return false
+  }
+}
 
 // The built directory structure
 //
@@ -24,6 +51,12 @@ process.env.VITE_PUBLIC = app.isPackaged
 
 let mainWindow: BrowserWindow | null = null
 let backendManager: BackendManager | null = null
+
+// Per-launch random token. Passed to the spawned backend via env and required
+// on every request except /health and /manifest (see lens-contract add_auth).
+// Stops other local processes from driving the loopback backend; regenerated
+// each launch so it never needs to be persisted.
+const backendAuthToken = crypto.randomBytes(32).toString('hex')
 
 // Configure auto-updater
 autoUpdater.autoDownload = false // Let user decide when to download
@@ -66,10 +99,31 @@ function createWindow() {
     console.error('Failed to load:', errorCode, errorDescription)
   })
 
-  // Open external links in browser
+  // Open external links in browser — but only safe web schemes. Never let
+  // injected content trigger file:// / custom-scheme handler launches via a
+  // popup. New windows are always denied; we only forward the URL when it's a
+  // plain web/mail link.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url)
+    if (isWebUrl(url)) shell.openExternal(url)
     return { action: 'deny' }
+  })
+
+  // The renderer is a single locally-loaded bundle; it should never navigate
+  // the top frame away from its own origin (or the dev server in dev). This
+  // blocks injected-content-driven navigation / phishing.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const allowed = VITE_DEV_SERVER_URL
+      ? url.startsWith(VITE_DEV_SERVER_URL)
+      : url.startsWith('file://')
+    if (!allowed) {
+      event.preventDefault()
+      if (isWebUrl(url)) shell.openExternal(url)
+    }
+  })
+
+  // We never embed <webview>s; deny any attempt to attach one.
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault()
   })
 
   if (VITE_DEV_SERVER_URL) {
@@ -151,8 +205,8 @@ app.whenReady().then(async () => {
   // the window exists so menu 'click' handlers can target its webContents.
   Menu.setApplicationMenu(buildMenu(mainWindow))
 
-  // Initialize backend manager
-  backendManager = new BackendManager()
+  // Initialize backend manager (passing the per-launch auth token)
+  backendManager = new BackendManager(backendAuthToken)
 
   // Forward phase changes to the renderer
   backendManager.on('phase-changed', (status) => {
@@ -265,6 +319,8 @@ ipcMain.handle('dialog:openFile', async (_, options) => {
     filters: [{ name: 'PDF Documents', extensions: ['pdf'] }],
     ...options
   })
+  // Record the user's picks so the fs:* guard will permit reading them.
+  if (!result.canceled) rememberDialogFiles(result.filePaths)
   return result
 })
 
@@ -273,21 +329,44 @@ ipcMain.handle('dialog:openDirectory', async (_, options) => {
     properties: ['openDirectory'],
     ...options
   })
+  if (!result.canceled) rememberDialogDirs(result.filePaths)
   return result
 })
 
 ipcMain.handle('dialog:saveFile', async (_, options) => {
   const result = await dialog.showSaveDialog(mainWindow!, options)
+  // Record the chosen save target so the fs:* guard will permit writing it.
+  if (!result.canceled && result.filePath) rememberDialogFiles([result.filePath])
   return result
 })
 
 // Shell handlers
+//
+// Both take renderer-supplied strings, so they're confined: openPath only
+// opens files the app legitimately knows (a picked file, the userData
+// subtree, or a registered document); openExternal allows plain web/mail
+// links, and file:// only for those same known paths (used by Read.tsx to
+// open a PDF at a page via `file://…#page=N`).
 ipcMain.handle('shell:openPath', async (_, filePath: string) => {
-  return shell.openPath(filePath)
+  const safe = assertReadable(filePath, isRegisteredDocument)
+  return shell.openPath(safe)
 })
 
 ipcMain.handle('shell:openExternal', async (_, url: string) => {
-  return shell.openExternal(url)
+  if (isWebUrl(url)) return shell.openExternal(url)
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    throw new Error(`Refused: malformed URL: ${url}`)
+  }
+  if (parsed.protocol === 'file:') {
+    // Authorise the underlying path before letting the OS open it. The
+    // #page=N fragment lives in parsed.hash and is preserved in `url`.
+    assertReadable(decodeURIComponent(parsed.pathname), isRegisteredDocument)
+    return shell.openExternal(url)
+  }
+  throw new Error(`Refused: disallowed URL scheme: ${parsed.protocol}`)
 })
 
 // App info
@@ -343,6 +422,10 @@ ipcMain.handle('backend:getStatus', () => {
 ipcMain.handle('backend:getUrl', () => {
   return backendManager?.getUrl() ?? BACKEND_URL
 })
+
+// The renderer sends this as `Authorization: Bearer <token>` on backend
+// requests. It never leaves the machine (loopback backend only).
+ipcMain.handle('backend:getToken', () => backendAuthToken)
 
 ipcMain.handle('backend:restart', async () => {
   if (!backendManager) return { success: false, error: 'Backend manager not initialised' }
@@ -446,7 +529,8 @@ ipcMain.handle('db:selectIn', async (_, { key, ids }) => {
 // File system handlers
 ipcMain.handle('fs:readFile', async (_, filePath: string) => {
   try {
-    const buffer = fs.readFileSync(filePath)
+    const safe = assertReadable(filePath, isRegisteredDocument)
+    const buffer = fs.readFileSync(safe)
     return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)
   } catch (error) {
     console.error('File read error:', error)
@@ -456,7 +540,8 @@ ipcMain.handle('fs:readFile', async (_, filePath: string) => {
 
 ipcMain.handle('fs:getFileStats', async (_, filePath: string) => {
   try {
-    const stats = fs.statSync(filePath)
+    const safe = assertReadable(filePath, isRegisteredDocument)
+    const stats = fs.statSync(safe)
     return {
       size: stats.size,
       mtime: stats.mtimeMs
@@ -469,7 +554,8 @@ ipcMain.handle('fs:getFileStats', async (_, filePath: string) => {
 
 ipcMain.handle('fs:computeFileHash', async (_, filePath: string) => {
   try {
-    const fileBuffer = fs.readFileSync(filePath)
+    const safe = assertReadable(filePath, isRegisteredDocument)
+    const fileBuffer = fs.readFileSync(safe)
     const hashSum = crypto.createHash('sha256')
     hashSum.update(fileBuffer)
     return hashSum.digest('hex')
@@ -481,10 +567,11 @@ ipcMain.handle('fs:computeFileHash', async (_, filePath: string) => {
 
 ipcMain.handle('fs:writeFile', async (_, filePath: string, data: ArrayBuffer | string) => {
   try {
+    const safe = assertWritable(filePath)
     if (typeof data === 'string') {
-      fs.writeFileSync(filePath, data, 'utf-8')
+      fs.writeFileSync(safe, data, 'utf-8')
     } else {
-      fs.writeFileSync(filePath, Buffer.from(data))
+      fs.writeFileSync(safe, Buffer.from(data))
     }
     return { success: true }
   } catch (error) {

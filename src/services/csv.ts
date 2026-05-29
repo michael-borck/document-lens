@@ -58,15 +58,30 @@ export function parseCsv(text: string): string[][] {
 }
 
 /**
- * Serialise rows to CSV. Quotes fields containing commas, quotes, or
- * newlines; escapes embedded quotes by doubling them.
+ * Neutralise spreadsheet formula / DDE injection. A text cell whose first
+ * character is one of = + - @ (or a leading tab/CR) is interpreted as a
+ * formula by Excel / Google Sheets / LibreOffice — so a document titled
+ * `=HYPERLINK(...)` or `=cmd|'/c calc'!A1` in an exported CSV would execute
+ * on open. Prefixing with a single quote forces the cell to be treated as
+ * literal text. Only applied to string cells so numeric columns are
+ * unaffected.
+ */
+function neutralizeFormula(s: string): string {
+  return /^[=+\-@\t\r]/.test(s) ? `'${s}` : s
+}
+
+/**
+ * Serialise rows to CSV. Neutralises formula-injection in text cells, then
+ * quotes fields containing commas, quotes, or newlines; escapes embedded
+ * quotes by doubling them.
  */
 export function stringifyCsv(rows: Array<Array<string | number | null | undefined>>): string {
   return rows
     .map((row) =>
       row
         .map((cell) => {
-          const s = cell === null || cell === undefined ? '' : String(cell)
+          const raw = cell === null || cell === undefined ? '' : String(cell)
+          const s = typeof cell === 'string' ? neutralizeFormula(raw) : raw
           if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) {
             return `"${s.replace(/"/g, '""')}"`
           }
