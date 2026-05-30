@@ -26,14 +26,17 @@
  * confirmations, Coverage, Map, etc.) work immediately on the
  * imported project.
  *
- * The import is NOT atomic at the SQL level (sqlite3 doesn't expose
- * transactions through the IPC bridge). Failures mid-import leave
- * partial state behind — the user can delete the half-imported
- * project from the Projects page.
+ * Atomicity: each document (its row + pages + sections + section tags) is
+ * imported in ONE transaction via runBatch, so there are no half-written
+ * documents. The import as a whole is still not a single transaction (it
+ * interleaves library reads, file writes, and id generation), but the project
+ * row is created up front, so any mid-import failure leaves a project the user
+ * can delete from the Projects page; imported library lenses/keywords/docs are
+ * valid reusable entities by design.
  */
 
 import JSZip from 'jszip'
-import { runStatement, selectAll, newId, stringifyJson } from './db'
+import { runStatement, runBatch, selectAll, newId, stringifyJson, type BatchOp } from './db'
 import {
   createProject,
   addDocumentsToProject,
@@ -57,7 +60,6 @@ import {
 } from './lenses'
 import { createScoringRule, listScoringRules } from './scoring-rules'
 import { getDocumentByHash } from './documents'
-import { setSectionTag } from './sections'
 import {
   BUNDLE_SCHEMA_VERSION,
   type BundleManifest,
@@ -399,6 +401,17 @@ export async function applyBundle(
     }
   }
 
+  // ----- Project (created up front for recoverability) ---------------------
+  // Create the project row BEFORE importing documents, so any later failure
+  // leaves a project the user can see and delete (deleting it cascades its
+  // attachments) — rather than orphaned rows with no project to remove them.
+  const projectName = await uniqueProjectName(project.name)
+  const newProject = await createProject({
+    name: projectName,
+    description: project.description ?? undefined,
+    researchFocus: project.researchFocus ?? undefined,
+  })
+
   // ----- Documents ---------------------------------------------------------
   const documentIds: string[] = []
   let newDocumentCount = 0
@@ -443,32 +456,38 @@ export async function applyBundle(
         }
       }
 
+      // Build the document's full write set, then commit it in ONE
+      // transaction — a failure can't leave a document row without its pages,
+      // or sections without their tags.
       docId = newId()
-      await runStatement('bundleImport.insertDocument', [
-          docId,
-          bd.filename,
-          filePath,
-          bd.fileHash,
-          bd.fileSize,
-          bd.title,
-          bd.year,
-          bd.company,
-          bd.sector,
-          bd.pageCount,
-          bd.wordCount,
-          bd.extractedText,
-          bd.pdfMetadata ? stringifyJson(bd.pdfMetadata) : null,
-          bd.status,
-          null,
-          bd.importedAt,
-          bd.extractedAt,
-        ]
-      )
-      newDocumentCount++
+      const docOps: BatchOp[] = [
+        {
+          key: 'bundleImport.insertDocument',
+          params: [
+            docId,
+            bd.filename,
+            filePath,
+            bd.fileHash,
+            bd.fileSize,
+            bd.title,
+            bd.year,
+            bd.company,
+            bd.sector,
+            bd.pageCount,
+            bd.wordCount,
+            bd.extractedText,
+            bd.pdfMetadata ? stringifyJson(bd.pdfMetadata) : null,
+            bd.status,
+            null,
+            bd.importedAt,
+            bd.extractedAt,
+          ],
+        },
+      ]
 
       // Per-page text.
       for (const page of bd.pages) {
-        await runStatement('documentPages.insert', [docId, page.pageNumber, page.text])
+        docOps.push({ key: 'documentPages.insert', params: [docId, page.pageNumber, page.text] })
       }
 
       // Sections + section tags.
@@ -476,15 +495,10 @@ export async function applyBundle(
       const sectionIdByIndex = new Map<number, string>()
       for (const s of bd.sections) {
         const sectionId = newId()
-        await runStatement('bundleImport.insertSection', [
-          sectionId,
-          docId,
-          s.sectionIndex,
-          s.startOffset,
-          s.endOffset,
-          s.text,
-          s.classifiedAt,
-        ])
+        docOps.push({
+          key: 'bundleImport.insertSection',
+          params: [sectionId, docId, s.sectionIndex, s.startOffset, s.endOffset, s.text, s.classifiedAt],
+        })
         sectionIdByIndex.set(s.sectionIndex, sectionId)
       }
       for (const tag of bd.sectionTags) {
@@ -492,26 +506,22 @@ export async function applyBundle(
         const lensId = lensNameToId.get(tag.lensName)
         const valueId = lensValueIdByPath.get(`${tag.lensName}\x1f${tag.valueName}`)
         if (sectionId && lensId && valueId) {
-          await setSectionTag(sectionId, lensId, valueId, tag.confidence)
+          docOps.push({ key: 'sections.setTag', params: [sectionId, lensId, valueId, tag.confidence] })
         }
       }
+
+      await runBatch(docOps)
+      newDocumentCount++
     }
     documentIds.push(docId)
   }
 
-  // ----- Project -----------------------------------------------------------
+  // ----- Project finalisation (attach documents / lists / lenses / rule) ---
   onProgress?.({
     phase: 'project',
     current: 1,
     total: 1,
     message: project.name,
-  })
-
-  const projectName = await uniqueProjectName(project.name)
-  const newProject = await createProject({
-    name: projectName,
-    description: project.description ?? undefined,
-    researchFocus: project.researchFocus ?? undefined,
   })
 
   if (documentIds.length > 0) {
@@ -556,7 +566,13 @@ async function readJson<T>(zip: JSZip, path: string): Promise<T | null> {
   const file = zip.file(path)
   if (!file) return null
   const text = await file.async('string')
-  return JSON.parse(text) as T
+  try {
+    return JSON.parse(text) as T
+  } catch {
+    // Malformed JSON in the bundle — surface the intended "not a valid
+    // Document Lens bundle" error rather than a raw SyntaxError.
+    throw new Error(`Bundle file ${path} is not valid JSON — not a Document Lens bundle?`)
+  }
 }
 
 function resolveExistingLens(bundleLens: BundleLens, locals: Lens[]): Lens | null {

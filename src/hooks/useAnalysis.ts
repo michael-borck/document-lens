@@ -83,11 +83,16 @@ export function useAnalysis<T>(
     setProgress(null)
   }, [])
 
-  // Auto-run on the caller-provided dependency list (run is stable).
+  // Auto-run on the caller-provided dependency list (`run` is stable, so it's
+  // not in the array). When no deps are given the analysis is manual: we pass
+  // `deps ?? []` rather than `deps` so the effect runs once on mount and then
+  // no-ops — passing a bare `undefined` would be the "no dependency array"
+  // form, which re-fires the effect on EVERY render. A deps change re-runs and
+  // supersedes any in-flight run via runIdRef (see `run`).
   useEffect(() => {
     if (deps === undefined) return
     void run()
-  }, deps)
+  }, deps ?? [])
 
   return { run, running, error, result, progress, reset }
 }

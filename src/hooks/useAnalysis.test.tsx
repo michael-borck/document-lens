@@ -91,4 +91,34 @@ describe('useAnalysis', () => {
     rerender({ d: 2 })
     await waitFor(() => expect(count).toBe(2))
   })
+
+  it('does not auto-run when no deps are given (manual mode)', async () => {
+    let count = 0
+    const { rerender } = renderHook(
+      ({ x }: { x: number }) => {
+        void x // force distinct renders
+        return useAnalysis(async () => ++count)
+      },
+      { initialProps: { x: 1 } }
+    )
+    // Re-render several times; with no deps the effect must never auto-run,
+    // and the manual case must not re-fire on every render.
+    rerender({ x: 2 })
+    rerender({ x: 3 })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(count).toBe(0)
+  })
+
+  it('auto-runs once on mount with deps, not on unrelated re-renders', async () => {
+    let count = 0
+    const { rerender } = renderHook(
+      ({ d }: { d: number }) => useAnalysis(async () => ++count, [d]),
+      { initialProps: { d: 5 } }
+    )
+    await waitFor(() => expect(count).toBe(1))
+    rerender({ d: 5 }) // same dep value — must NOT re-run
+    rerender({ d: 5 })
+    await new Promise((r) => setTimeout(r, 20))
+    expect(count).toBe(1)
+  })
 })

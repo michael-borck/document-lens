@@ -90,6 +90,7 @@ export interface ElectronAPI {
     params: unknown[]
   ) => Promise<DatabaseResult>
   dbSelectIn: <T = unknown>(key: string, ids: unknown[]) => Promise<T[]>
+  dbRunBatch: (ops: { key: string; params?: unknown[] }[]) => Promise<{ success: boolean }>
 
   // File system
   readFile: (filePath: string) => Promise<ArrayBuffer>

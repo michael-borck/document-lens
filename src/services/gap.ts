@@ -70,22 +70,36 @@ async function buildSections(corpus: ProjectCorpus, docs: Document[], keywords: 
   return out
 }
 
-function hashSections(secs: SectionData[]): string {
-  let h = 0
-  const key = secs.map((s) => `${s.documentId}:${s.index}:${s.start}-${s.end}`).join('|')
-  for (let i = 0; i < key.length; i++) { h = (h * 31 + key.charCodeAt(i)) | 0 }
-  return String(h)
+// Content-addressed cache key for a section set. A SHA-1 digest of the
+// ordered (documentId:index:start-end) tuples — same approach as audit.ts.
+// The old hand-rolled 32-bit hash could collide and then apply a cached tone
+// map (which is positional, keyed by array index) to the WRONG sections,
+// silently corrupting gap values. v1 prefix lets us invalidate if the shape
+// changes; old `gap-sentiment:<32bit>` rows simply never match again.
+const GAP_SENTIMENT_PREFIX = 'gap-sentiment:v1:'
+
+async function sectionsCacheKey(secs: SectionData[]): Promise<string> {
+  const payload = secs.map((s) => `${s.documentId}:${s.index}:${s.start}-${s.end}`).join('|')
+  const digest = await crypto.subtle.digest('SHA-1', new TextEncoder().encode(payload))
+  const hex = Array.from(new Uint8Array(digest))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('')
+  return GAP_SENTIMENT_PREFIX + hex
 }
 
 /** Fill section tones via the backend, cached per project+section-set. */
 async function fillSectionTones(projectId: string, secs: SectionData[]): Promise<void> {
   if (secs.length === 0) return
-  const cacheKey = `gap-sentiment:${hashSections(secs)}`
+  const cacheKey = await sectionsCacheKey(secs)
   const cached = await selectOne<{ result: string }>('analysisCache.get', [projectId, cacheKey])
   if (cached) {
-    const scores: Record<string, number> = JSON.parse(cached.result)
-    secs.forEach((s, i) => { s.tone = scores[String(i)] ?? 0 })
-    return
+    try {
+      const scores: Record<string, number> = JSON.parse(cached.result)
+      secs.forEach((s, i) => { s.tone = scores[String(i)] ?? 0 })
+      return
+    } catch {
+      // Corrupt cache row — fall through and recompute from the backend.
+    }
   }
   const resp = await api.analyzeSentimentBatch(
     secs.map((s, i) => ({ id: String(i), text: s.text }))

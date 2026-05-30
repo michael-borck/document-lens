@@ -28,11 +28,19 @@ import type { DatabaseResult } from '@/types/electron'
  *
  * Two adapters keep the seam honest: IPC in prod, in-memory in tests.
  */
+/** One keyed write inside a {@link runBatch} transaction. */
+export interface BatchOp {
+  key: string
+  params?: unknown[]
+}
+
 export interface DbDriver {
   select<T>(key: string, params?: unknown[]): Promise<T[]>
   run(key: string, params?: unknown[]): Promise<DatabaseResult>
   update(table: string, columns: string[], idColumn: string, params: unknown[]): Promise<DatabaseResult>
   selectIn<T>(key: string, ids: unknown[]): Promise<T[]>
+  /** Run several keyed writes atomically (all-or-nothing) in one transaction. */
+  runBatch(ops: BatchOp[]): Promise<void>
 }
 
 /** Production driver: forwards to the preload IPC bridge. */
@@ -42,6 +50,9 @@ const ipcDriver: DbDriver = {
   update: (table, columns, idColumn, params) =>
     requireElectron().dbUpdate(table, columns, idColumn, params),
   selectIn: (key, ids) => requireElectron().dbSelectIn(key, ids),
+  runBatch: async (ops) => {
+    await requireElectron().dbRunBatch(ops)
+  },
 }
 
 function requireElectron() {
@@ -78,6 +89,17 @@ export async function selectOne<T>(key: string, params?: unknown[]): Promise<T |
 /** Run a registered INSERT/UPDATE/DELETE. Returns DatabaseResult. */
 export async function runStatement(key: string, params?: unknown[]): Promise<DatabaseResult> {
   return driver.run(key, params)
+}
+
+/**
+ * Run several registered writes atomically. main wraps them in a single
+ * better-sqlite3 transaction, so either every op commits or none do — use
+ * this for multi-statement operations (clear-then-insert, importing a
+ * document with its pages/sections) that must not leave half-written rows.
+ */
+export async function runBatch(ops: BatchOp[]): Promise<void> {
+  if (ops.length === 0) return
+  return driver.runBatch(ops)
 }
 
 /**

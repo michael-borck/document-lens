@@ -4,6 +4,7 @@ import {
   selectAll,
   selectOne,
   runStatement,
+  runBatch,
   updateRow,
   selectInList,
   setDbDriver,
@@ -64,6 +65,35 @@ describe('db driver seam (in-memory adapter)', () => {
 
     const enabled = await selectInList<{ text: string }>('synonyms.enabledByKeywordIds', [kw])
     expect(enabled.map((r) => r.text)).toEqual(['power'])
+  })
+
+  it('runBatch commits every op atomically', async () => {
+    const db = withDb()
+    const pid = db.project()
+    const d1 = db.document()
+    const d2 = db.document()
+    await runBatch([
+      { key: 'projects.addDocument', params: [pid, d1, '2025-01-01T00:00:00.000Z'] },
+      { key: 'projects.addDocument', params: [pid, d2, '2025-01-01T00:00:00.000Z'] },
+    ])
+    const rows = await selectAll<{ id: string }>('documents.byProject', [pid])
+    expect(rows).toHaveLength(2)
+  })
+
+  it('runBatch rolls back every op when one fails', async () => {
+    const db = withDb()
+    const pid = db.project()
+    const d1 = db.document()
+    // Second op references a non-existent document_id → FK violation, so the
+    // whole batch (including the valid first insert) must roll back.
+    await expect(
+      runBatch([
+        { key: 'projects.addDocument', params: [pid, d1, '2025-01-01T00:00:00.000Z'] },
+        { key: 'projects.addDocument', params: [pid, 'no-such-doc', '2025-01-01T00:00:00.000Z'] },
+      ])
+    ).rejects.toThrow()
+    const rows = await selectAll<{ id: string }>('documents.byProject', [pid])
+    expect(rows).toHaveLength(0)
   })
 
   it('honours the dynamic-update column allowlist', async () => {

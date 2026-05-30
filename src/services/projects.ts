@@ -2,11 +2,13 @@ import {
   selectAll,
   selectOne,
   runStatement,
+  runBatch,
   updateRow,
   parseJson,
   stringifyJson,
   newId,
   now,
+  type BatchOp,
 } from './db'
 import type {
   Project,
@@ -164,17 +166,24 @@ export async function cloneProject(sourceId: string, newName: string): Promise<P
     scoringRuleId: source.scoringRuleId ?? undefined,
   })
 
-  // Replicate document / keyword-list / lens activations.
+  // Replicate document / keyword-list / lens activations atomically — a
+  // partial clone (some docs but no lenses) would be a confusing setup.
   const timestamp = now()
-  for (const docId of source.documentIds) {
-    await runStatement('projects.addDocument', [cloned.id, docId, timestamp])
-  }
-  for (const listId of source.keywordListIds) {
-    await runStatement('projects.addKeywordList', [cloned.id, listId])
-  }
-  for (const lensId of source.lensIds) {
-    await runStatement('projects.addLens', [cloned.id, lensId])
-  }
+  const ops: BatchOp[] = [
+    ...source.documentIds.map((docId) => ({
+      key: 'projects.addDocument',
+      params: [cloned.id, docId, timestamp],
+    })),
+    ...source.keywordListIds.map((listId) => ({
+      key: 'projects.addKeywordList',
+      params: [cloned.id, listId],
+    })),
+    ...source.lensIds.map((lensId) => ({
+      key: 'projects.addLens',
+      params: [cloned.id, lensId],
+    })),
+  ]
+  await runBatch(ops)
 
   return cloned
 }
@@ -208,20 +217,24 @@ export async function setProjectKeywordList(
 ): Promise<void> {
   // For now we model "one keyword list per project" via clear + insert.
   // The schema allows many; relax this helper when multi-list workflows arrive.
-  await runStatement('projects.clearKeywordLists', [projectId])
-  await runStatement('projects.addKeywordList', [projectId, listId])
-  await touchProject(projectId)
+  await runBatch([
+    { key: 'projects.clearKeywordLists', params: [projectId] },
+    { key: 'projects.addKeywordList', params: [projectId, listId] },
+    { key: 'projects.touch', params: [now(), projectId] },
+  ])
 }
 
 export async function setProjectLenses(
   projectId: string,
   lensIds: string[]
 ): Promise<void> {
-  await runStatement('projects.clearLenses', [projectId])
-  for (const lensId of lensIds) {
-    await runStatement('projects.addLens', [projectId, lensId])
-  }
-  await touchProject(projectId)
+  // Clear-then-insert atomically: a crash between the two would otherwise
+  // leave the project with zero lenses.
+  await runBatch([
+    { key: 'projects.clearLenses', params: [projectId] },
+    ...lensIds.map((lensId) => ({ key: 'projects.addLens', params: [projectId, lensId] })),
+    { key: 'projects.touch', params: [now(), projectId] },
+  ])
 }
 
 async function touchProject(projectId: string): Promise<void> {

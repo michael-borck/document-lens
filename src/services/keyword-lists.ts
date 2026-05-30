@@ -2,6 +2,7 @@ import {
   selectAll,
   selectOne,
   runStatement,
+  runBatch,
   updateRow,
   selectInList,
   dbBool,
@@ -114,10 +115,11 @@ export async function deleteKeywordList(id: string): Promise<void> {
 }
 
 export async function setKeywordListLenses(listId: string, lensIds: string[]): Promise<void> {
-  await runStatement('keywordLists.clearLenses', [listId])
-  for (const lensId of lensIds) {
-    await runStatement('keywordLists.addLens', [listId, lensId])
-  }
+  // Clear-then-insert atomically so a crash can't leave the list with no lenses.
+  await runBatch([
+    { key: 'keywordLists.clearLenses', params: [listId] },
+    ...lensIds.map((lensId) => ({ key: 'keywordLists.addLens', params: [listId, lensId] })),
+  ])
 }
 
 export async function getKeywordListLenses(listId: string): Promise<string[]> {

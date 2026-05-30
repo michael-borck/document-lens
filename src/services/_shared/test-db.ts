@@ -116,6 +116,18 @@ export function createTestDb(): TestDb {
     async selectIn<T>(key: string, ids: unknown[]): Promise<T[]> {
       return db.prepare(getInQuery(key, ids.length)).all(...bind(ids)) as T[]
     },
+    async runBatch(ops: { key: string; params?: unknown[] }[]): Promise<void> {
+      db.exec('BEGIN')
+      try {
+        for (const op of ops) {
+          db.prepare(getQuery(op.key)).run(...bind(op.params))
+        }
+        db.exec('COMMIT')
+      } catch (err) {
+        db.exec('ROLLBACK')
+        throw err
+      }
+    },
   }
 
   function insert(table: string, row: Record<string, unknown>): void {

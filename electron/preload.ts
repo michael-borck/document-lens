@@ -106,6 +106,8 @@ const electronAPI = {
     ipcRenderer.invoke('db:update', { table, columns, idColumn, params }),
   dbSelectIn: <T = unknown>(key: string, ids: unknown[]): Promise<T[]> =>
     ipcRenderer.invoke('db:selectIn', { key, ids }),
+  dbRunBatch: (ops: { key: string; params?: unknown[] }[]): Promise<{ success: boolean }> =>
+    ipcRenderer.invoke('db:runBatch', { ops }),
 
   // File system
   readFile: (filePath: string): Promise<ArrayBuffer> =>

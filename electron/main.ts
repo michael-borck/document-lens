@@ -512,6 +512,29 @@ ipcMain.handle('db:update', async (_, { table, columns, idColumn, params }) => {
   }
 })
 
+// Atomic batch of keyed INSERT/UPDATE/DELETEs — runs every op inside ONE
+// better-sqlite3 transaction, so a mid-sequence failure rolls the whole group
+// back instead of leaving half-written rows (e.g. a document without its
+// pages/sections, or a cleared-but-not-repopulated lens set). Each op's SQL is
+// still resolved from the registry, preserving the no-raw-SQL boundary.
+ipcMain.handle('db:runBatch', async (_, { ops }: { ops: { key: string; params?: unknown[] }[] }) => {
+  const db = getDatabase()
+  const tx = db.transaction((operations: { key: string; params?: unknown[] }[]) => {
+    for (const op of operations) {
+      const stmt = db.prepare(getQuery(op.key))
+      if (op.params) stmt.run(...op.params)
+      else stmt.run()
+    }
+  })
+  try {
+    tx(ops)
+    return { success: true }
+  } catch (error) {
+    console.error('Database batch error:', error)
+    throw error
+  }
+})
+
 // Keyed SELECT with a variable-length IN (...) list. The registry SQL holds
 // an __IN__ marker; main expands it to the right number of placeholders and
 // binds the ids as parameters.
