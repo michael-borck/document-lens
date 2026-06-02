@@ -286,26 +286,62 @@ function MapTopic() {
 function ScoreTopic() {
   return (
     <>
-      <P><em>A single number per document.</em></P>
+      <P><em>How does each document rate on your chosen rubric?</em></P>
       <P>
-        Score applies the project's scoring rule to each document. The default rule
-        is <strong>5-level Wedding Cake Score</strong> (levels 0–4): of four
-        organisational Functions, how many cover all three required Pillars
-        (Biosphere, Society, Economy)?
+        Score runs each document through the project's <strong>scoring rule</strong>{' '}
+        and gives it a level — a small integer like <Code>3 / 4</Code>. The default
+        rule is the <strong>5-level Wedding Cake Score</strong> (levels 0–4). The big
+        number is "how many criteria this document met"; the{' '}
+        <strong>Why this score</strong> panel underneath lists exactly which ones.
       </P>
-      <H2>Full mode vs fallback</H2>
+
+      <H2>Check the banner first — it changes what the number means</H2>
       <P>
-        When all documents in the project are Function-classified, Score runs in
-        <em> full mode</em> using the two-axis matrix. When classification is incomplete
-        (or the active rule doesn't reference Function), it falls back to{' '}
-        <strong>v1 Pillar coverage</strong>: how many required Pillars does each doc
-        mention positively. The header banner makes the active mode explicit.
+        The coloured banner at the top tells you which mode you're in, and the same{' '}
+        <Code>3 / 4</Code> means different things in each:
       </P>
-      <H2>Per-document scatter overlay</H2>
+      <UL>
+        <li>
+          <strong>Full Wedding Cake Score</strong> (green) — every document has been
+          Function-classified. The score counts how many of the four{' '}
+          <strong>Functions</strong> (Teaching / Research / Engagement / Operations)
+          deliver positive keyword matches in <em>all</em> the rule's required{' '}
+          <strong>Pillars</strong> at once. The default rule requires three —
+          Biosphere, Society, Economy (Partnership is the connector, not a required
+          layer). So <Code>3 / 4</Code> = three functions cover all three pillars.
+        </li>
+        <li>
+          <strong>v1 Pillar coverage prerequisite</strong> (yellow) — documents aren't
+          Function-classified yet, so the full score can't be computed. This shows a
+          fallback proxy: how many of the required Pillars the document mentions
+          positively. Run <strong>Function classification</strong> on the Setup tab
+          (the banner has a "Classify now" button) to upgrade to the full score.
+        </li>
+      </UL>
+
+      <H2>Why this score</H2>
       <P>
-        The chart shows the per-document points alongside the average line so you can
-        see the distribution behind each level — useful for spotting outliers or
-        bimodal corpora.
+        Below the big number is the breakdown — one row per criterion (a Function in
+        full mode, a Pillar in v1 mode). A green check means the criterion was{' '}
+        <strong>met</strong>, a hollow circle means <strong>unmet</strong>, and the
+        right-hand count is how many keyword matches contributed. A row reads like{' '}
+        <em>"Teaching — Delivers all required pillars"</em> (met) or{' '}
+        <em>"Research — Missing 1 of 3 required pillars"</em> (unmet). This is where
+        you see <em>why</em> a document landed at its level.
+      </P>
+
+      <H2>Per document vs Project distribution</H2>
+      <P>
+        The <strong>View</strong> switcher toggles between a single document (the big
+        score card + its Why-this-score breakdown) and the{' '}
+        <strong>Project distribution</strong> — a histogram of how many documents
+        landed at each level (0…max), with counts and percentages. Use the
+        distribution to see how the whole corpus stacks up and to spot outliers.
+      </P>
+      <P>
+        Score uses your positive keywords (it measures delivery), the rule from Setup,
+        and — for full mode — the Function classification. Change any of those and hit{' '}
+        <strong>Re-run</strong>.
       </P>
     </>
   )
