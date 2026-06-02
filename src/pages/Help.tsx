@@ -153,7 +153,7 @@ function GettingStarted() {
         Document Lens is a workspace for keyword analysis of document corpora. The
         intended workflow: assemble a <strong>project</strong>, then walk the
         nine workflow tabs (Coverage → Map → Score → Track → Compare → Audit →
-        Discover → Read) to answer different questions about that project.
+        Gap → Discover → Read) to answer different questions about that project.
       </P>
       <H2>Your first project</H2>
       <P>
@@ -215,10 +215,12 @@ function SetupTopic() {
       <H2>Function classification</H2>
       <P>
         For Map's two-axis matrix and Score's full Wedding Cake mode, each document
-        section needs to be tagged with a Function value. Click <em>Run classification</em>{' '}
+        section needs to be tagged with a Function value. Click <em>Classify documents</em>{' '}
         to send each section's text to the embedding model and assign the closest Function.
-        It's deterministic per model version and runs once — re-run only if you've added
-        documents.
+        It's deterministic per model version. Re-running (the button becomes{' '}
+        <em>Re-classify</em>) wipes and re-detects sections and reclassifies the{' '}
+        <em>whole</em> corpus, not just new documents — so you only need it after adding
+        documents or changing the Function lens.
       </P>
       <Tip>
         <strong>Bundle export</strong> lives in the Setup tab header, top right. See the{' '}
@@ -252,8 +254,9 @@ function CoverageTopic() {
         is the canonical "performative disclosure" pattern.
       </P>
       <Tip>
-        Coverage is purely local — no backend call. It runs whenever you open the tab
-        and re-runs in milliseconds.
+        Coverage is purely local — no backend call. Click <strong>Run coverage</strong>{' '}
+        (or <strong>Re-run</strong> after changing the polarity or group-by) and it
+        computes in milliseconds.
       </Tip>
     </>
   )
@@ -262,22 +265,35 @@ function CoverageTopic() {
 function MapTopic() {
   return (
     <>
-      <P><em>How does each document distribute across two lens axes?</em></P>
+      <P><em>How does each document distribute across one or two lens axes?</em></P>
       <P>
-        Map is a per-document grid showing how that document's keyword usage spreads
-        across two axes — typically <strong>SDG × Function</strong>. Each cell is the
-        number of (positive) keyword hits in sections classified as that Function for
-        keywords tagged with that SDG.
+        Map has two modes, toggled at the top:
       </P>
+      <UL>
+        <li>
+          <strong>One axis</strong> (the default) — how a document's keyword usage
+          spreads across a single keyword-attached lens (SDG, Pillar, …).
+        </li>
+        <li>
+          <strong>Two axes</strong> — cross-tabulates a keyword-attached lens (rows)
+          against a document-context lens (columns), e.g. the methodology's{' '}
+          <strong>SDG × Function</strong> table. Each cell is the number of keyword
+          hits (positive by default; counter is also selectable) in sections
+          classified as that column value, for keywords tagged with that row value.
+          The Rows / Columns dropdowns default to the first eligible lens of each kind.
+        </li>
+      </UL>
       <P>
-        Use Map to verify the Wedding Cake hypothesis at the per-document level: does
+        Use the two-axis view to test the Wedding Cake hypothesis per document: does
         this report deliver SDG 13 (Climate Action) through Operations, or only through
-        Awareness? Empty cells across a Function row mean the doc isn't delivering any
-        SDG via that activity type.
+        Awareness? An empty Function column means the doc isn't delivering any SDG via
+        that activity type.
       </P>
       <P>
-        Map needs Function classification (see Setup). Without it, the second axis is
-        blank.
+        Two-axis mode needs a document-context lens classified on Setup. With no
+        classified documents the matrix still renders but every cell is zero; a
+        partly-classified corpus shows a "classification incomplete" banner with a
+        Classify-now shortcut.
       </P>
     </>
   )
@@ -352,22 +368,25 @@ function TrackTopic() {
     <>
       <P><em>How does the metric move year-over-year?</em></P>
       <P>
-        Track aggregates a chosen <strong>measure</strong> (match count, distinct
-        keywords, positive − counter, or score) across the corpus by year. Useful
-        for "has disclosure improved over the last decade?" type questions.
+        Track aggregates a chosen <strong>measure</strong> across the corpus by year —
+        useful for "has disclosure improved over the last decade?" questions. The three
+        measures are <strong>Match count</strong>, <strong>Coverage %</strong> (share of
+        that year's documents with at least one match), and <strong>Score</strong> (the
+        scoring rule's per-year average). It needs at least two distinct years to plot.
       </P>
-      <H2>Group by company / sector</H2>
+      <H2>Overlay by company / sector</H2>
       <P>
-        The default series is one line for the whole corpus. Switching <em>Group by</em>{' '}
-        to Company or Sector splits the line — you get one trend per company, palette-
-        coloured, so you can compare "is BHP improving faster than Rio?" directly.
+        The default series is one line for the whole corpus. Switching <em>Overlay by</em>{' '}
+        to Company or Sector splits it — one palette-coloured trend per company, so you
+        can compare "is BHP improving faster than Rio?" directly.
       </P>
       <H2>Polarity</H2>
       <P>
-        For match-based measures, the Polarity selector limits to positive or counter
-        keywords. Tracking both lines side-by-side (run with each polarity, screenshot,
-        compare) is the cheap "greenwashing trend" view; pos-minus-counter rolls them
-        into one line.
+        The Polarity selector sets which keywords feed the chart (positive or counter).
+        To see the greenwashing trend directly, set <em>Overlay by</em> to{' '}
+        <strong>Polarity</strong> — that draws positive and counter as two coloured
+        lines on one chart (the Polarity selector is hidden in this mode, since both are
+        already shown).
       </P>
       <Tip>
         The <em>Export paper bundle</em> button on Track ships your current chart as a
@@ -395,9 +414,9 @@ function CompareTopic() {
       </P>
       <H2>Filters + colour-by</H2>
       <P>
-        Year range, company, and sector multi-select filters narrow the ranked set
-        without changing the metric. Colour bars by Company / Year / Sector to spot
-        clusters visually.
+        A year range (min / max) plus company and sector multi-select filters narrow
+        the ranked set without changing the metric. Colour bars by Company / Year /
+        Sector to spot clusters visually.
       </P>
     </>
   )
@@ -444,10 +463,11 @@ function DiscoverTopic() {
       <P><em>What phrases / synonyms is the corpus using that you should know about?</em></P>
       <H2>Phrases (n-grams)</H2>
       <P>
-        Extracts frequent 2- and 3-word phrases from the corpus, ranked by count and
-        document spread. Useful for finding domain-specific terminology you might
-        want to add as keywords. The <em>+ Keyword</em> button on each row adds the
-        phrase straight to the active list as a positive keyword.
+        Extracts frequent 2- and 3-word phrases from the corpus, ranked by count (with
+        an "in docs" document-spread column shown alongside). Useful for finding
+        domain-specific terminology you might want to add as keywords. The{' '}
+        <em>Keyword</em> button on each row adds the phrase straight to the active list
+        as a positive keyword.
       </P>
       <H2>Synonyms</H2>
       <P>
@@ -480,12 +500,15 @@ function ReadTopic() {
       </P>
       <H2>Locating the passage in the source PDF</H2>
       <P>
-        Each match card has four navigation aids, in increasing reliability:
+        Several navigation aids, in increasing reliability. <strong>Copy phrase</strong>{' '}
+        is on every match card; the two PDF aids appear only when the source is a PDF
+        present on disk; <strong>Open source file</strong> is a single button in the
+        results header (not per-match):
       </P>
       <UL>
-        <li><strong>Preview</strong> — opens the source PDF in an in-app modal at the right page (Chromium's built-in PDFium viewer). Hit ⌘F and paste the keyword.</li>
-        <li><strong>Open at page N</strong> — opens in your OS PDF viewer at the right page via <Code>file://…#page=N</Code>. Preview / Acrobat honour the fragment; viewers that don't, gracefully open at page 1.</li>
-        <li><strong>Open source file</strong> — opens at page 1 in your OS viewer.</li>
+        <li><strong>Preview</strong> (PDF on disk only) — opens the source PDF in an in-app modal at the right page (Chromium's built-in PDFium viewer). Hit ⌘F and paste the keyword.</li>
+        <li><strong>Open at page N</strong> (PDF on disk only) — opens in your OS PDF viewer at the right page via <Code>file://…#page=N</Code>. Preview / Acrobat honour the fragment; viewers that don't, gracefully open at page 1.</li>
+        <li><strong>Open source file</strong> (header button) — opens the document at page 1 in your OS viewer.</li>
         <li><strong>Copy phrase</strong> — three-word snippet on your clipboard. Paste into any viewer's Find. Three words is short enough to dodge the footnote / header noise that the extractor sometimes inlines.</li>
       </UL>
       <H2>Section labels</H2>
@@ -569,11 +592,11 @@ function PaperBundleTopic() {
       </P>
       <H2>What's in it</H2>
       <UL>
-        <li><Code>chart.png</Code> — the chart you're looking at, rendered at 2× for retina-ish quality</li>
         <li><Code>methodology.md</Code> — auto-generated configuration blurb (measure, polarity, filters, scoring rule)</li>
         <li><Code>data.csv</Code> — the pivoted year × series matrix</li>
-        <li><Code>documents.csv</Code> — the contributing documents with year / company / sector</li>
-        <li><Code>per-document.csv</Code> — per-doc scores (only when measure = score)</li>
+        <li><Code>documents.csv</Code> — the contributing documents with title / filename / year / company / sector</li>
+        <li><Code>chart.png</Code> — the chart you're looking at, rendered at 2× for retina-ish quality (only when a chart is currently rendered)</li>
+        <li><Code>per-document.csv</Code> — per-doc scores (only when measure = score and there are per-document scores)</li>
       </UL>
       <P>
         Saved via a native file dialog. No backend round-trip — composed client-side
@@ -606,13 +629,13 @@ function ProjectBundleTopic() {
       <P>
         Projects page → <em>Import bundle</em> button (or the same option on the empty
         state). Shows a preview first: counts of what will be created vs reused, plus
-        warnings (e.g. "no source files in this bundle"). Click <em>Import as new
+        warnings (e.g. when the bundle includes no source files). Click <em>Import as new
         project</em> to apply.
       </P>
       <H2>How identity is handled</H2>
       <UL>
         <li><strong>Documents</strong> are matched by file content hash. Same PDF already in your Library → the existing doc is reused. New PDF + bundle includes the file → written to your app data folder. New PDF + no file in the bundle → metadata-only doc, marked <em>Source missing</em> in Setup until you locate the file.</li>
-        <li><strong>Built-in lenses</strong> (SDG, Pillar, Function) and the seeded SDG keyword list and Wedding Cake scoring rule are matched by stable identifier and reused — your sustainability defaults are never duplicated by an import.</li>
+        <li><strong>Built-in lenses</strong> are matched by name (so SDG / Pillar / Function and any other built-in are reused, not duplicated), the keyword list is matched by its <em>source</em> identifier, and a built-in scoring rule (e.g. the Wedding Cake Score) is matched by name — your sustainability defaults are never duplicated by an import.</li>
         <li><strong>Custom lenses, lists, and rules</strong> get fresh IDs. Name collisions get a <Code>(imported)</Code> suffix; you can rename anytime.</li>
         <li><strong>Project name</strong> collisions also get the suffix. Two researchers can each have their own "Acme 2024 Sustainability" without overwriting.</li>
       </UL>
