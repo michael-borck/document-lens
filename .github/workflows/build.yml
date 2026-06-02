@@ -78,7 +78,12 @@ jobs:
           #   v0.3.1 — clears 24 osv-scanner CVEs on the uv.lock
           #            (nltk/urllib3/python-multipart/pillow/cryptography
           #            +others). Lockfile-only; no API change.
-          ref: v0.3.1
+          #   v0.7.0 — REQUIRED: FastAPI app moved main.py -> api package in
+          #            0.5.0, so run_server.py's `from document_analyser.api
+          #            import app` only resolves on >=0.5.0. v0.3.1 caused the
+          #            v0.19.0 release build to fail with that ImportError.
+          #            0.7.0 also carries the optional auth gate.
+          ref: v0.7.0
 
       # HuggingFace model caches use deeply-nested paths
       # (models--org--name/snapshots/<40-char-hash>/<long-filename>) that
