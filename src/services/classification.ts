@@ -23,7 +23,7 @@ import {
   setSectionTag,
   clearSectionTagsForLens,
   markSectionsClassified,
-  countClassifiedSections,
+  countClassifiedSectionsForDocuments,
   listSections,
   type DocumentSection,
 } from './sections'
@@ -52,11 +52,17 @@ export interface ClassifyDocumentResult {
   sectionsTagged: number
   /** True when the document had no extracted text. */
   unavailable: boolean
+  /** True when classification errored for this document (e.g. backend down). */
+  failed?: boolean
+  /** Error message when `failed` is true. */
+  error?: string
 }
 
 export interface ClassifyResult {
   documentsProcessed: number
   documentsUnavailable: number
+  /** Documents whose classification errored (run continued past them). */
+  documentsFailed: number
   totalSectionsTagged: number
   perDocument: ClassifyDocumentResult[]
 }
@@ -99,6 +105,7 @@ export async function classifyProjectFunctions(
 
   const perDocument: ClassifyDocumentResult[] = []
   let documentsUnavailable = 0
+  let documentsFailed = 0
   let totalSectionsTagged = 0
 
   for (let i = 0; i < docs.length; i++) {
@@ -124,81 +131,97 @@ export async function classifyProjectFunctions(
       continue
     }
 
-    // 1. Detect sections + persist (wipes any prior sections).
-    const detected = detectSections(text)
-    const sections = await persistSections(doc.id, detected)
+    // Per-document isolation: a backend failure on one document is recorded
+    // and the run continues with the next, rather than aborting the whole pass
+    // (which would discard every already-classified document's progress).
+    try {
+      // 1. Detect sections + persist (wipes any prior sections).
+      const detected = detectSections(text)
+      const sections = await persistSections(doc.id, detected)
 
-    // 2. Wipe any prior tags for this lens on these sections (handled
-    //    automatically by persistSections's CASCADE delete since the
-    //    section ids are new).
-    await clearSectionTagsForLens(doc.id, lensId)
-
-    onProgress?.({
-      documentIndex: i,
-      totalDocuments: docs.length,
-      documentLabel: docLabel,
-      sectionsDone: 0,
-      sectionsTotal: sections.length,
-    })
-
-    // 3. Classify in batches.
-    let sectionsTagged = 0
-    for (let offset = 0; offset < sections.length; offset += BATCH_SIZE) {
-      const batch = sections.slice(offset, offset + BATCH_SIZE)
-      const texts = batch.map((s) => s.text)
-      let responses: Awaited<ReturnType<typeof api.mapDomainsBatch>>
-      try {
-        responses = await api.mapDomainsBatch(texts, domainLabels)
-      } catch (err) {
-        throw new Error(
-          `Classification failed for ${docLabel} (sections ${offset}..${offset + batch.length}): ${err instanceof Error ? err.message : String(err)}`
-        )
-      }
-
-      // 4. Tag each section by its primary domain. Backend returns
-      //    one DomainMappingResponse per input text. Each response's
-      //    mappings[0] is the assignment we want — even when backend's
-      //    own _detect_sections splits the input further, the first
-      //    mapping is still the dominant classification.
-      for (let j = 0; j < batch.length; j++) {
-        const section = batch[j]
-        const response = responses[j]
-        if (!response || response.mappings.length === 0) continue
-        const primary = response.mappings[0].primary_domain
-        const value = lensValues.find((v) => domainLabelFor(v) === primary)
-        if (!value) continue
-        await setSectionTag(
-          section.id,
-          lensId,
-          value.id,
-          response.mappings[0].similarity_score
-        )
-        sectionsTagged++
-      }
+      // 2. Wipe any prior tags for this lens on these sections (handled
+      //    automatically by persistSections's CASCADE delete since the
+      //    section ids are new).
+      await clearSectionTagsForLens(doc.id, lensId)
 
       onProgress?.({
         documentIndex: i,
         totalDocuments: docs.length,
         documentLabel: docLabel,
-        sectionsDone: Math.min(offset + batch.length, sections.length),
+        sectionsDone: 0,
         sectionsTotal: sections.length,
       })
+
+      // 3. Classify in batches.
+      let sectionsTagged = 0
+      for (let offset = 0; offset < sections.length; offset += BATCH_SIZE) {
+        const batch = sections.slice(offset, offset + BATCH_SIZE)
+        const texts = batch.map((s) => s.text)
+        let responses: Awaited<ReturnType<typeof api.mapDomainsBatch>>
+        try {
+          responses = await api.mapDomainsBatch(texts, domainLabels)
+        } catch (err) {
+          throw new Error(
+            `Classification failed for ${docLabel} (sections ${offset}..${offset + batch.length}): ${err instanceof Error ? err.message : String(err)}`
+          )
+        }
+
+        // 4. Tag each section by its primary domain. Backend returns
+        //    one DomainMappingResponse per input text. Each response's
+        //    mappings[0] is the assignment we want — even when backend's
+        //    own _detect_sections splits the input further, the first
+        //    mapping is still the dominant classification.
+        for (let j = 0; j < batch.length; j++) {
+          const section = batch[j]
+          const response = responses[j]
+          if (!response || response.mappings.length === 0) continue
+          const primary = response.mappings[0].primary_domain
+          const value = lensValues.find((v) => domainLabelFor(v) === primary)
+          if (!value) continue
+          await setSectionTag(
+            section.id,
+            lensId,
+            value.id,
+            response.mappings[0].similarity_score
+          )
+          sectionsTagged++
+        }
+
+        onProgress?.({
+          documentIndex: i,
+          totalDocuments: docs.length,
+          documentLabel: docLabel,
+          sectionsDone: Math.min(offset + batch.length, sections.length),
+          sectionsTotal: sections.length,
+        })
+      }
+
+      await markSectionsClassified(sections.map((s) => s.id))
+
+      totalSectionsTagged += sectionsTagged
+      perDocument.push({
+        documentId: doc.id,
+        sectionsDetected: sections.length,
+        sectionsTagged,
+        unavailable: false,
+      })
+    } catch (err) {
+      documentsFailed++
+      perDocument.push({
+        documentId: doc.id,
+        sectionsDetected: 0,
+        sectionsTagged: 0,
+        unavailable: false,
+        failed: true,
+        error: err instanceof Error ? err.message : String(err),
+      })
     }
-
-    await markSectionsClassified(sections.map((s) => s.id))
-
-    totalSectionsTagged += sectionsTagged
-    perDocument.push({
-      documentId: doc.id,
-      sectionsDetected: sections.length,
-      sectionsTagged,
-      unavailable: false,
-    })
   }
 
   return {
-    documentsProcessed: docs.length - documentsUnavailable,
+    documentsProcessed: docs.length - documentsUnavailable - documentsFailed,
     documentsUnavailable,
+    documentsFailed,
     totalSectionsTagged,
     perDocument,
   }
@@ -224,15 +247,18 @@ export async function getClassificationStatus(
     'classification.projectDocText',
     [projectId]
   )
+  // One batched count instead of a query per document.
+  const available = docs.filter(
+    (doc) => doc.extracted_text && doc.extracted_text.trim().length > 0
+  )
+  const unavailableDocuments = docs.length - available.length
+  const counts = await countClassifiedSectionsForDocuments(
+    available.map((d) => d.id),
+    lensId
+  )
   let classifiedDocuments = 0
-  let unavailableDocuments = 0
-  for (const doc of docs) {
-    if (!doc.extracted_text || doc.extracted_text.trim().length === 0) {
-      unavailableDocuments++
-      continue
-    }
-    const n = await countClassifiedSections(doc.id, lensId)
-    if (n > 0) classifiedDocuments++
+  for (const doc of available) {
+    if ((counts.get(doc.id) ?? 0) > 0) classifiedDocuments++
   }
   return {
     totalDocuments: docs.length,

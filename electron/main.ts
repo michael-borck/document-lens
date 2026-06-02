@@ -374,7 +374,13 @@ ipcMain.handle('app:getVersion', () => {
   return app.getVersion()
 })
 
+// The renderer only needs a handful of well-known directories; don't let it
+// resolve arbitrary named paths (home, exe, …) that would feed the fs:* guard.
+const ALLOWED_APP_PATHS = new Set(['userData', 'temp', 'downloads', 'documents'])
 ipcMain.handle('app:getPath', (_, name: string) => {
+  if (!ALLOWED_APP_PATHS.has(name)) {
+    throw new Error(`Refused: app path not permitted: ${name}`)
+  }
   return app.getPath(name as Parameters<typeof app.getPath>[0])
 })
 
@@ -440,10 +446,14 @@ ipcMain.handle('backend:restart', async () => {
 
 // Debug: get resources path info
 ipcMain.handle('debug:getResourcesInfo', () => {
+  // Dev-only diagnostic — don't leak the install layout from a shipped build.
+  if (app.isPackaged) {
+    return { error: 'debug info is unavailable in production builds' }
+  }
   const resourcesPath = process.resourcesPath
   const fs = require('fs')
   const path = require('path')
-  
+
   const info: Record<string, unknown> = {
     resourcesPath,
     isPackaged: app.isPackaged,

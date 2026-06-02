@@ -97,16 +97,54 @@ export interface ImportResult {
   newLensCount: number
 }
 
+// Bundle resource limits — defence against a malicious/corrupt .lens DoSing
+// the app (a tiny zip that declares gigabytes uncompressed, or millions of
+// entries). Local, user-initiated import, so these are generous.
+const MAX_BUNDLE_FILE_BYTES = 2 * 1024 * 1024 * 1024 // 2 GB on disk (compressed)
+const MAX_BUNDLE_UNCOMPRESSED_BYTES = 4 * 1024 * 1024 * 1024 // 4 GB expanded
+const MAX_BUNDLE_ENTRIES = 100_000
+
+/**
+ * Read a .lens file and open it as a zip, rejecting obvious zip-bombs BEFORE
+ * decompressing any entry: caps the on-disk size, the entry count, and the
+ * total declared uncompressed size (read from the zip's central directory by
+ * JSZip on load). Shared by the preview and apply paths.
+ */
+async function loadBundleZip(bundlePath: string): Promise<JSZip> {
+  const electron = window.electron
+  if (!electron) throw new Error('Electron API not available')
+
+  const buffer = await electron.readFile(bundlePath)
+  if (buffer.byteLength > MAX_BUNDLE_FILE_BYTES) {
+    throw new Error('Bundle file is too large to import safely.')
+  }
+  const zip = await JSZip.loadAsync(buffer)
+
+  let entries = 0
+  let totalUncompressed = 0
+  zip.forEach((_path, file) => {
+    entries++
+    const size = (file as unknown as { _data?: { uncompressedSize?: number } })._data
+      ?.uncompressedSize
+    if (typeof size === 'number') totalUncompressed += size
+  })
+  if (entries > MAX_BUNDLE_ENTRIES) {
+    throw new Error(`Bundle has too many entries (${entries}); refusing to import.`)
+  }
+  if (totalUncompressed > MAX_BUNDLE_UNCOMPRESSED_BYTES) {
+    throw new Error(
+      `Bundle expands to ~${Math.round(totalUncompressed / 1e9)} GB uncompressed; refusing to import.`
+    )
+  }
+  return zip
+}
+
 // ---------------------------------------------------------------------------
 // Step 1: read + preview the bundle (no DB writes)
 // ---------------------------------------------------------------------------
 
 export async function readBundlePreview(bundlePath: string): Promise<BundlePreview> {
-  const electron = window.electron
-  if (!electron) throw new Error('Electron API not available')
-
-  const buffer = await electron.readFile(bundlePath)
-  const zip = await JSZip.loadAsync(buffer)
+  const zip = await loadBundleZip(bundlePath)
 
   const manifest = await readJson<BundleManifest>(zip, 'manifest.json')
   if (!manifest || typeof manifest.bundleSchemaVersion !== 'number') {
@@ -208,8 +246,7 @@ export async function applyBundle(
   const electron = window.electron
   if (!electron) throw new Error('Electron API not available')
 
-  const buffer = await electron.readFile(bundlePath)
-  const zip = await JSZip.loadAsync(buffer)
+  const zip = await loadBundleZip(bundlePath)
 
   const manifest = await readJson<BundleManifest>(zip, 'manifest.json')
   const project = await readJson<BundleProject>(zip, 'project.json')

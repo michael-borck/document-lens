@@ -216,6 +216,10 @@ export const QUERIES = {
   // sections
   'sections.listByDocument':
     'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',
+  // Batched variant for analysis hot paths — sections for many documents in
+  // one round-trip (grouped by document_id in the caller).
+  'sections.byDocuments':
+    'SELECT * FROM document_sections WHERE document_id IN (__IN__) ORDER BY document_id, section_index',
   'sections.deleteByDocument': 'DELETE FROM document_sections WHERE document_id = ?',
   'sections.create': `INSERT INTO document_sections
          (id, document_id, section_index, start_offset, end_offset, text, classified_at)
@@ -235,6 +239,22 @@ export const QUERIES = {
        FROM section_lens_tags slt
        JOIN document_sections ds ON ds.id = slt.section_id
       WHERE ds.document_id = ? AND slt.lens_id = ?`,
+  // Batched variant — tags for many documents in one round-trip (all lenses;
+  // the caller filters to the lens it wants). lens_id included so the caller
+  // can group by document_id and select its lens in JS.
+  'sections.tagsByDocuments': `SELECT ds.document_id, slt.section_id, slt.lens_id, slt.value_id, slt.confidence
+       FROM section_lens_tags slt
+       JOIN document_sections ds ON ds.id = slt.section_id
+      WHERE ds.document_id IN (__IN__)`,
+  // Batched classified-section counts per document (all lenses; caller filters
+  // to the lens it wants). lens_id can't be a leading bind param because the
+  // IN-list mechanism only binds the IN values, so it's grouped + filtered in JS.
+  'sections.countClassifiedByDocuments': `SELECT ds.document_id AS document_id, slt.lens_id AS lens_id,
+             COUNT(DISTINCT slt.section_id) AS n
+       FROM section_lens_tags slt
+       JOIN document_sections ds ON ds.id = slt.section_id
+      WHERE ds.document_id IN (__IN__)
+      GROUP BY ds.document_id, slt.lens_id`,
   'sections.countClassified': `SELECT COUNT(DISTINCT slt.section_id) AS n
        FROM section_lens_tags slt
        JOIN document_sections ds ON ds.id = slt.section_id

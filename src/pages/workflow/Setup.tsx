@@ -501,10 +501,18 @@ function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
       const result = await classifyProjectFunctions(vm.project.id, activeLensId, setProgress)
       const fresh = await getClassificationStatus(vm.project.id, activeLensId)
       setStatus(fresh)
-      toast.success(
+      const summary =
         `Classified ${result.documentsProcessed} document${result.documentsProcessed === 1 ? '' : 's'}` +
         ` (${result.totalSectionsTagged} sections tagged)`
-      )
+      if (result.documentsFailed > 0) {
+        // Some documents failed but the run continued (per-document isolation).
+        toast.error(
+          `${summary}. ${result.documentsFailed} document${result.documentsFailed === 1 ? '' : 's'} failed`,
+          'Check the backend status and re-run classification to retry the failed documents.'
+        )
+      } else {
+        toast.success(summary)
+      }
     } catch (err) {
       toast.error(`Classification failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {

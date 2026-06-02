@@ -16,7 +16,7 @@
  * meaningfully to topic classification).
  */
 
-import { selectAll, selectOne, runStatement, newId, now } from './db'
+import { selectAll, selectOne, selectInList, runStatement, newId, now } from './db'
 
 export interface DocumentSection {
   id: string
@@ -176,6 +176,27 @@ export async function listSections(documentId: string): Promise<DocumentSection[
 }
 
 /**
+ * Batched listSections — sections for many documents in ONE round-trip,
+ * grouped by document id. Rows arrive ordered by (document_id, section_index)
+ * so each document's array is in section order. Used by analysis hot paths
+ * (Coverage-2D) to avoid an IPC call per document.
+ */
+export async function listSectionsForDocuments(
+  documentIds: string[]
+): Promise<Map<string, DocumentSection[]>> {
+  const byDoc = new Map<string, DocumentSection[]>()
+  if (documentIds.length === 0) return byDoc
+  const rows = await selectInList<DocumentSectionRow>('sections.byDocuments', documentIds)
+  for (const row of rows) {
+    const sec = rowToSection(row)
+    const arr = byDoc.get(sec.documentId)
+    if (arr) arr.push(sec)
+    else byDoc.set(sec.documentId, [sec])
+  }
+  return byDoc
+}
+
+/**
  * Replace all sections for a document with a fresh detection. Wipes
  * existing sections (and their tags via cascade) so re-classification
  * starts from a clean slate.
@@ -274,6 +295,32 @@ export async function getSectionTagsForDocument(
 }
 
 /**
+ * Batched section tags — tags for many documents on one lens in ONE
+ * round-trip. Returns documentId -> (sectionId -> { valueId, confidence }).
+ * The query returns all lenses; we filter to `lensId` here.
+ */
+export async function getSectionTagsForDocuments(
+  documentIds: string[],
+  lensId: string
+): Promise<Map<string, Map<string, { valueId: string; confidence: number | null }>>> {
+  const byDoc = new Map<string, Map<string, { valueId: string; confidence: number | null }>>()
+  if (documentIds.length === 0) return byDoc
+  const rows = await selectInList<
+    SectionTagRow & { document_id: string; lens_id: string }
+  >('sections.tagsByDocuments', documentIds)
+  for (const row of rows) {
+    if (row.lens_id !== lensId) continue
+    let inner = byDoc.get(row.document_id)
+    if (!inner) {
+      inner = new Map()
+      byDoc.set(row.document_id, inner)
+    }
+    inner.set(row.section_id, { valueId: row.value_id, confidence: row.confidence })
+  }
+  return byDoc
+}
+
+/**
  * How many sections are classified for this document on this lens?
  * Used for progress UI / badge "X of Y sections classified".
  */
@@ -283,4 +330,24 @@ export async function countClassifiedSections(
 ): Promise<number> {
   const row = await selectOne<{ n: number }>('sections.countClassified', [documentId, lensId])
   return row?.n ?? 0
+}
+
+/**
+ * Batched classified-section counts for many documents on one lens, in ONE
+ * round-trip. Returns documentId -> count (absent => 0).
+ */
+export async function countClassifiedSectionsForDocuments(
+  documentIds: string[],
+  lensId: string
+): Promise<Map<string, number>> {
+  const counts = new Map<string, number>()
+  if (documentIds.length === 0) return counts
+  const rows = await selectInList<{ document_id: string; lens_id: string; n: number }>(
+    'sections.countClassifiedByDocuments',
+    documentIds
+  )
+  for (const row of rows) {
+    if (row.lens_id === lensId) counts.set(row.document_id, row.n)
+  }
+  return counts
 }

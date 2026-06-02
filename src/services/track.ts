@@ -136,6 +136,22 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   }
   const scoreFallback = scoreMode === 'v1-prerequisite'
 
+  // Load the corpus ONCE per distinct polarity (max two: positive/counter)
+  // rather than once per series — grouped Track (by company/sector) can
+  // produce many series that share a polarity, and each load re-reads every
+  // document's full extracted_text.
+  const corpusByPolarity = new Map<KeywordPolarity, ProjectCorpus>()
+  for (const pol of new Set(seriesSpecs.map((s) => s.polarity))) {
+    corpusByPolarity.set(
+      pol,
+      await loadProjectCorpus({
+        projectId: input.projectId,
+        keywordListId: input.keywordListId,
+        polarity: pol,
+      })
+    )
+  }
+
   const series: TrackSeries[] = []
   const perDocument: TrackPerDocPoint[] = []
   let yearUnknownDocs = 0
@@ -145,7 +161,12 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
   let yearMax: number | null = null
 
   for (const spec of seriesSpecs) {
-    const oneSeries = await buildSeriesForSpec(input, spec, scoreEvalByPolarity?.get(spec.polarity) ?? null)
+    const oneSeries = await buildSeriesForSpec(
+      input,
+      spec,
+      corpusByPolarity.get(spec.polarity)!,
+      scoreEvalByPolarity?.get(spec.polarity) ?? null
+    )
     series.push(oneSeries.series)
     yearUnknownDocs = Math.max(yearUnknownDocs, oneSeries.yearUnknownDocs)
     yearUnknownMatches += oneSeries.yearUnknownMatches
@@ -225,15 +246,10 @@ interface SeriesBuildResult {
 async function buildSeriesForSpec(
   input: ComputeTrackInput,
   spec: SeriesSpec,
+  corpus: ProjectCorpus,
   scoreEval: ScoreEvaluation | null
 ): Promise<SeriesBuildResult> {
   const polarity = spec.polarity
-  // Load the corpus for this polarity (usable docs + enabled keywords + counts).
-  const corpus = await loadProjectCorpus({
-    projectId: input.projectId,
-    keywordListId: input.keywordListId,
-    polarity,
-  })
   const topicKeywords = await filterToTopic(corpus.keywords, input.keywordListId, input.topic)
 
   // Apply the per-series doc filter (e.g., this series is for company "Acme").

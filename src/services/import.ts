@@ -23,7 +23,7 @@ import {
   createDocument,
   getDocument,
 } from './documents'
-import { runStatement, now, stringifyJson } from './db'
+import { runStatement, runBatch, now, stringifyJson, type BatchOp } from './db'
 import { api } from './api'
 import type { Document } from '@/types/data'
 
@@ -186,37 +186,43 @@ async function importOne(
       ?? response.inferred?.probable_company?.trim()
       ?? null
 
-    await runStatement('import.updateExtraction', [
-      title,
-      year,
-      company,
-      pageCount,
-      wordCount,
-      extractedText,
-      response.metadata ? stringifyJson(response.metadata) : null,
-      now(),
-      created.id,
-    ])
-
-    // Per-page text storage (IA-8). Wired now even though no UI consumes
-    // it yet — page-aware concordance (US-G-03) and the embedded PDF
-    // viewer (US-G-04) both need this; storing at import time means
-    // users won't have to re-import their corpus when those land.
+    // Persist the extraction result and per-page text in ONE transaction, so
+    // the document's terminal state is consistent: it ends up 'extracted' with
+    // its pages, or — if any write fails — nothing commits and the catch below
+    // marks it 'failed'. (Previously a page-insert failure left a document with
+    // good extracted text marked 'failed', or 'extracted' with missing pages.)
+    //
+    // Per-page text storage (IA-8). Wired now even though no UI consumes it yet
+    // — page-aware concordance (US-G-03) and the embedded PDF viewer (US-G-04)
+    // both need it; storing at import time avoids a re-import later.
     const pages = response.extracted_text?.pages ?? []
+    const ops: BatchOp[] = [
+      {
+        key: 'import.updateExtraction',
+        params: [
+          title,
+          year,
+          company,
+          pageCount,
+          wordCount,
+          extractedText,
+          response.metadata ? stringifyJson(response.metadata) : null,
+          now(),
+          created.id,
+        ],
+      },
+    ]
     if (pages.length > 0) {
-      // Clear any prior page rows for this document (defensive — would
-      // only matter on a re-extract path that doesn't exist yet).
-      await runStatement('documentPages.deleteByDocument', [created.id])
+      // Clear any prior page rows for this document (defensive — would only
+      // matter on a re-extract path that doesn't exist yet).
+      ops.push({ key: 'documentPages.deleteByDocument', params: [created.id] })
       for (const page of pages) {
         if (page.text && page.text.trim().length > 0) {
-          await runStatement('documentPages.insert', [
-            created.id,
-            page.page_number,
-            page.text,
-          ])
+          ops.push({ key: 'documentPages.insert', params: [created.id, page.page_number, page.text] })
         }
       }
     }
+    await runBatch(ops)
 
     const updated = await getDocument(created.id)
     onPhase('completed')

@@ -19,8 +19,8 @@ import { selectAll } from './db'
 import { getKeywordListLenses } from './keyword-lists'
 import { listLensValues } from './lenses'
 import {
-  listSections,
-  getSectionTagsForDocument,
+  listSectionsForDocuments,
+  getSectionTagsForDocuments,
   type DocumentSection,
 } from './sections'
 import { loadProjectCorpus } from './_shared/project-corpus'
@@ -124,6 +124,12 @@ export async function computeCoverage2D(
   let unplacedNoSectionTag = 0
   let unplacedOutsideSections = 0
 
+  // Fetch sections + their col-lens tags for ALL documents up front (two IPC
+  // round-trips total) instead of two per document.
+  const docIds = usableDocs.map((d) => d.id)
+  const sectionsByDoc = await listSectionsForDocuments(docIds)
+  const tagsByDoc = await getSectionTagsForDocuments(docIds, input.colLensId)
+
   for (const doc of usableDocs) {
     cells[doc.id] = {}
     for (const rv of rowValues) {
@@ -131,9 +137,9 @@ export async function computeCoverage2D(
       for (const cv of colValues) cells[doc.id][rv.id][cv.id] = 0
     }
 
-    const sections = await listSections(doc.id)
+    const sections = sectionsByDoc.get(doc.id) ?? []
     if (sections.length === 0) continue
-    const sectionTags = await getSectionTagsForDocument(doc.id, input.colLensId)
+    const sectionTags = tagsByDoc.get(doc.id) ?? new Map()
 
     for (const kw of keywords) {
       const rowValueIds = keywordRowValueIds.get(kw.id)
