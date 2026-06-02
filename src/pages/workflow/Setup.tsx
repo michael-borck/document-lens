@@ -52,21 +52,33 @@ export function Setup() {
   }, [])
 
   const handleSelectKeywordList = async (listId: string) => {
-    await setProjectKeywordList(vm.project.id, listId)
-    await vm.refresh()
+    try {
+      await setProjectKeywordList(vm.project.id, listId)
+      await vm.refresh()
+    } catch (err) {
+      toast.error(`Could not set keyword list: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   const handleToggleLens = async (lensId: string, enabled: boolean) => {
     const next = enabled
       ? Array.from(new Set([...vm.project.lensIds, lensId]))
       : vm.project.lensIds.filter((id) => id !== lensId)
-    await setProjectLenses(vm.project.id, next)
-    await vm.refresh()
+    try {
+      await setProjectLenses(vm.project.id, next)
+      await vm.refresh()
+    } catch (err) {
+      toast.error(`Could not update lenses: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   const handleSelectScoringRule = async (ruleId: string) => {
-    await updateProject(vm.project.id, { scoringRuleId: ruleId })
-    await vm.refresh()
+    try {
+      await updateProject(vm.project.id, { scoringRuleId: ruleId })
+      await vm.refresh()
+    } catch (err) {
+      toast.error(`Could not set scoring rule: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   const handleExportBundle = async () => {
@@ -243,8 +255,12 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
   }
 
   const handleRemove = async (documentId: string) => {
-    await removeDocumentFromProject(vm.project.id, documentId)
-    await vm.refresh()
+    try {
+      await removeDocumentFromProject(vm.project.id, documentId)
+      await vm.refresh()
+    } catch (err) {
+      toast.error(`Could not remove document: ${err instanceof Error ? err.message : String(err)}`)
+    }
   }
 
   const handleLocate = async (doc: Document) => {
@@ -337,6 +353,7 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
                     onClick={() => handleRemove(doc.id)}
                     className="text-muted-foreground hover:text-destructive transition-colors p-1"
                     title="Remove from project"
+                    aria-label="Remove from project"
                   >
                     <X className="h-4 w-4" />
                   </button>

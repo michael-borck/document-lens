@@ -253,6 +253,12 @@ export function Compare() {
       )}
 
       {result && <ResultsView result={result} />}
+
+      {!result && !running && !error && (
+        <div className="mt-2 rounded-md border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          Click <span className="font-medium text-foreground">Run compare</span> to chart how your documents stack up.
+        </div>
+      )}
     </div>
   )
 }

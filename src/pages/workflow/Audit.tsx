@@ -81,10 +81,8 @@ export function Audit() {
     }
   })
 
-  // Preserve the failure toast the hand-rolled catch used to fire.
-  useEffect(() => {
-    if (error) toast.error('Audit failed')
-  }, [error])
+  // Errors surface once, in the inline banner below (which shows the actual
+  // message) — no duplicate generic toast.
 
   if (!vm.keywordList) {
     return (
@@ -202,9 +200,10 @@ function Header() {
 
 function ModeToggle({ mode, onChange }: { mode: AuditMode; onChange: (m: AuditMode) => void }) {
   return (
-    <div className="inline-flex items-center gap-0.5 text-xs border border-border rounded-md p-0.5 mb-3">
+    <div role="group" aria-label="Audit mode" className="inline-flex items-center gap-0.5 text-xs border border-border rounded-md p-0.5 mb-3">
       <button
         type="button"
+        aria-pressed={mode === 'anomalies'}
         onClick={() => onChange('anomalies')}
         className={cn(
           'px-3 py-1.5 rounded transition-colors inline-flex items-center gap-1.5',
@@ -216,6 +215,7 @@ function ModeToggle({ mode, onChange }: { mode: AuditMode; onChange: (m: AuditMo
       </button>
       <button
         type="button"
+        aria-pressed={mode === 'confirmations'}
         onClick={() => onChange('confirmations')}
         className={cn(
           'px-3 py-1.5 rounded transition-colors inline-flex items-center gap-1.5',
@@ -379,11 +379,12 @@ function SeverityFilter({
     { key: 'low', label: 'Low', count: counts.low },
   ]
   return (
-    <div className="flex items-center gap-1 text-xs border border-border rounded-md p-0.5">
+    <div role="group" aria-label="Filter by severity" className="flex items-center gap-1 text-xs border border-border rounded-md p-0.5">
       {opts.map((o) => (
         <button
           key={o.key}
           type="button"
+          aria-pressed={value === o.key}
           onClick={() => onChange(o.key)}
           className={cn(
             'px-2 py-1 rounded transition-colors',

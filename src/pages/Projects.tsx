@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Plus, FolderOpen, Trash2, Package } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
+import { Loading } from '@/components/Loading'
 import { NewProjectDialog } from '@/components/dialogs/NewProjectDialog'
 import { FirstRunWizard } from '@/components/dialogs/FirstRunWizard'
 import { ImportBundleDialog } from '@/components/dialogs/ImportBundleDialog'
@@ -49,7 +50,12 @@ export function Projects() {
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return
-    await deleteProject(pendingDelete.id)
+    try {
+      await deleteProject(pendingDelete.id)
+    } catch (err) {
+      toast.error(`Could not delete project: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
     toast.success(`Deleted project "${pendingDelete.name}"`)
     setPendingDelete(null)
     await refresh()
@@ -57,7 +63,7 @@ export function Projects() {
 
   if (projects === null) {
     return (
-      <div className="px-8 py-10 text-sm text-muted-foreground">Loading…</div>
+      <Loading />
     )
   }
 

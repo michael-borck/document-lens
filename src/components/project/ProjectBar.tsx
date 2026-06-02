@@ -68,6 +68,7 @@ export function ProjectBar({ projectName, onRename }: ProjectBarProps) {
         to="/"
         className="text-muted-foreground hover:text-foreground transition-colors shrink-0"
         title="Back to projects"
+        aria-label="Back to projects"
       >
         <ArrowLeft className="h-4 w-4" />
       </Link>
@@ -91,6 +92,7 @@ export function ProjectBar({ projectName, onRename }: ProjectBarProps) {
             disabled={saving}
             className="text-muted-foreground hover:text-foreground p-1 rounded disabled:opacity-50"
             title="Save (Enter)"
+            aria-label="Save project name"
           >
             <Check className="h-4 w-4" />
           </button>
@@ -100,6 +102,7 @@ export function ProjectBar({ projectName, onRename }: ProjectBarProps) {
             disabled={saving}
             className="text-muted-foreground hover:text-foreground p-1 rounded disabled:opacity-50"
             title="Cancel (Escape)"
+            aria-label="Cancel renaming"
           >
             <X className="h-4 w-4" />
           </button>

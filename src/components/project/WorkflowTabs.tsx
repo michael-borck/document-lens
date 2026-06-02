@@ -41,8 +41,9 @@ export function WorkflowTabs({ setupComplete = false }: WorkflowTabsProps) {
           return (
             <span
               key={to}
+              aria-disabled="true"
               className="px-4 py-2.5 text-sm text-muted-foreground/50 cursor-not-allowed select-none"
-              title="Complete Setup to enable this workflow"
+              title="Add a keyword list and a scoring rule on the Setup tab to unlock this workflow"
             >
               {label}
             </span>
@@ -64,6 +65,13 @@ export function WorkflowTabs({ setupComplete = false }: WorkflowTabsProps) {
           </NavLink>
         )
       })}
+      {!setupComplete && (
+        // Visible hint — tooltips on the disabled tabs don't reach keyboard or
+        // touch users, so spell out what unlocks the workflows.
+        <span className="ml-auto self-center pl-4 pr-4 py-2.5 text-xs italic text-muted-foreground/70 whitespace-nowrap">
+          Add a keyword list + scoring rule in Setup to unlock these
+        </span>
+      )}
     </nav>
   )
 }

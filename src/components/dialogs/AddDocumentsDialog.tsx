@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { Search, Upload } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Loading } from '@/components/Loading'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
@@ -132,6 +133,8 @@ export function AddDocumentsDialog({
       await addDocumentsToProject(projectId, Array.from(selected))
       onAdded()
       onOpenChange(false)
+    } catch (err) {
+      toast.error(`Could not add documents: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setAdding(false)
     }
@@ -181,7 +184,7 @@ export function AddDocumentsDialog({
 
           <div className="border border-border rounded-md max-h-80 overflow-auto">
             {loading ? (
-              <div className="p-6 text-sm text-muted-foreground">Loading…</div>
+              <Loading label="Loading documents…" className="py-6" />
             ) : availableDocs.length === 0 ? (
               <div className="p-6 text-sm text-muted-foreground">
                 {allDocs.length === 0

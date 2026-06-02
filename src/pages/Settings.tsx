@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Plus, Trash2, Lock, Award, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
+import { Loading } from '@/components/Loading'
 import { NewScoringRuleDialog } from '@/components/dialogs/NewScoringRuleDialog'
 import {
   listScoringRules,
@@ -65,7 +66,12 @@ function ScoringRulesSection() {
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return
-    await deleteScoringRule(pendingDelete.rule.id)
+    try {
+      await deleteScoringRule(pendingDelete.rule.id)
+    } catch (err) {
+      toast.error(`Could not delete scoring rule: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
     toast.success(`Deleted scoring rule "${pendingDelete.rule.name}"`)
     setPendingDelete(null)
     await refresh()
@@ -90,7 +96,7 @@ function ScoringRulesSection() {
       </p>
 
       {rules === null ? (
-        <div className="text-sm text-muted-foreground py-2">Loading…</div>
+        <Loading className="py-2" />
       ) : rules.length === 0 ? (
         <div className="text-sm text-muted-foreground italic border border-dashed border-border rounded-md p-4">
           No scoring rules yet.

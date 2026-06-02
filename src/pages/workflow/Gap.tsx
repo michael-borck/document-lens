@@ -52,11 +52,11 @@ export function Gap() {
         Sentiment is a coarse signal — treat the gap as a way to find passages worth reading, not a verdict.
       </div>
 
-      <div className="flex items-center gap-2 mb-4">
+      <div role="group" aria-label="Reference line" className="flex items-center gap-2 mb-4">
         <span className="text-sm text-muted-foreground">Reference line:</span>
-        <button type="button" onClick={() => setReference('diagonal')}
+        <button type="button" aria-pressed={reference === 'diagonal'} onClick={() => setReference('diagonal')}
           className={`text-sm px-3 py-1 rounded-full border ${reference === 'diagonal' ? 'border-foreground' : 'border-border text-muted-foreground'}`}>Absolute (diagonal)</button>
-        <button type="button" disabled={!residualReady} onClick={() => setReference('residual')}
+        <button type="button" aria-pressed={reference === 'residual'} disabled={!residualReady} onClick={() => setReference('residual')}
           title={residualReady ? '' : `Needs ≥ ${RESIDUAL_MIN_POINTS} points`}
           className={`text-sm px-3 py-1 rounded-full border disabled:opacity-40 ${reference === 'residual' ? 'border-foreground' : 'border-border text-muted-foreground'}`}>Relative to corpus</button>
       </div>

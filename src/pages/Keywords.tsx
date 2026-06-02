@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Loading } from '@/components/Loading'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
   Select,
@@ -102,7 +103,7 @@ export function Keywords() {
   }
 
   if (lists === null) {
-    return <div className="px-8 py-10 text-sm text-muted-foreground">Loading…</div>
+    return <Loading />
   }
 
   const selected = lists.find((l) => l.id === selectedListId) ?? null
@@ -405,7 +406,7 @@ function KeywordsPane({ list }: { list: KeywordList }) {
       </div>
 
       {loading ? (
-        <div className="text-sm text-muted-foreground py-6 text-center">Loading keywords…</div>
+        <Loading label="Loading keywords…" className="py-6" />
       ) : filtered.length === 0 ? (
         <EmptyState
           title={keywords.length === 0 ? 'No keywords' : 'No matches'}
@@ -550,7 +551,11 @@ function KeywordRow({
   onSaveEdit: (patch: { text?: string; polarity?: KeywordPolarity; notes?: string | null }) => void | Promise<void>
 }) {
   return (
-    <li className="group">
+    // content-visibility lets the browser skip layout/paint for off-screen
+    // rows — the default SDG list is ~430 keywords, so this keeps scroll and
+    // filter smooth without a virtualization dependency. contain-intrinsic-size
+    // reserves an estimated collapsed-row height so the scrollbar stays stable.
+    <li className="group [content-visibility:auto] [contain-intrinsic-size:auto_44px]">
       {isEditing ? (
         <KeywordEditRow keyword={keyword} onCancel={onCancelEdit} onSave={onSaveEdit} />
       ) : (

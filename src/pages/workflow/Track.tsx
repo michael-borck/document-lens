@@ -300,6 +300,12 @@ export function Track() {
           }}
         />
       )}
+
+      {!result && !running && !error && (
+        <div className="mt-2 rounded-md border border-dashed border-border p-10 text-center text-sm text-muted-foreground">
+          Click <span className="font-medium text-foreground">Run track</span> to chart change over time.
+        </div>
+      )}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
+import { Loading } from '@/components/Loading'
 import { listDocuments, updateDocumentAttributes, deleteDocument } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
 import { listIndustries } from '@/services/reference'
@@ -73,7 +74,7 @@ export function Library() {
   }
 
   if (docs === null) {
-    return <div className="px-8 py-10 text-sm text-muted-foreground">Loading…</div>
+    return <Loading />
   }
 
   return (
@@ -209,7 +210,12 @@ function DocumentTable({
 
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return
-    await deleteDocument(pendingDelete.doc.id)
+    try {
+      await deleteDocument(pendingDelete.doc.id)
+    } catch (err) {
+      toast.error(`Could not delete document: ${err instanceof Error ? err.message : String(err)}`)
+      return
+    }
     toast.success(`Deleted "${pendingDelete.doc.title ?? pendingDelete.doc.filename}"`)
     setPendingDelete(null)
     onChange()
