@@ -173,7 +173,8 @@ async function importOne(
     const title = response.metadata?.title?.trim() || stripExtension(filename)
 
     // Year: layered per resolved decision 4 (revised 2026-05-12).
-    //   1. Filename regex first — deterministic and usually right.
+    //   1. Filename regex first — deterministic and usually right. A financial-
+    //      year range (2021-2022 / 2021-22) resolves to the END year (FY2022).
     //   2. Backend content inference (probable_year) as fallback.
     //   3. null if neither — user edits inline on Library page.
     const year = detectYearFromFilename(filename) ?? response.inferred?.probable_year ?? null
@@ -256,15 +257,43 @@ function stripExtension(filename: string): string {
 }
 
 /**
- * Look for a 4-digit year in the filename (1990-2039). Strips the
- * extension first so a `.pdf` doesn't pollute the match. Prefers the
- * first hit so `acme-2023-q3-fy2024.pdf` resolves to 2023 (the year
- * the document is about, typically named first).
+ * Detect the year a document is about from its filename (1990-2039).
+ *
+ * Australian annual reports cover a financial year (e.g. July 2021 - June
+ * 2022) and are commonly named with a YEAR RANGE — `2021-2022`, `2021-22`,
+ * `FY2021/22`. By convention that report is cited as "FY2022": the year the
+ * period ENDS. So when the filename contains a consecutive year range we
+ * return the later year (start + 1), keeping a mixed corpus consistent
+ * regardless of whether files use the range form or a single end-year.
+ *
+ * Otherwise we take the first standalone 4-digit year, so
+ * `acme-2023-q3.pdf` resolves to 2023. Returns null when no year is present;
+ * the user can always correct it inline on the Library page.
+ *
+ * Exported for unit testing.
  */
-function detectYearFromFilename(filename: string): number | null {
+export function detectYearFromFilename(filename: string): number | null {
   const base = stripExtension(filename)
-  const match = base.match(/(?:^|[^0-9])((?:19[9]\d|20[0-3]\d))(?:[^0-9]|$)/)
-  return match ? parseInt(match[1], 10) : null
+
+  // Financial-year range: YYYY <sep> (YYYY | YY) where the second part is the
+  // next consecutive year. Return the END year (start + 1).
+  const range = base.match(
+    /(?:^|[^0-9])((?:19[9]\d|20[0-3]\d))[-/_–—]((?:19[9]\d|20[0-3]\d)|\d{2})(?:[^0-9]|$)/
+  )
+  if (range) {
+    const start = parseInt(range[1], 10)
+    const second = range[2]
+    const end = start + 1
+    const isConsecutiveFY =
+      second.length === 4
+        ? parseInt(second, 10) === end
+        : parseInt(second, 10) === end % 100
+    if (isConsecutiveFY) return end
+  }
+
+  // Otherwise, the first standalone 4-digit year.
+  const single = base.match(/(?:^|[^0-9])((?:19[9]\d|20[0-3]\d))(?:[^0-9]|$)/)
+  return single ? parseInt(single[1], 10) : null
 }
 
 /**
