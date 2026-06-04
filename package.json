@@ -8,7 +8,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/michaelborck-education/document-lens.git"
+    "url": "git+https://github.com/michael-borck/document-lens.git"
   },
   "scripts": {
     "dev": "vite",

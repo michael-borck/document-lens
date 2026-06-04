@@ -500,6 +500,7 @@ jobs:
           name: release-${{ matrix.platform }}
           path: |
             release/*.dmg
+            release/*.zip
             release/*.exe
             release/*.AppImage
             release/*.yml
@@ -525,6 +526,7 @@ jobs:
         with:
           files: |
             artifacts/**/*.dmg
+            artifacts/**/*.zip
             artifacts/**/*.exe
             artifacts/**/*.AppImage
             artifacts/**/latest*.yml

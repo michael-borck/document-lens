@@ -51,6 +51,13 @@ mac:
       arch:
         - x64
         - arm64
+    # The .zip is REQUIRED for macOS auto-update — electron-updater downloads
+    # the zip, not the dmg. Without it the updater errors "ZIP file not
+    # provided" even when latest-mac.yml is present.
+    - target: zip
+      arch:
+        - x64
+        - arm64
   icon: resources/icon.icns
   category: public.app-category.productivity
   hardenedRuntime: true
@@ -91,5 +98,9 @@ dmg:
 
 publish:
   provider: github
-  owner: michaelborck-education
+  # MUST match the repo where releases are actually published (the git remote).
+  # Releases live at github.com/michael-borck/document-lens; pointing the baked-in
+  # updater config at michaelborck-education (which has no releases) is why
+  # auto-update reported "no update found".
+  owner: michael-borck
   repo: document-lens
