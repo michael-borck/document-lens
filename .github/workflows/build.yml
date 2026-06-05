@@ -179,21 +179,33 @@ jobs:
       # of MiniLM that we don't need, keeping the PyTorch-only path at
       # ~80 MB instead of ~1 GB. Pattern adapted from deep-talk.
       - name: Prefetch sentence-transformer model
+        env:
+          # Optional — if an HF_TOKEN secret is set, authenticated requests get
+          # much higher rate limits. Absent is fine (empty -> unauthenticated),
+          # and the retry loop below absorbs the occasional HF 429.
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           mkdir -p hf_cache
           python -c "
-          import os
+          import os, time, pathlib
           os.environ['HF_HOME'] = os.path.abspath('hf_cache')
           from huggingface_hub import snapshot_download
-          snapshot_download(
-              'sentence-transformers/all-MiniLM-L6-v2',
-              ignore_patterns=[
-                  'onnx/**', 'openvino/**',
-                  '*.onnx', 'tf_model.h5',
-                  'flax_model.msgpack', 'rust_model.ot',
-              ],
-          )
-          import pathlib
+          token = os.environ.get('HF_TOKEN') or None
+          ignore = ['onnx/**', 'openvino/**', '*.onnx', 'tf_model.h5',
+                    'flax_model.msgpack', 'rust_model.ot']
+          # Retry with backoff — the HF Hub intermittently 429s anonymous
+          # downloads, which previously failed the whole release build.
+          for attempt in range(1, 6):
+              try:
+                  snapshot_download('sentence-transformers/all-MiniLM-L6-v2',
+                                    ignore_patterns=ignore, token=token)
+                  break
+              except Exception as e:
+                  if attempt == 5:
+                      raise SystemExit(f'Model prefetch failed after 5 attempts: {e}')
+                  wait = min(60, 5 * 2 ** (attempt - 1))
+                  print(f'[prefetch] attempt {attempt} failed: {e}; retry in {wait}s')
+                  time.sleep(wait)
           total = sum(f.stat().st_size for f in pathlib.Path('hf_cache').rglob('*') if f.is_file())
           print(f'HF cache size: {total / 1e6:.1f} MB')
           "
