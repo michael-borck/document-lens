@@ -81,9 +81,17 @@ function resolveUserManualPath(): string | null {
  * View / Window, custom Help. On macOS, prepends the App menu (about, prefs,
  * quit) — required for native feel.
  */
-export function buildMenu(window: BrowserWindow | null): Menu {
+export function buildMenu(
+  window: BrowserWindow | null,
+  onCheckForUpdates?: () => void
+): Menu {
   const isMac = process.platform === 'darwin'
   const manualPath = resolveUserManualPath()
+
+  const checkForUpdatesItem: MenuItemConstructorOptions = {
+    label: 'Check for Updates…',
+    click: () => onCheckForUpdates?.(),
+  }
 
   const documentationSubmenu: MenuItemConstructorOptions[] = [
     ...HELP_TOPICS_START.map((t) => helpTopicItem(window, t)),
@@ -111,9 +119,10 @@ export function buildMenu(window: BrowserWindow | null): Menu {
     })
   }
   if (!isMac) {
-    // macOS surfaces About inside the App menu (added below). On Windows/Linux,
-    // the conventional place is the Help menu, so add it here.
+    // macOS surfaces About + Check for Updates inside the App menu (added
+    // below). On Windows/Linux, the conventional place is the Help menu.
     helpSubmenu.push({ type: 'separator' })
+    helpSubmenu.push(checkForUpdatesItem)
     helpSubmenu.push({ role: 'about' })
   }
 
@@ -124,6 +133,7 @@ export function buildMenu(window: BrowserWindow | null): Menu {
       label: app.name,
       submenu: [
         { role: 'about' },
+        checkForUpdatesItem,
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },

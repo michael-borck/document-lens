@@ -192,6 +192,50 @@ function setupAutoUpdater() {
   }, 3000)
 }
 
+// Manual "Check for Updates…" from the application menu. Unlike the silent
+// startup check, this always gives the user feedback (up-to-date / available /
+// error) via a native dialog — the expected behaviour for an explicit check.
+async function manualCheckForUpdates(): Promise<void> {
+  if (!mainWindow) return
+  if (!app.isPackaged) {
+    await dialog.showMessageBox(mainWindow, {
+      type: 'info',
+      message: 'Updates are only available in the installed app.',
+      detail: 'This is a development build — there is nothing to check.',
+      buttons: ['OK'],
+    })
+    return
+  }
+  try {
+    const result = await autoUpdater.checkForUpdates()
+    const latest = result?.updateInfo?.version
+    if (latest && latest !== app.getVersion()) {
+      // The update-available handler has already shown the in-app banner; this
+      // dialog confirms the menu action and points at it.
+      await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        message: `An update is available: ${latest}`,
+        detail: `You're on ${app.getVersion()}. You'll see a notification in the app to download and install it.`,
+        buttons: ['OK'],
+      })
+    } else {
+      await dialog.showMessageBox(mainWindow, {
+        type: 'info',
+        message: "You're up to date.",
+        detail: `Document Lens ${app.getVersion()} is the latest version.`,
+        buttons: ['OK'],
+      })
+    }
+  } catch (error) {
+    await dialog.showMessageBox(mainWindow, {
+      type: 'error',
+      message: 'Could not check for updates.',
+      detail: error instanceof Error ? error.message : String(error),
+      buttons: ['OK'],
+    })
+  }
+}
+
 // Initialize app
 app.whenReady().then(async () => {
   // Initialize database
@@ -203,7 +247,7 @@ app.whenReady().then(async () => {
   // Install the custom application menu — populates Help with the same
   // topics the in-app sidebar exposes (see electron/menu.ts). Built after
   // the window exists so menu 'click' handlers can target its webContents.
-  Menu.setApplicationMenu(buildMenu(mainWindow))
+  Menu.setApplicationMenu(buildMenu(mainWindow, manualCheckForUpdates))
 
   // Initialize backend manager (passing the per-launch auth token)
   backendManager = new BackendManager(backendAuthToken)

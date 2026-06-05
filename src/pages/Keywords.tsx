@@ -23,6 +23,8 @@ import {
   ChevronDown,
   Pencil,
   Check,
+  Upload,
+  Download,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -59,6 +61,11 @@ import {
   deleteSynonym,
   setSynonymEnabled,
 } from '@/services/keyword-lists'
+import {
+  keywordListToCsv,
+  csvToNewKeywordList,
+  suggestKeywordCsvName,
+} from '@/services/keyword-csv'
 import { toast } from '@/stores/toastStore'
 import { cn } from '@/lib/utils'
 import type {
@@ -93,6 +100,44 @@ export function Keywords() {
     setSelectedListId(list.id)
   }
 
+  const handleImportCsv = async () => {
+    const electron = window.electron
+    if (!electron) return
+    const dialog = await electron.openFileDialog({
+      filters: [{ name: 'CSV', extensions: ['csv'] }],
+    })
+    if (dialog.canceled || dialog.filePaths.length === 0) return
+    const path = dialog.filePaths[0]
+    try {
+      const buf = await electron.readFile(path)
+      const text = new TextDecoder('utf-8').decode(buf)
+      const base = (path.split(/[\\/]/).pop() ?? 'keywords.csv').replace(/\.csv$/i, '')
+      const s = await csvToNewKeywordList(text, base)
+      await refresh()
+      setSelectedListId(s.listId)
+
+      const extras: string[] = []
+      if (s.synonymsCreated) extras.push(`${s.synonymsCreated} synonyms`)
+      if (s.tagsApplied) extras.push(`${s.tagsApplied} tags`)
+      const headline =
+        `Imported ${s.keywordsCreated} keyword${s.keywordsCreated === 1 ? '' : 's'} into "${s.listName}"` +
+        (extras.length ? ` (${extras.join(', ')})` : '')
+
+      const warnings: string[] = []
+      if (s.ignoredColumns.length) warnings.push(`Ignored unknown columns: ${s.ignoredColumns.join(', ')}.`)
+      if (s.unmatchedTagValues.length) {
+        const shown = s.unmatchedTagValues.slice(0, 5).join(', ')
+        warnings.push(
+          `Couldn't match ${s.unmatchedTagValues.length} tag value${s.unmatchedTagValues.length === 1 ? '' : 's'}: ${shown}${s.unmatchedTagValues.length > 5 ? '…' : ''}.`
+        )
+      }
+      if (warnings.length) toast.info(headline, warnings.join(' '))
+      else toast.success(headline)
+    } catch (err) {
+      toast.error(`CSV import failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   const handleConfirmDeleteList = async () => {
     if (!pendingDeleteList) return
     await deleteKeywordList(pendingDeleteList.id)
@@ -117,10 +162,16 @@ export function Keywords() {
           <h1 className="font-display text-2xl font-medium tracking-tight">Keywords</h1>
           <p className="text-muted-foreground italic mt-1">What are you looking for?</p>
         </div>
-        <Button onClick={() => setNewListOpen(true)} className="gap-2">
-          <Plus className="h-4 w-4" />
-          New keyword list
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleImportCsv} className="gap-2">
+            <Upload className="h-4 w-4" />
+            Import CSV
+          </Button>
+          <Button onClick={() => setNewListOpen(true)} className="gap-2">
+            <Plus className="h-4 w-4" />
+            New keyword list
+          </Button>
+        </div>
       </header>
 
       {lists.length === 0 ? (
@@ -367,6 +418,23 @@ function KeywordsPane({ list }: { list: KeywordList }) {
     await refresh()
   }
 
+  const handleExportCsv = async () => {
+    const electron = window.electron
+    if (!electron) return
+    try {
+      const csv = await keywordListToCsv(list.id)
+      const dialog = await electron.saveFileDialog({
+        defaultPath: suggestKeywordCsvName(list.name),
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      })
+      if (dialog.canceled || !dialog.filePath) return
+      await electron.writeFile(dialog.filePath, csv)
+      toast.success(`Exported "${list.name}" to ${dialog.filePath}`)
+    } catch (err) {
+      toast.error(`CSV export failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   const counts = {
     all: keywords.length,
     positive: keywords.filter((k) => k.polarity === 'positive').length,
@@ -375,22 +443,34 @@ function KeywordsPane({ list }: { list: KeywordList }) {
 
   return (
     <div className="space-y-4">
-      <header>
-        <div className="flex items-baseline gap-3">
-          <h2 className="font-display text-xl font-medium">{list.name}</h2>
-          {list.type === 'built-in' && (
-            <span className="inline-flex items-center gap-1 text-[10px] uppercase text-muted-foreground border border-border rounded px-1.5 py-0.5">
-              <Lock className="h-2.5 w-2.5" />
-              Built-in
-            </span>
+      <header className="flex items-start justify-between gap-4">
+        <div>
+          <div className="flex items-baseline gap-3">
+            <h2 className="font-display text-xl font-medium">{list.name}</h2>
+            {list.type === 'built-in' && (
+              <span className="inline-flex items-center gap-1 text-[10px] uppercase text-muted-foreground border border-border rounded px-1.5 py-0.5">
+                <Lock className="h-2.5 w-2.5" />
+                Built-in
+              </span>
+            )}
+          </div>
+          {list.description && (
+            <p className="text-sm text-muted-foreground italic mt-0.5">{list.description}</p>
+          )}
+          {list.source && (
+            <p className="text-[11px] text-muted-foreground mt-0.5">Source: {list.source}</p>
           )}
         </div>
-        {list.description && (
-          <p className="text-sm text-muted-foreground italic mt-0.5">{list.description}</p>
-        )}
-        {list.source && (
-          <p className="text-[11px] text-muted-foreground mt-0.5">Source: {list.source}</p>
-        )}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCsv}
+          className="gap-1.5 shrink-0"
+          title="Export this list to a CSV you can edit in a spreadsheet and re-import"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </header>
 
       <div className="flex items-center gap-2 flex-wrap">
