@@ -72,9 +72,16 @@ export function Audit() {
       const noun = mode === 'confirmations' ? 'confirmation' : 'anomaly'
       const plural = mode === 'confirmations' ? 'confirmations' : 'anomalies'
       const label = out.findings.length === 1 ? noun : plural
-      toast.success(
-        `Found ${out.findings.length} ${label} in ${out.documentsAnalysed} document${out.documentsAnalysed === 1 ? '' : 's'}`
-      )
+      const summary = `Found ${out.findings.length} ${label} in ${out.documentsAnalysed} document${out.documentsAnalysed === 1 ? '' : 's'}`
+      if (out.documentsFailed > 0) {
+        // Some documents analysed, some failed (e.g. too large for the engine).
+        toast.info(
+          `${summary}. ${out.documentsFailed} document${out.documentsFailed === 1 ? '' : 's'} couldn't be analysed`,
+          'The analysis engine may have struggled with a large document. Check its status and re-run to retry.'
+        )
+      } else {
+        toast.success(summary)
+      }
       return out
     } finally {
       setProgress(null)

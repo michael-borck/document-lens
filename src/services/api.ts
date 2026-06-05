@@ -59,14 +59,26 @@ class ApiClient {
     await this.ensureInitialized()
     const url = `${this.baseUrl}${endpoint}`
     
-    const response = await fetch(url, {
-      ...options,
-      headers: {
-        'Content-Type': 'application/json',
-        ...this.authHeaders(),
-        ...options.headers,
-      },
-    })
+    let response: Response
+    try {
+      response = await fetch(url, {
+        ...options,
+        headers: {
+          'Content-Type': 'application/json',
+          ...this.authHeaders(),
+          ...options.headers,
+        },
+      })
+    } catch {
+      // fetch() throws a TypeError ("Failed to fetch") when the request can't
+      // reach the backend at all — the analysis engine isn't running, crashed,
+      // or the connection was reset (e.g. it ran out of memory on a very large
+      // document). Surface an actionable message rather than the raw error.
+      throw new ApiError(
+        0,
+        `Could not reach the analysis engine. Check that it's running (the status indicator at the top of the window should say "Ready"), then try again. Very large documents can also overwhelm it.`
+      )
+    }
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: 'Unknown error' }))

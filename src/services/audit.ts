@@ -59,6 +59,8 @@ export interface AuditResult {
   totalDocuments: number
   documentsAnalysed: number
   documentsUnavailable: number
+  /** Anomalies only: documents whose backend analysis errored (run continued). */
+  documentsFailed: number
   totalSentencesAnalysed: number
   /** Map domain label (as returned by backend) -> human-readable display name. */
   domainLabels: string[]
@@ -130,6 +132,7 @@ export async function runAudit(
       totalDocuments: docs.length,
       documentsAnalysed: 0,
       documentsUnavailable: 0,
+      documentsFailed: 0,
       totalSentencesAnalysed: 0,
       domainLabels,
       cacheHits: 0,
@@ -140,8 +143,10 @@ export async function runAudit(
   const findings: AuditFinding[] = []
   let documentsAnalysed = 0
   let documentsUnavailable = 0
+  let documentsFailed = 0
   let totalSentences = 0
   let cacheHits = 0
+  let lastError: string | undefined
 
   // Precompile keyword regexes once; reused everywhere.
   const keywordRegexes = keywords.map((k) => ({
@@ -220,7 +225,16 @@ export async function runAudit(
     if (response) {
       cacheHits++
     } else {
-      response = await api.detectStructuralMismatch(text, domainLabels, threshold)
+      // Per-document isolation: a backend failure on one document (e.g. it's
+      // too large and the engine drops the connection) is recorded and the
+      // run continues with the next, rather than aborting the whole audit.
+      try {
+        response = await api.detectStructuralMismatch(text, domainLabels, threshold)
+      } catch (err) {
+        documentsFailed++
+        lastError = err instanceof Error ? err.message : String(err)
+        continue
+      }
       await writeAuditCache(input.projectId, cacheKey, response)
     }
     documentsAnalysed++
@@ -252,6 +266,14 @@ export async function runAudit(
     }
   }
 
+  // If every document's backend analysis failed, surface the reason rather
+  // than returning an empty "no anomalies" result that looks like success.
+  if (documentsAnalysed === 0 && documentsFailed > 0) {
+    throw new Error(
+      `Anomalies analysis failed for all ${documentsFailed} document${documentsFailed === 1 ? '' : 's'}. ${lastError ?? ''}`.trim()
+    )
+  }
+
   // 5. Sort findings: severity desc, then doc title, then sentence index.
   const severityOrder: Record<string, number> = { high: 3, medium: 2, low: 1 }
   findings.sort((a, b) => {
@@ -266,6 +288,7 @@ export async function runAudit(
     totalDocuments: docs.length,
     documentsAnalysed,
     documentsUnavailable,
+    documentsFailed,
     totalSentencesAnalysed: totalSentences,
     domainLabels,
     cacheHits,
