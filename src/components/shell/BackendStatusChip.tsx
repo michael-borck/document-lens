@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Loader2, RotateCw } from 'lucide-react'
+import { RotateCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from '@/stores/toastStore'
 import type { BackendStatus } from '@/types/electron'
@@ -12,11 +12,14 @@ interface ChipState {
   lastError?: string
 }
 
+// Plain language, and only when there is something to say: a healthy engine
+// is invisible (researchers shouldn't have to parse infrastructure status);
+// the chip appears only while starting or when something needs attention.
 const PHASE_CONFIG: Record<Exclude<Phase, 'checking'>, { label: string; dot: string }> = {
-  starting: { label: 'Starting', dot: 'bg-yellow-500 animate-pulse' },
-  ready: { label: 'Ready', dot: 'bg-green-600' },
-  unreachable: { label: 'Unreachable', dot: 'bg-yellow-600' },
-  crashed: { label: 'Offline', dot: 'bg-red-600' },
+  starting: { label: 'Analysis engine starting…', dot: 'bg-yellow-500 animate-pulse' },
+  ready: { label: '', dot: 'bg-green-600' },
+  unreachable: { label: 'Analysis engine offline', dot: 'bg-yellow-600' },
+  crashed: { label: 'Analysis engine offline', dot: 'bg-red-600' },
 }
 
 export function BackendStatusChip() {
@@ -52,13 +55,11 @@ export function BackendStatusChip() {
     }
   }
 
-  if (state.phase === 'checking') {
-    return (
-      <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Loader2 className="h-3 w-3 animate-spin" />
-        Checking
-      </span>
-    )
+  // Nothing to report: a transient startup check, or a healthy engine.
+  // Failures elsewhere (import, audit) surface their own errors and the chip
+  // reappears the moment the engine is actually down.
+  if (state.phase === 'checking' || state.phase === 'ready') {
+    return null
   }
 
   const cfg = PHASE_CONFIG[state.phase]

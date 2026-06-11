@@ -1,8 +1,9 @@
-import { Outlet, useParams, useNavigate } from 'react-router-dom'
+import { Outlet, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { useEffect, useState, useCallback } from 'react'
 import { ProjectBar } from '@/components/project/ProjectBar'
 import { ProjectContextStrip } from '@/components/project/ProjectContextStrip'
 import { WorkflowTabs } from '@/components/project/WorkflowTabs'
+import { rememberWorkflow } from '@/components/project/workflows'
 import { getProjectWithSetup, updateProject } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
 import { listLenses } from '@/services/lenses'
@@ -33,8 +34,16 @@ export interface ProjectViewModel {
 export function ProjectWorkspace() {
   const { projectId } = useParams<{ projectId: string }>()
   const navigate = useNavigate()
+  const location = useLocation()
   const [vm, setVm] = useState<ProjectViewModel | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // Remember the workflow being viewed so reopening the project resumes there.
+  useEffect(() => {
+    if (!projectId) return
+    const segment = location.pathname.split(`/projects/${projectId}/`)[1]?.split('/')[0]
+    if (segment) rememberWorkflow(projectId, segment)
+  }, [location.pathname, projectId])
 
   const load = useCallback(async (): Promise<ProjectViewModel | null> => {
     if (!projectId) return null

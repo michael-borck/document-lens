@@ -115,7 +115,7 @@ export function Projects() {
             >
               <button
                 type="button"
-                onClick={() => navigate(`/projects/${project.id}/setup`)}
+                onClick={() => navigate(`/projects/${project.id}`)}
                 className="flex-1 text-left px-4 py-3 flex items-center gap-4 min-w-0"
               >
                 <FolderOpen className="h-4 w-4 text-muted-foreground shrink-0" />

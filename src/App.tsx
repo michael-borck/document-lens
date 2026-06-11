@@ -1,8 +1,15 @@
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom'
+import { Routes, Route, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { lazy, Suspense, useEffect } from 'react'
 import { Loader2 } from 'lucide-react'
 import { AppShell } from '@/components/shell/AppShell'
 import { seedSustainabilityDefaults } from '@/services/seed'
+import { landingWorkflow } from '@/components/project/workflows'
+
+/** Opening a project resumes where the user left off (falls back to Overview). */
+function ProjectLanding() {
+  const { projectId } = useParams<{ projectId: string }>()
+  return <Navigate to={landingWorkflow(projectId ?? '')} replace />
+}
 
 // Top-level pages
 const Projects = lazy(() => import('./pages/Projects').then(m => ({ default: m.Projects })))
@@ -12,8 +19,9 @@ const Lenses = lazy(() => import('./pages/Lenses').then(m => ({ default: m.Lense
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 
-// Project workspace + 10 workflow tabs
+// Project workspace + workflow tabs
 const ProjectWorkspace = lazy(() => import('./pages/ProjectWorkspace').then(m => ({ default: m.ProjectWorkspace })))
+const Overview = lazy(() => import('./pages/workflow/Overview').then(m => ({ default: m.Overview })))
 const Setup = lazy(() => import('./pages/workflow/Setup').then(m => ({ default: m.Setup })))
 const Coverage = lazy(() => import('./pages/workflow/Coverage').then(m => ({ default: m.Coverage })))
 const Map = lazy(() => import('./pages/workflow/Map').then(m => ({ default: m.Map })))
@@ -71,7 +79,8 @@ function App() {
 
           {/* Project workspace — nested workflow tabs */}
           <Route path="projects/:projectId" element={<ProjectWorkspace />}>
-            <Route index element={<Navigate to="setup" replace />} />
+            <Route index element={<ProjectLanding />} />
+            <Route path="overview" element={<Overview />} />
             <Route path="setup" element={<Setup />} />
             <Route path="coverage" element={<Coverage />} />
             <Route path="map" element={<Map />} />
