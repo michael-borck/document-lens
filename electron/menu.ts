@@ -28,16 +28,17 @@ const HELP_TOPICS_START: HelpTopic[] = [
 const HELP_TOPICS_SETUP: HelpTopic[] = [
   { id: 'setup', label: 'Setup Tab' },
 ]
+// Mirrors the workspace tab strip phases: Explore → Measure → Verify.
 const HELP_TOPICS_WORKFLOWS: HelpTopic[] = [
   { id: 'coverage', label: 'Coverage' },
   { id: 'map',      label: 'Map' },
+  { id: 'read',     label: 'Read' },
+  { id: 'discover', label: 'Discover' },
   { id: 'score',    label: 'Score' },
   { id: 'track',    label: 'Track' },
   { id: 'compare',  label: 'Compare' },
   { id: 'audit',    label: 'Audit' },
   { id: 'gap',      label: 'Gap' },
-  { id: 'discover', label: 'Discover' },
-  { id: 'read',     label: 'Read' },
 ]
 const HELP_TOPICS_SHARING: HelpTopic[] = [
   { id: 'paper-bundle',   label: 'Paper-ready Bundle' },

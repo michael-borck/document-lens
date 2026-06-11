@@ -29,7 +29,7 @@ import { cn } from '@/lib/utils'
 interface Topic {
   id: string
   title: string
-  group: 'Start here' | 'Setup' | 'Workflows' | 'Sharing & export'
+  group: 'Start here' | 'Setup' | 'Explore' | 'Measure' | 'Verify' | 'Sharing & export'
   icon: typeof HelpCircle
   render: () => ReactNode
 }
@@ -37,20 +37,21 @@ interface Topic {
 const TOPICS: Topic[] = [
   { id: 'getting-started', title: 'Getting started', group: 'Start here', icon: Compass, render: GettingStarted },
   { id: 'setup', title: 'Setup tab', group: 'Setup', icon: SettingsIcon, render: SetupTopic },
-  { id: 'coverage', title: 'Coverage', group: 'Workflows', icon: Grid3x3, render: CoverageTopic },
-  { id: 'map', title: 'Map', group: 'Workflows', icon: Layers, render: MapTopic },
-  { id: 'score', title: 'Score', group: 'Workflows', icon: Award, render: ScoreTopic },
-  { id: 'track', title: 'Track', group: 'Workflows', icon: TrendingUp, render: TrackTopic },
-  { id: 'compare', title: 'Compare', group: 'Workflows', icon: BarChart3, render: CompareTopic },
-  { id: 'audit', title: 'Audit', group: 'Workflows', icon: AlertTriangle, render: AuditTopic },
-  { id: 'gap', title: 'Gap', group: 'Workflows', icon: ScatterChart, render: GapTopic },
-  { id: 'discover', title: 'Discover', group: 'Workflows', icon: Sparkles, render: DiscoverTopic },
-  { id: 'read', title: 'Read', group: 'Workflows', icon: BookOpen, render: ReadTopic },
+  // Mirrors the workspace tab strip: Explore → Measure → Verify.
+  { id: 'coverage', title: 'Coverage', group: 'Explore', icon: Grid3x3, render: CoverageTopic },
+  { id: 'map', title: 'Map', group: 'Explore', icon: Layers, render: MapTopic },
+  { id: 'read', title: 'Read', group: 'Explore', icon: BookOpen, render: ReadTopic },
+  { id: 'discover', title: 'Discover', group: 'Explore', icon: Sparkles, render: DiscoverTopic },
+  { id: 'score', title: 'Score', group: 'Measure', icon: Award, render: ScoreTopic },
+  { id: 'track', title: 'Track', group: 'Measure', icon: TrendingUp, render: TrackTopic },
+  { id: 'compare', title: 'Compare', group: 'Measure', icon: BarChart3, render: CompareTopic },
+  { id: 'audit', title: 'Audit', group: 'Verify', icon: AlertTriangle, render: AuditTopic },
+  { id: 'gap', title: 'Gap', group: 'Verify', icon: ScatterChart, render: GapTopic },
   { id: 'paper-bundle', title: 'Paper-ready bundle', group: 'Sharing & export', icon: FileText, render: PaperBundleTopic },
   { id: 'project-bundle', title: 'Project bundle (.lens)', group: 'Sharing & export', icon: Package, render: ProjectBundleTopic },
 ]
 
-const GROUPS: Topic['group'][] = ['Start here', 'Setup', 'Workflows', 'Sharing & export']
+const GROUPS: Topic['group'][] = ['Start here', 'Setup', 'Explore', 'Measure', 'Verify', 'Sharing & export']
 
 export function Help() {
   // Topic selection lives in the URL (`?topic=<id>`) for two reasons:
@@ -151,9 +152,13 @@ function GettingStarted() {
     <>
       <P>
         Document Lens is a workspace for keyword analysis of document corpora. The
-        intended workflow: assemble a <strong>project</strong>, then walk the
-        nine workflow tabs (Coverage → Map → Score → Track → Compare → Audit →
-        Gap → Discover → Read) to answer different questions about that project.
+        intended workflow: assemble a <strong>project</strong>, then work through the
+        workflows in three phases — <strong>Explore</strong> what the corpus contains
+        (Coverage, Map, Read, Discover), <strong>Measure</strong> it (Score, Track,
+        Compare), and <strong>Verify</strong> the evidence holds up (Audit, Gap). Each
+        workflow answers one research question; the project's <strong>Overview</strong>{' '}
+        tab lists them all as those questions, so you can navigate by what you want to
+        know rather than by tool name.
       </P>
       <H2>Your first project</H2>
       <P>
@@ -162,7 +167,8 @@ function GettingStarted() {
         the SDG keyword list, three lenses (SDG, Pillar, Function), and the 5-level
         Wedding Cake Score. Pick documents (or skip and add them from the Library
         later), confirm the defaults, and you'll land on the project's <strong>Setup</strong>{' '}
-        tab with everything wired up.
+        tab with everything wired up. After that, reopening a project resumes the
+        workflow you last had open.
       </P>
       <H2>The data model in one paragraph</H2>
       <P>
@@ -241,7 +247,8 @@ function CoverageTopic() {
     <>
       <P><em>Which keywords appear where?</em></P>
       <P>
-        Coverage is the first tab to open after you've set up a project. It computes
+        Coverage is the natural first workflow once a project is set up — the start of
+        the <em>Explore</em> phase. It computes
         per-document × per-keyword match counts and displays them as a heatmap, plus
         a roll-up by lens value (e.g. by Pillar — Biosphere / Society / Economy) to
         give you the framework-level view.
