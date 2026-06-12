@@ -70,5 +70,8 @@ coverage.xml
 # User-local samples / manual artefacts
 samples/
 *.pdf
+# …except the generated manual: committed so packaged builds (CI has no
+# pandoc/typst) can bundle it via extraResources. Rebuild: npm run build:manual
+!Document-Lens-User-Manual.pdf
 
 .superpowers/

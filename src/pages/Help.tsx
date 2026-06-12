@@ -34,7 +34,10 @@ interface Topic {
   render: () => ReactNode
 }
 
-const TOPICS: Topic[] = [
+// Exported for scripts/export-help-docs.tsx, which renders these topics to
+// markdown chapters for the PDF manual — the in-app help is the single
+// source of truth for user documentation.
+export const TOPICS: Topic[] = [
   { id: 'getting-started', title: 'Getting started', group: 'Start here', icon: Compass, render: GettingStarted },
   { id: 'setup', title: 'Setup tab', group: 'Setup', icon: SettingsIcon, render: SetupTopic },
   // Mirrors the workspace tab strip: Explore → Measure → Verify.
@@ -51,7 +54,7 @@ const TOPICS: Topic[] = [
   { id: 'project-bundle', title: 'Project bundle (.lens)', group: 'Sharing & export', icon: Package, render: ProjectBundleTopic },
 ]
 
-const GROUPS: Topic['group'][] = ['Start here', 'Setup', 'Explore', 'Measure', 'Verify', 'Sharing & export']
+export const GROUPS: Topic['group'][] = ['Start here', 'Setup', 'Explore', 'Measure', 'Verify', 'Sharing & export']
 
 export function Help() {
   // Topic selection lives in the URL (`?topic=<id>`) for two reasons:

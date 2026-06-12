@@ -3,39 +3,52 @@
 # Build Document Lens User Manual PDF using Typst directly
 #
 # This script:
-# 1. Copies documentation from public/docs/ (single source of truth)
+# 1. Renders chapter markdown from the in-app help (src/pages/Help.tsx is
+#    the single source of truth — see scripts/export-help-docs.tsx)
 # 2. Converts markdown to Typst using pandoc
 # 3. Wraps with custom template for professional styling
 # 4. Renders PDF using Typst
 #
-# Usage: ./manual/build-manual-typst.sh
+# Usage: ./manual/build-manual.sh
 #
-# Requirements: pandoc, typst
+# Requirements: node + esbuild (devDependency), pandoc, typst
 
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-DOCS_SOURCE="$PROJECT_ROOT/public/docs"
 BUILD_DIR="$SCRIPT_DIR/build"
+DOCS_SOURCE="$BUILD_DIR/chapters"
 OUTPUT_DIR="$PROJECT_ROOT"
 
-# Chapter order configuration
+# Chapter order configuration — mirrors the in-app help groups
+# (Getting started · Setup · Explore · Measure · Verify · Sharing).
 CHAPTERS=(
-    "user-guide.md:User Guide"
-    "quick-reference.md:Quick Reference"
-    "analysis-workflows.md:Analysis Workflows"
-    "keyword-methodology.md:Keyword Methodology"
-    "collaboration.md:Collaboration"
+    "getting-started.md:Getting Started"
+    "project-setup.md:Project Setup"
+    "explore.md:Explore"
+    "measure.md:Measure"
+    "verify.md:Verify"
+    "sharing.md:Sharing & Export"
 )
 
 echo "Building Document Lens User Manual (Typst)..."
-echo "Source: $DOCS_SOURCE"
+echo "Source: $DOCS_SOURCE (generated from src/pages/Help.tsx)"
 echo "Build:  $BUILD_DIR"
 
 # Create/clean build directory
 rm -rf "$BUILD_DIR"
 mkdir -p "$BUILD_DIR"
+
+# Regenerate the chapter markdown from the in-app help
+echo "Exporting chapters from in-app help..."
+(
+    cd "$PROJECT_ROOT"
+    npx esbuild scripts/export-help-docs.tsx --bundle --platform=node \
+        --format=cjs --jsx=automatic --alias:@=./src \
+        --outfile="$BUILD_DIR/export-help.cjs" --log-level=error
+    node "$BUILD_DIR/export-help.cjs"
+)
 
 # Get version from package.json
 VERSION=$(grep '"version"' "$PROJECT_ROOT/package.json" | sed 's/.*"version": "\(.*\)".*/\1/')
