@@ -14,8 +14,12 @@ import { execFileSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { TOPICS } from '@/pages/Help'
+import { HELP_SCREENSHOTS } from '@/pages/help-screenshots'
 
 const OUT_DIR = 'manual/build/chapters'
+// Image paths are written relative to manual/build/ (where manual.typ is
+// compiled); build-manual.sh passes --root so typst may read outside it.
+const SCREENSHOT_PREFIX = '../../docs/screenshots'
 
 /** Chapter files in manual order; each pulls one or more Help groups. */
 const CHAPTERS: Array<{ file: string; title: string; groups: string[]; intro?: string }> = [
@@ -64,26 +68,6 @@ const CHAPTERS: Array<{ file: string; title: string; groups: string[]; intro?: s
   },
 ]
 
-function htmlForChapter(chapter: (typeof CHAPTERS)[number]): string {
-  const topics = TOPICS.filter((t) => chapter.groups.includes(t.group))
-  const parts = [`<h1>${chapter.title}</h1>`]
-  if (chapter.intro) parts.push(`<p><em>${chapter.intro}</em></p>`)
-  for (const topic of topics) {
-    // Skip the topic heading when it would just repeat the chapter title
-    // (e.g. the "Getting Started" chapter's single "Getting started" topic).
-    const redundant =
-      topics.length === 1 && topic.title.toLowerCase() === chapter.title.toLowerCase()
-    if (!redundant) parts.push(`<h2>${topic.title}</h2>`)
-    // Topic bodies use <h2> for their own sections; demote one level so the
-    // manual's hierarchy reads chapter > topic > section.
-    const body = renderToStaticMarkup(<>{topic.render()}</>)
-      .replaceAll('<h2', '<h3')
-      .replaceAll('</h2>', '</h3>')
-    parts.push(body)
-  }
-  return parts.join('\n')
-}
-
 function htmlToMarkdown(html: string): string {
   return execFileSync(
     'pandoc',
@@ -92,11 +76,41 @@ function htmlToMarkdown(html: string): string {
   )
 }
 
+function imageMarkdown(topicId: string): string {
+  // Every manifest entry goes in the PDF (the inApp flag only gates the
+  // in-app help, where the app itself is already on screen).
+  return (HELP_SCREENSHOTS[topicId] ?? [])
+    .map((s) => `![${s.caption}](${SCREENSHOT_PREFIX}/${s.file}){width=100%}\n`)
+    .join('\n')
+}
+
+function markdownForChapter(chapter: (typeof CHAPTERS)[number]): string {
+  const topics = TOPICS.filter((t) => chapter.groups.includes(t.group))
+  const parts = [`# ${chapter.title}\n`]
+  if (chapter.intro) parts.push(`*${chapter.intro}*\n`)
+  for (const topic of topics) {
+    // Skip the topic heading when it would just repeat the chapter title
+    // (e.g. the "Getting Started" chapter's single "Getting started" topic).
+    const redundant =
+      topics.length === 1 && topic.title.toLowerCase() === chapter.title.toLowerCase()
+    if (!redundant) parts.push(`## ${topic.title}\n`)
+    const images = imageMarkdown(topic.id)
+    if (images) parts.push(images)
+    // Topic bodies use <h2> for their own sections; demote one level so the
+    // manual's hierarchy reads chapter > topic > section.
+    const body = renderToStaticMarkup(<>{topic.render()}</>)
+      .replaceAll('<h2', '<h3')
+      .replaceAll('</h2>', '</h3>')
+    parts.push(htmlToMarkdown(body))
+  }
+  return parts.join('\n')
+}
+
 mkdirSync(OUT_DIR, { recursive: true })
 const banner =
   '<!-- GENERATED from src/pages/Help.tsx by scripts/export-help-docs.tsx — do not edit by hand. -->\n\n'
 for (const chapter of CHAPTERS) {
-  const md = banner + htmlToMarkdown(htmlForChapter(chapter))
+  const md = banner + markdownForChapter(chapter)
   writeFileSync(`${OUT_DIR}/${chapter.file}`, md)
   console.log(`  wrote ${OUT_DIR}/${chapter.file}`)
 }

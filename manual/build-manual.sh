@@ -301,8 +301,10 @@ done
 
 echo ""
 echo "Rendering PDF with Typst..."
+# --root lets typst read the screenshots in $PROJECT_ROOT/docs/screenshots
+# (image paths in the chapters are relative to this build dir).
 cd "$BUILD_DIR"
-typst compile manual.typ "$OUTPUT_DIR/Document-Lens-User-Manual.pdf"
+typst compile --root "$PROJECT_ROOT" manual.typ "$OUTPUT_DIR/Document-Lens-User-Manual.pdf"
 
 echo ""
 echo "Success! PDF created:"

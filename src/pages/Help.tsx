@@ -25,6 +25,8 @@ import {
   ScatterChart,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { HELP_SCREENSHOTS } from './help-screenshots'
+import { SCREENSHOT_URLS } from './help-screenshot-assets'
 
 interface Topic {
   id: string
@@ -111,10 +113,40 @@ export function Help() {
       <main className="flex-1 overflow-y-auto py-10 px-12">
         <article className="max-w-3xl prose-doc">
           <h1 className="font-display text-2xl font-medium tracking-tight mb-6">{active.title}</h1>
+          <TopicScreenshots topicId={active.id} />
           {active.render()}
         </article>
       </main>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Screenshots — rendered by the shell (not topic bodies) so topic content
+// stays pure JSX the manual exporter can render server-side. The exporter
+// embeds images itself from the same manifest; in-app we show only the
+// entries flagged inApp (the app is already on screen here).
+
+function TopicScreenshots({ topicId }: { topicId: string }) {
+  const entries = (HELP_SCREENSHOTS[topicId] ?? []).filter(
+    (s) => s.inApp && SCREENSHOT_URLS[s.file]
+  )
+  if (entries.length === 0) return null
+  return (
+    <>
+      {entries.map((s) => (
+        <figure key={s.file} className="mb-6">
+          <img
+            src={SCREENSHOT_URLS[s.file]}
+            alt={s.caption}
+            className="border border-border rounded-md w-full"
+          />
+          <figcaption className="mt-1.5 text-xs italic text-muted-foreground">
+            {s.caption}
+          </figcaption>
+        </figure>
+      ))}
+    </>
   )
 }
 

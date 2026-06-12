@@ -14,6 +14,14 @@ import {
   assertWritable,
 } from './fs-guard'
 
+// Dev-only: point userData at a throwaway profile so scripted runs (e.g.
+// scripts/capture-help-screenshots.mjs) get a deterministic fresh state
+// instead of touching the developer's real database. Must run before
+// anything reads app.getPath('userData').
+if (!app.isPackaged && process.env.DOCLENS_USER_DATA) {
+  app.setPath('userData', process.env.DOCLENS_USER_DATA)
+}
+
 /** True for the only URL schemes we'll hand to the OS browser/mail client. */
 function isWebUrl(url: string): boolean {
   try {
