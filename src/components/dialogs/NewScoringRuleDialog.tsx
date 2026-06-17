@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { BarChart2, Layers } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -17,9 +18,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { cn } from '@/lib/utils'
 import { listLenses, listLensValues } from '@/services/lenses'
 import { createScoringRule } from '@/services/scoring-rules'
 import type { Lens, LensValue, ScoringRule } from '@/types/data'
+
+type Pattern = 'coverage-count' | 'cross-coverage'
 
 interface NewScoringRuleDialogProps {
   open: boolean
@@ -27,28 +31,23 @@ interface NewScoringRuleDialogProps {
   onCreated: (rule: ScoringRule) => void
 }
 
-/**
- * Form-based editor for creating a Wedding Cake-style scoring rule.
- *
- * The rule logic is fixed (count Function values that deliver SDGs in
- * all required Pillars at the same time) — what the form lets you
- * choose is which lenses to use as the pillar / function axes, and
- * which pillar values are "required". Output levels are derived from
- * the function axis's value count.
- *
- * Other rule types (weighted sums, custom DSLs) aren't supported in
- * this editor yet — IA-2 says form-based UI is the v1 target; richer
- * rule types come later.
- */
 export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScoringRuleDialogProps) {
+  const [pattern, setPattern] = useState<Pattern | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [allLenses, setAllLenses] = useState<Lens[]>([])
-  const [pillarLensId, setPillarLensId] = useState<string>('')
-  const [pillarValues, setPillarValues] = useState<LensValue[]>([])
-  const [requiredPillarIds, setRequiredPillarIds] = useState<Set<string>>(new Set())
-  const [functionLensId, setFunctionLensId] = useState<string>('')
-  const [functionValues, setFunctionValues] = useState<LensValue[]>([])
+
+  // Coverage-count state
+  const [categoryLensId, setCategoryLensId] = useState('')
+  const [categoryValues, setCategoryValues] = useState<LensValue[]>([])
+
+  // Cross-coverage state
+  const [layerLensId, setLayerLensId] = useState('')
+  const [layerValues, setLayerValues] = useState<LensValue[]>([])
+  const [requiredLayerIds, setRequiredLayerIds] = useState<Set<string>>(new Set())
+  const [subjectLensId, setSubjectLensId] = useState('')
+  const [subjectValues, setSubjectValues] = useState<LensValue[]>([])
+
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -57,79 +56,96 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
     listLenses().then(setAllLenses)
   }, [open])
 
-  // When pillar lens changes, load its values.
   useEffect(() => {
-    if (!pillarLensId) {
-      setPillarValues([])
-      setRequiredPillarIds(new Set())
-      return
-    }
-    listLensValues(pillarLensId).then((values) => {
-      setPillarValues(values)
-      // Default: all pillar values required.
-      setRequiredPillarIds(new Set(values.map((v) => v.id)))
-    })
-  }, [pillarLensId])
+    if (!categoryLensId) { setCategoryValues([]); return }
+    listLensValues(categoryLensId).then(setCategoryValues)
+  }, [categoryLensId])
 
-  // When function lens changes, load its values for the level preview.
   useEffect(() => {
-    if (!functionLensId) {
-      setFunctionValues([])
-      return
-    }
-    listLensValues(functionLensId).then(setFunctionValues)
-  }, [functionLensId])
+    if (!layerLensId) { setLayerValues([]); setRequiredLayerIds(new Set()); return }
+    listLensValues(layerLensId).then((values) => {
+      setLayerValues(values)
+      setRequiredLayerIds(new Set(values.map((v) => v.id)))
+    })
+  }, [layerLensId])
+
+  useEffect(() => {
+    if (!subjectLensId) { setSubjectValues([]); return }
+    listLensValues(subjectLensId).then(setSubjectValues)
+  }, [subjectLensId])
 
   const reset = () => {
+    setPattern(null)
     setName('')
     setDescription('')
-    setPillarLensId('')
-    setFunctionLensId('')
-    setRequiredPillarIds(new Set())
+    setCategoryLensId('')
+    setLayerLensId('')
+    setSubjectLensId('')
+    setRequiredLayerIds(new Set())
     setError(null)
     setCreating(false)
   }
 
-  const togglePillar = (id: string) => {
-    const next = new Set(requiredPillarIds)
+  const toggleLayer = (id: string) => {
+    const next = new Set(requiredLayerIds)
     if (next.has(id)) next.delete(id)
     else next.add(id)
-    setRequiredPillarIds(next)
+    setRequiredLayerIds(next)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) { setError('Give the rule a name.'); return }
-    if (!pillarLensId) { setError('Pick a Pillar lens.'); return }
-    if (requiredPillarIds.size === 0) { setError('Pick at least one required pillar value.'); return }
-    if (!functionLensId) { setError('Pick a Function lens (the count axis).'); return }
+
+    if (pattern === 'coverage-count') {
+      if (!categoryLensId) { setError('Pick a Categories lens.'); return }
+      if (categoryValues.length === 0) { setError('The selected lens has no values yet. Add values to it first.'); return }
+    } else {
+      if (!layerLensId) { setError('Pick a Layers lens.'); return }
+      if (requiredLayerIds.size === 0) { setError('Select at least one required layer value.'); return }
+      if (!subjectLensId) { setError('Pick a Subjects lens.'); return }
+      if (subjectValues.length === 0) { setError('The Subjects lens has no values yet. Add values to it first.'); return }
+    }
 
     setCreating(true)
     setError(null)
+
     try {
-      const requiredValueStrings = pillarValues
-        .filter((v) => requiredPillarIds.has(v.id))
-        .map((v) => v.value)
+      let definition: Record<string, unknown>
+      let outputLevels: Array<{ value: number; label: string; description: string }>
 
-      const definition = {
-        type: 'wedding-cake' as const,
-        version: 1,
-        pillarLensId,
-        functionLensId,
-        requiredPillars: requiredValueStrings,
-        countAxis: 'function' as const,
+      if (pattern === 'coverage-count') {
+        definition = { type: 'coverage-count', version: 1, categoryLensId }
+        outputLevels = Array.from({ length: categoryValues.length + 1 }, (_, score) => ({
+          value: score,
+          label: `Level ${score}`,
+          description: score === 0
+            ? 'No categories covered.'
+            : score === categoryValues.length
+              ? `All ${categoryValues.length} categories covered.`
+              : `${score} of ${categoryValues.length} categories covered.`,
+        }))
+      } else {
+        const requiredLayerStrings = layerValues
+          .filter((v) => requiredLayerIds.has(v.id))
+          .map((v) => v.value)
+        definition = {
+          type: 'cross-coverage',
+          version: 1,
+          layerLensId,
+          subjectLensId,
+          requiredLayers: requiredLayerStrings,
+        }
+        outputLevels = Array.from({ length: subjectValues.length + 1 }, (_, score) => ({
+          value: score,
+          label: `Level ${score}`,
+          description: score === 0
+            ? 'No subjects cover all required layers.'
+            : score === subjectValues.length
+              ? `All ${subjectValues.length} subjects cover all required layers.`
+              : `${score} of ${subjectValues.length} subjects cover all required layers.`,
+        }))
       }
-
-      const maxLevel = functionValues.length
-      const outputLevels = Array.from({ length: maxLevel + 1 }, (_, score) => ({
-        value: score,
-        label: `Level ${score}`,
-        description: score === 0
-          ? `No ${functionValues.length === 0 ? 'count-axis values' : 'function values'} deliver all required pillars.`
-          : score === maxLevel
-            ? `All ${maxLevel} function values deliver all required pillars.`
-            : `${score} function value${score === 1 ? '' : 's'} deliver all required pillars.`,
-      }))
 
       const rule = await createScoringRule({
         name: name.trim(),
@@ -148,101 +164,92 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
   }
 
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) reset()
-        onOpenChange(o)
-      }}
-    >
+    <Dialog open={open} onOpenChange={(o) => { if (!o) reset(); onOpenChange(o) }}>
       <DialogContent className="max-w-2xl">
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>New scoring rule</DialogTitle>
             <DialogDescription>
-              Wedding Cake-style scoring: count how many values of one axis
-              ("Function") satisfy a requirement on another axis ("Pillar").
-              The result is a level from 0 to (count of function values).
+              Choose a scoring pattern, then configure which lenses it uses.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto">
-            <div className="space-y-1.5">
-              <label htmlFor="rule-name" className="text-sm font-medium">Name</label>
-              <Input
-                id="rule-name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. NIST CSF Maturity"
-                autoFocus
-                disabled={creating}
-              />
-            </div>
+          <div className="space-y-5 py-4 max-h-[65vh] overflow-y-auto pr-1">
 
-            <div className="space-y-1.5">
-              <label htmlFor="rule-description" className="text-sm font-medium">
-                Description <span className="text-muted-foreground font-normal">(optional)</span>
-              </label>
-              <Input
-                id="rule-description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="When should a researcher pick this rule?"
-                disabled={creating}
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Pillar lens (the axis with the requirement)</label>
-              <Select value={pillarLensId} onValueChange={setPillarLensId} disabled={creating}>
-                <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
-                <SelectContent>
-                  {allLenses.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {pillarValues.length > 0 && (
-              <div className="space-y-1.5">
-                <label className="text-sm font-medium">Required pillar values</label>
-                <p className="text-xs text-muted-foreground">
-                  A document scores a level only when ALL of these pillar values are present.
-                </p>
-                <div className="border border-border rounded-md divide-y divide-border max-h-40 overflow-y-auto">
-                  {pillarValues.map((v) => (
-                    <label
-                      key={v.id}
-                      className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30 transition-colors"
-                    >
-                      <Checkbox
-                        checked={requiredPillarIds.has(v.id)}
-                        onCheckedChange={() => togglePillar(v.id)}
-                      />
-                      <span className="text-sm">{v.displayName ?? v.value}</span>
-                    </label>
-                  ))}
-                </div>
+            {/* Pattern picker */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Scoring pattern</label>
+              <div className="grid grid-cols-2 gap-3">
+                <PatternCard
+                  selected={pattern === 'coverage-count'}
+                  onClick={() => setPattern('coverage-count')}
+                  icon={<BarChart2 className="h-5 w-5" />}
+                  title="Coverage Count"
+                  description="How many of your categories does this document cover? Score = 0 to N. Good for flat frameworks like Triple Bottom Line or Balanced Scorecard."
+                />
+                <PatternCard
+                  selected={pattern === 'cross-coverage'}
+                  onClick={() => setPattern('cross-coverage')}
+                  icon={<Layers className="h-5 w-5" />}
+                  title="Cross Coverage"
+                  description="For each Subject, does it cover ALL required Layers? Score = count of Subjects that pass. Good for layered frameworks like the Wedding Cake model."
+                />
               </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Function lens (the count axis)</label>
-              <Select value={functionLensId} onValueChange={setFunctionLensId} disabled={creating}>
-                <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
-                <SelectContent>
-                  {allLenses.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {functionValues.length > 0 && (
-                <p className="text-xs text-muted-foreground">
-                  Output: <strong>Level 0 to Level {functionValues.length}</strong> ({functionValues.length + 1} levels).
-                </p>
-              )}
             </div>
+
+            {pattern && (
+              <>
+                <div className="space-y-1.5">
+                  <label htmlFor="rule-name" className="text-sm font-medium">Rule name</label>
+                  <Input
+                    id="rule-name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder={pattern === 'coverage-count' ? 'e.g. Triple Bottom Line' : 'e.g. NIST CSF Score'}
+                    autoFocus
+                    disabled={creating}
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label htmlFor="rule-description" className="text-sm font-medium">
+                    Description <span className="text-muted-foreground font-normal">(optional)</span>
+                  </label>
+                  <Input
+                    id="rule-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="What is this rule measuring?"
+                    disabled={creating}
+                  />
+                </div>
+
+                {pattern === 'coverage-count' && (
+                  <CoverageCountFields
+                    allLenses={allLenses}
+                    categoryLensId={categoryLensId}
+                    categoryValues={categoryValues}
+                    onCategoryLensChange={setCategoryLensId}
+                    disabled={creating}
+                  />
+                )}
+
+                {pattern === 'cross-coverage' && (
+                  <CrossCoverageFields
+                    allLenses={allLenses}
+                    layerLensId={layerLensId}
+                    layerValues={layerValues}
+                    requiredLayerIds={requiredLayerIds}
+                    subjectLensId={subjectLensId}
+                    subjectValues={subjectValues}
+                    onLayerLensChange={setLayerLensId}
+                    onToggleLayer={toggleLayer}
+                    onSubjectLensChange={setSubjectLensId}
+                    disabled={creating}
+                  />
+                )}
+              </>
+            )}
 
             {error && <div className="text-sm text-destructive">{error}</div>}
           </div>
@@ -251,12 +258,187 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={creating}>
               Cancel
             </Button>
-            <Button type="submit" disabled={creating}>
+            <Button type="submit" disabled={!pattern || creating}>
               {creating ? 'Creating…' : 'Create rule'}
             </Button>
           </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Pattern card
+// ---------------------------------------------------------------------------
+
+function PatternCard({
+  selected,
+  onClick,
+  icon,
+  title,
+  description,
+}: {
+  selected: boolean
+  onClick: () => void
+  icon: React.ReactNode
+  title: string
+  description: string
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'text-left p-4 rounded-md border transition-colors space-y-2',
+        selected
+          ? 'border-foreground bg-muted/40 ring-1 ring-foreground/30'
+          : 'border-border hover:border-foreground/40 hover:bg-muted/20'
+      )}
+    >
+      <div className="flex items-center gap-2 font-medium text-sm">
+        <span className="text-muted-foreground">{icon}</span>
+        {title}
+      </div>
+      <p className="text-xs text-muted-foreground leading-relaxed">{description}</p>
+    </button>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Coverage-count config fields
+// ---------------------------------------------------------------------------
+
+function CoverageCountFields({
+  allLenses,
+  categoryLensId,
+  categoryValues,
+  onCategoryLensChange,
+  disabled,
+}: {
+  allLenses: Lens[]
+  categoryLensId: string
+  categoryValues: LensValue[]
+  onCategoryLensChange: (id: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="space-y-4 border border-border rounded-md p-4 bg-muted/10">
+      <div className="space-y-1">
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categories lens</p>
+        <p className="text-xs text-muted-foreground">
+          Each value in this lens is a category. The score counts how many
+          are covered by keyword matches. Create the lens and its values in{' '}
+          <strong>Lenses</strong> first.
+        </p>
+      </div>
+      <Select value={categoryLensId} onValueChange={onCategoryLensChange} disabled={disabled}>
+        <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+        <SelectContent>
+          {allLenses.map((l) => (
+            <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      {categoryValues.length > 0 && (
+        <p className="text-xs text-muted-foreground">
+          {categoryValues.length} categories: {categoryValues.map((v) => v.displayName ?? v.value).join(' · ')}.{' '}
+          Score will be <strong>0 to {categoryValues.length}</strong>.
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Cross-coverage config fields
+// ---------------------------------------------------------------------------
+
+function CrossCoverageFields({
+  allLenses,
+  layerLensId,
+  layerValues,
+  requiredLayerIds,
+  subjectLensId,
+  subjectValues,
+  onLayerLensChange,
+  onToggleLayer,
+  onSubjectLensChange,
+  disabled,
+}: {
+  allLenses: Lens[]
+  layerLensId: string
+  layerValues: LensValue[]
+  requiredLayerIds: Set<string>
+  subjectLensId: string
+  subjectValues: LensValue[]
+  onLayerLensChange: (id: string) => void
+  onToggleLayer: (id: string) => void
+  onSubjectLensChange: (id: string) => void
+  disabled: boolean
+}) {
+  return (
+    <div className="space-y-4">
+      {/* Layers */}
+      <div className="space-y-3 border border-border rounded-md p-4 bg-muted/10">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Layers lens</p>
+          <p className="text-xs text-muted-foreground">
+            The categories that must <strong>all</strong> be covered for a Subject to pass.
+            In the Wedding Cake model this is Biosphere / Society / Economy.
+          </p>
+        </div>
+        <Select value={layerLensId} onValueChange={onLayerLensChange} disabled={disabled}>
+          <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+          <SelectContent>
+            {allLenses.map((l) => (
+              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {layerValues.length > 0 && (
+          <div className="space-y-1.5">
+            <p className="text-xs text-muted-foreground">Which layer values are required? (default: all)</p>
+            <div className="border border-border rounded-md divide-y divide-border max-h-36 overflow-y-auto">
+              {layerValues.map((v) => (
+                <label key={v.id} className="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-muted/30">
+                  <Checkbox
+                    checked={requiredLayerIds.has(v.id)}
+                    onCheckedChange={() => onToggleLayer(v.id)}
+                  />
+                  <span className="text-sm">{v.displayName ?? v.value}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Subjects */}
+      <div className="space-y-3 border border-border rounded-md p-4 bg-muted/10">
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subjects lens</p>
+          <p className="text-xs text-muted-foreground">
+            The things being evaluated — how many cover all required layers?
+            In the Wedding Cake model this is Teaching / Research / Engagement / Operations.
+            Subjects must be classified per-section via the Function Classification step.
+          </p>
+        </div>
+        <Select value={subjectLensId} onValueChange={onSubjectLensChange} disabled={disabled}>
+          <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+          <SelectContent>
+            {allLenses.map((l) => (
+              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        {subjectValues.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {subjectValues.length} subjects: {subjectValues.map((v) => v.displayName ?? v.value).join(' · ')}.{' '}
+            Score will be <strong>0 to {subjectValues.length}</strong>.
+          </p>
+        )}
+      </div>
+    </div>
   )
 }

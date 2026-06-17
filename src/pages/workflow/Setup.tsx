@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown, Lock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -149,6 +149,7 @@ export function Setup() {
           allRules={allRules}
           activeRuleId={vm.scoringRule?.id ?? null}
           onSelect={handleSelectScoringRule}
+          locked={vm.project.researchFocus === 'sustainability'}
         />
       </div>
     </div>
@@ -634,12 +635,22 @@ function ScoringRuleSection({
   allRules,
   activeRuleId,
   onSelect,
+  locked = false,
 }: {
   allRules: ScoringRule[]
   activeRuleId: string | null
   onSelect: (id: string) => void
+  locked?: boolean
 }) {
   const active = allRules.find((r) => r.id === activeRuleId)
+
+  // Auto-select when there's only one rule and nothing is selected yet.
+  useEffect(() => {
+    if (allRules.length === 1 && !activeRuleId) {
+      onSelect(allRules[0].id)
+    }
+  }, [allRules, activeRuleId, onSelect])
+
   return (
     <section>
       <SectionHeader
@@ -648,18 +659,34 @@ function ScoringRuleSection({
         count={active ? active.name : 'None selected'}
       />
       <div className="border border-border rounded-md p-4 space-y-3">
-        <Select value={activeRuleId ?? ''} onValueChange={onSelect}>
-          <SelectTrigger className="max-w-md">
-            <SelectValue placeholder="Pick a scoring rule" />
-          </SelectTrigger>
-          <SelectContent>
-            {allRules.map((rule) => (
-              <SelectItem key={rule.id} value={rule.id}>
-                {rule.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {locked || allRules.length <= 1 ? (
+          <div className="flex items-center gap-2">
+            <p className="text-sm flex-1">
+              {active
+                ? active.name
+                : <span className="text-muted-foreground italic">No scoring rules defined. Create one in Settings.</span>}
+            </p>
+            {locked && (
+              <span className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                Fixed for this theme
+              </span>
+            )}
+          </div>
+        ) : (
+          <Select value={activeRuleId ?? ''} onValueChange={onSelect}>
+            <SelectTrigger className="max-w-md">
+              <SelectValue placeholder="Pick a scoring rule" />
+            </SelectTrigger>
+            <SelectContent>
+              {allRules.map((rule) => (
+                <SelectItem key={rule.id} value={rule.id}>
+                  {rule.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         {active && (
           <p className="text-xs text-muted-foreground">
             {active.description ?? 'No description.'}

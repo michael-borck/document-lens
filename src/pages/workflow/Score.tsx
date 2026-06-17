@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/select'
 import {
   evaluateScore,
+  SUPPORTED_RULE_TYPES,
   type ScoreEvaluation,
   type DocScore,
   type TraceStep,
@@ -80,16 +81,16 @@ export function Score() {
       </Gate>
     )
   }
-  if (ruleType !== 'wedding-cake') {
+  if (!ruleType || !SUPPORTED_RULE_TYPES.has(ruleType)) {
     return (
       <Gate>
         <EmptyState
-          title="Active rule isn't supported here yet"
+          title="Scoring rule type not supported"
           description={
             <>
-              v1 only evaluates the built-in <strong>Wedding Cake Score</strong>{' '}
-              rule (or custom rules with <code>type: "wedding-cake"</code>). Custom rule
-              types beyond that need their own evaluator in the registry.
+              This rule uses type <code>{ruleType ?? '(none)'}</code> which has no
+              evaluator registered. Supported types: <code>cross-coverage</code>,{' '}
+              <code>coverage-count</code>.
             </>
           }
         />
@@ -116,7 +117,8 @@ export function Score() {
     <div className="px-8 py-8 max-w-5xl">
       <Header />
 
-      {evaluation && (evaluation.mode === 'v1-prerequisite' ? <V1Banner /> : <FullBanner />)}
+      {evaluation && ruleType === 'coverage-count' && <CoverageCountBanner />}
+      {evaluation && ruleType !== 'coverage-count' && (evaluation.mode === 'v1-prerequisite' ? <V1Banner /> : <FullBanner />)}
       {error && (
         <div className="mb-6 text-xs border border-red-500/30 bg-red-50 dark:bg-red-950/20 rounded-md p-3">
           {error}
@@ -214,12 +216,11 @@ function V1Banner() {
   return (
     <div className="mb-6 flex items-start gap-3 text-xs border border-yellow-500/30 bg-yellow-50 dark:bg-yellow-950/20 rounded-md p-3 leading-relaxed">
       <div className="flex-1 min-w-0">
-        <strong>Mode: v1 Pillar coverage prerequisite.</strong> Documents in this
-        project haven't been Function-classified yet, so we can't compute the
-        full Wedding Cake Score. This view shows the structural
-        prerequisite: how many of the required pillars the document mentions
-        positively. Run <strong>Function classification</strong> on the Setup
-        tab to upgrade to the full score.
+        <strong>Mode: Layer coverage only.</strong> Documents haven't been
+        Subject-classified yet, so only layer-level coverage is shown — how many
+        required layers the document mentions positively. Run{' '}
+        <strong>Function classification</strong> on the Setup tab to unlock the
+        full cross-coverage score.
       </div>
       <Button asChild variant="outline" size="sm" className="gap-1.5 shrink-0">
         <Link to={{ pathname: '../setup', hash: '#classification' }}>
@@ -234,10 +235,18 @@ function V1Banner() {
 function FullBanner() {
   return (
     <div className="mb-6 text-xs border border-green-500/30 bg-green-50 dark:bg-green-950/20 rounded-md p-3 leading-relaxed">
-      <strong>Mode: Full Wedding Cake Score.</strong> All documents have been
-      Function-classified. Each document's score counts how many Function
-      values (Teaching / Research / Engagement / Operations) deliver positive
-      keyword matches in ALL the rule's required pillars at the same time.
+      <strong>Mode: Full cross-coverage score.</strong> All documents have been
+      Subject-classified. Each document's score counts how many Subject values
+      deliver positive keyword matches in ALL required Layers at the same time.
+    </div>
+  )
+}
+
+function CoverageCountBanner() {
+  return (
+    <div className="mb-6 text-xs border border-blue-500/30 bg-blue-50 dark:bg-blue-950/20 rounded-md p-3 leading-relaxed">
+      <strong>Mode: Coverage count.</strong> Score = how many of the
+      rule's categories this document covers with positive keyword matches.
     </div>
   )
 }
