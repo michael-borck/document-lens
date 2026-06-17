@@ -223,6 +223,18 @@ export const QUERIES = {
   'exclusions.phrasesByKeywordIds':
     'SELECT keyword_id, phrase FROM keyword_exclusions WHERE keyword_id IN (__IN__)',
 
+  // per-instance match suppressions
+  'suppressedSpans.create':
+    'INSERT INTO suppressed_spans (id, keyword_id, document_id, start_offset, end_offset, reason, suppressed_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
+  'suppressedSpans.forKeywordInDoc':
+    'SELECT * FROM suppressed_spans WHERE keyword_id = ? AND document_id = ? ORDER BY start_offset',
+  'suppressedSpans.deleteById':
+    'DELETE FROM suppressed_spans WHERE id = ?',
+  'suppressedSpans.getById':
+    'SELECT * FROM suppressed_spans WHERE id = ?',
+  'suppressedSpans.byKeywordIds':
+    'SELECT keyword_id, document_id, start_offset, end_offset FROM suppressed_spans WHERE keyword_id IN (__IN__)',
+
   // sections
   'sections.listByDocument':
     'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',

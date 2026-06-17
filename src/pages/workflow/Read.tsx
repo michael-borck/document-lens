@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext } from 'react-router-dom'
-import { Check, Copy, ExternalLink, Eye } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -9,7 +9,13 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { findConcordance, type ConcordanceResult } from '@/services/concordance'
-import { listKeywords, listEnabledSynonymsForKeywords } from '@/services/keyword-lists'
+import {
+  listKeywords,
+  listEnabledSynonymsForKeywords,
+  suppressSpan,
+  restoreSpan,
+  listSuppressedSpansForKeyword,
+} from '@/services/keyword-lists'
 import { countConcept } from '@/services/_shared/keyword-match'
 import { getDocument } from '@/services/documents'
 import { listSections, type DocumentSection } from '@/services/sections'
@@ -19,7 +25,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Document, Keyword } from '@/types/data'
+import type { Document, Keyword, SuppressedSpan } from '@/types/data'
 
 type ContextWindow = 50 | 100 | 250
 
@@ -48,6 +54,8 @@ export function Read() {
   // number for the deep-link button. Empty if document_pages was never
   // populated (legacy import / non-PDF source).
   const [pageOffsets, setPageOffsets] = useState<PageOffset[]>([])
+  // Per-instance suppressed spans for the current (doc, keyword) pair.
+  const [suppressedSpans, setSuppressedSpans] = useState<SuppressedSpan[]>([])
 
   useEffect(() => {
     Promise.all(vm.project.documentIds.map((id) => getDocument(id))).then((rows) => {
@@ -123,6 +131,16 @@ export function Read() {
       cancelled = true
     }
   }, [docId])
+
+  // Load per-instance suppressions for the current (doc, keyword) pair.
+  useEffect(() => {
+    if (!docId || !keywordId) { setSuppressedSpans([]); return }
+    let cancelled = false
+    listSuppressedSpansForKeyword(docId, keywordId).then((spans) => {
+      if (!cancelled) setSuppressedSpans(spans)
+    })
+    return () => { cancelled = true }
+  }, [docId, keywordId])
 
   const filteredKeywords = useMemo(() => {
     return keywords
@@ -287,11 +305,15 @@ export function Read() {
       ) : (
         <ConcordanceResults
           result={result}
+          documentId={docId}
+          keywordId={keywordId}
           documentLabel={selectedDoc?.title ?? selectedDoc?.filename ?? ''}
           documentPath={selectedDoc?.filePath}
           keywordLabel={selectedKeyword?.text ?? ''}
           sections={sections}
           pageOffsets={pageOffsets}
+          suppressedSpans={suppressedSpans}
+          onSuppressionsChange={setSuppressedSpans}
         />
       )}
     </div>
@@ -326,18 +348,26 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
  */
 function ConcordanceResults({
   result,
+  documentId,
+  keywordId,
   documentLabel,
   documentPath,
   keywordLabel,
   sections,
   pageOffsets,
+  suppressedSpans,
+  onSuppressionsChange,
 }: {
   result: ConcordanceResult
+  documentId: string
+  keywordId: string
   documentLabel: string
   documentPath?: string
   keywordLabel: string
   sections: DocumentSection[]
   pageOffsets: PageOffset[]
+  suppressedSpans: SuppressedSpan[]
+  onSuppressionsChange: (spans: SuppressedSpan[]) => void
 }) {
   const openSourceFile = () => {
     if (!documentPath) return
@@ -366,6 +396,8 @@ function ConcordanceResults({
     ? pageOffsets[pageOffsets.length - 1].pageNumber
     : null
 
+  const suppressedByOffset = new Map(suppressedSpans.map((s) => [s.startOffset, s]))
+
   return (
     <div>
       <div className="flex items-center justify-between mb-3">
@@ -373,6 +405,11 @@ function ConcordanceResults({
           <strong>{result.matches.length}</strong> match{result.matches.length === 1 ? '' : 'es'}
           {' '}for <code className="text-xs bg-muted px-1.5 py-0.5 rounded">{keywordLabel}</code>
           {' '}in <strong>{documentLabel}</strong>
+          {suppressedSpans.length > 0 && (
+            <span className="text-muted-foreground text-xs ml-2">
+              ({suppressedSpans.length} suppressed)
+            </span>
+          )}
         </p>
         {documentPath && (
           <button
@@ -391,6 +428,7 @@ function ConcordanceResults({
         {result.matches.map((m) => {
           const section = findSection(m.position)
           const page = findPageForOffset(pageOffsets, m.position)
+          const suppressed = suppressedByOffset.get(m.position)
           return (
             <MatchCard
               key={m.index}
@@ -402,6 +440,24 @@ function ConcordanceResults({
               documentPath={documentPath}
               documentLabel={documentLabel}
               keywordLabel={keywordLabel}
+              suppressedSpan={suppressed}
+              onSuppress={async () => {
+                const span = await suppressSpan({
+                  keywordId,
+                  documentId,
+                  startOffset: m.position,
+                  endOffset: m.position + m.matched.length,
+                })
+                onSuppressionsChange([
+                  ...suppressedSpans.filter((s) => s.startOffset !== m.position),
+                  span,
+                ])
+              }}
+              onRestore={async () => {
+                if (!suppressed) return
+                await restoreSpan(suppressed.id)
+                onSuppressionsChange(suppressedSpans.filter((s) => s.id !== suppressed.id))
+              }}
             />
           )
         })}
@@ -419,6 +475,9 @@ function MatchCard({
   documentPath,
   documentLabel,
   keywordLabel,
+  suppressedSpan,
+  onSuppress,
+  onRestore,
 }: {
   match: ConcordanceResult['matches'][number]
   section: DocumentSection | null
@@ -428,6 +487,9 @@ function MatchCard({
   documentPath?: string
   documentLabel: string
   keywordLabel: string
+  suppressedSpan: SuppressedSpan | undefined
+  onSuppress: () => Promise<void>
+  onRestore: () => Promise<void>
 }) {
   const [copied, setCopied] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -459,11 +521,20 @@ function MatchCard({
   }
 
   return (
-    <li className="border border-border rounded-md p-3 text-sm leading-relaxed">
+    <li className={`border border-border rounded-md p-3 text-sm leading-relaxed${suppressedSpan ? ' opacity-60' : ''}`}>
       <span className="text-muted-foreground">…{match.before} </span>
-      <mark className="bg-yellow-200 px-0.5 rounded font-medium not-italic">
-        {match.matched}
-      </mark>
+      {suppressedSpan ? (
+        <span className="line-through text-muted-foreground">{match.matched}</span>
+      ) : (
+        <mark className="bg-yellow-200 px-0.5 rounded font-medium not-italic">
+          {match.matched}
+        </mark>
+      )}
+      {suppressedSpan && (
+        <span className="ml-2 text-[10px] uppercase tracking-wide text-muted-foreground border border-border rounded px-1 py-0.5">
+          suppressed
+        </span>
+      )}
       <span className="text-muted-foreground"> {match.after}…</span>
       <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
         <span className="tabular-nums">Match {match.index + 1}</span>
@@ -508,6 +579,27 @@ function MatchCard({
             >
               <ExternalLink className="h-3 w-3" />
               Open at page {page}
+            </button>
+          )}
+          {suppressedSpan ? (
+            <button
+              type="button"
+              onClick={onRestore}
+              className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors text-muted-foreground"
+              title="Restore this match — it will count again in analysis"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Restore
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={onSuppress}
+              className="hover:text-foreground inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-transparent hover:border-border transition-colors"
+              title="Suppress this match — exclude it from analysis counts"
+            >
+              <EyeOff className="h-3 w-3" />
+              Suppress
             </button>
           )}
         </span>

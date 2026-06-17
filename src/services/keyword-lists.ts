@@ -341,7 +341,7 @@ export async function listEnabledSynonymsForKeywords(
 // Keyword exclusion phrases (per-keyword child list)
 // ---------------------------------------------------------------------------
 
-import type { KeywordExclusion } from '@/types/data'
+import type { KeywordExclusion, SuppressedSpan } from '@/types/data'
 
 interface ExclusionRow {
   id: string
@@ -389,6 +389,84 @@ export async function listExclusionPhrasesForKeywords(
     const list = out.get(r.keyword_id) ?? []
     list.push(r.phrase)
     out.set(r.keyword_id, list)
+  }
+  return out
+}
+
+// ---------------------------------------------------------------------------
+// Per-instance match suppressions
+// ---------------------------------------------------------------------------
+
+interface SuppressedSpanRow {
+  id: string
+  keyword_id: string
+  document_id: string
+  start_offset: number
+  end_offset: number
+  reason: string | null
+  suppressed_at: string
+}
+
+function rowToSuppressedSpan(row: SuppressedSpanRow): SuppressedSpan {
+  return {
+    id: row.id,
+    keywordId: row.keyword_id,
+    documentId: row.document_id,
+    startOffset: row.start_offset,
+    endOffset: row.end_offset,
+    reason: row.reason,
+    suppressedAt: row.suppressed_at,
+  }
+}
+
+export async function suppressSpan(input: {
+  keywordId: string
+  documentId: string
+  startOffset: number
+  endOffset: number
+  reason?: string
+}): Promise<SuppressedSpan> {
+  const id = newId()
+  await runStatement('suppressedSpans.create', [
+    id, input.keywordId, input.documentId,
+    input.startOffset, input.endOffset,
+    input.reason ?? null, now(),
+  ])
+  const row = await selectOne<SuppressedSpanRow>('suppressedSpans.getById', [id])
+  if (!row) throw new Error('Failed to create suppressed span')
+  return rowToSuppressedSpan(row)
+}
+
+export async function restoreSpan(id: string): Promise<void> {
+  await runStatement('suppressedSpans.deleteById', [id])
+}
+
+export async function listSuppressedSpansForKeyword(
+  documentId: string,
+  keywordId: string
+): Promise<SuppressedSpan[]> {
+  const rows = await selectAll<SuppressedSpanRow>('suppressedSpans.forKeywordInDoc', [keywordId, documentId])
+  return rows.map(rowToSuppressedSpan)
+}
+
+/**
+ * Map of keywordId -> documentId -> Set<startOffset> for the analysis
+ * pipeline. Lets spansFor() check suppression in O(1) per span.
+ */
+export async function loadSuppressedOffsetsForKeywords(
+  keywordIds: string[]
+): Promise<Map<string, Map<string, Set<number>>>> {
+  const out = new Map<string, Map<string, Set<number>>>()
+  if (keywordIds.length === 0) return out
+  const rows = await selectInList<{
+    keyword_id: string; document_id: string; start_offset: number; end_offset: number
+  }>('suppressedSpans.byKeywordIds', keywordIds)
+  for (const r of rows) {
+    let byDoc = out.get(r.keyword_id)
+    if (!byDoc) { byDoc = new Map(); out.set(r.keyword_id, byDoc) }
+    let offsets = byDoc.get(r.document_id)
+    if (!offsets) { offsets = new Set(); byDoc.set(r.document_id, offsets) }
+    offsets.add(r.start_offset)
   }
   return out
 }

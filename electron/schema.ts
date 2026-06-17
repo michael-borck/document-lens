@@ -205,6 +205,21 @@ CREATE TABLE IF NOT EXISTS keyword_exclusions (
 );
 CREATE INDEX IF NOT EXISTS idx_keyword_exclusions_keyword ON keyword_exclusions(keyword_id);
 
+-- Per-instance match suppressions. When a researcher flags a specific
+-- keyword occurrence in a document as wrong context, it is excluded from
+-- all analysis counts without removing the keyword entirely.
+CREATE TABLE IF NOT EXISTS suppressed_spans (
+  id TEXT PRIMARY KEY,
+  keyword_id TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  start_offset INTEGER NOT NULL,
+  end_offset INTEGER NOT NULL,
+  reason TEXT,
+  suppressed_at TEXT NOT NULL,
+  UNIQUE(keyword_id, document_id, start_offset)
+);
+CREATE INDEX IF NOT EXISTS idx_suppressed_spans_kw_doc ON suppressed_spans(keyword_id, document_id);
+
 -- Scoring rules. The 5-level Wedding Cake Score is one such rule; users
 -- can define more for non-sustainability domains.
 CREATE TABLE IF NOT EXISTS scoring_rules (

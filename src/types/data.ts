@@ -116,6 +116,16 @@ export interface KeywordExclusion {
   addedAt: string
 }
 
+export interface SuppressedSpan {
+  id: string
+  keywordId: string
+  documentId: string
+  startOffset: number
+  endOffset: number
+  reason: string | null
+  suppressedAt: string
+}
+
 // ---------------------------------------------------------------------------
 // Scoring rules
 // ---------------------------------------------------------------------------
