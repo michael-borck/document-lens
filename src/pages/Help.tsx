@@ -199,7 +199,7 @@ function GettingStarted() {
       <P>
         From the empty <strong>Projects</strong> page, click <em>Create your first project</em>{' '}
         to launch the three-step wizard. Defaults are pre-loaded for sustainability research:
-        the SDG keyword list, three lenses (SDG, Pillar, Function), and the 5-level
+        the SDG keyword list, three lenses (SDG, Pillar, Function), and the
         Wedding Cake Score. Pick documents (or skip and add them from the Library
         later), confirm the defaults, and you'll land on the project's <strong>Setup</strong>{' '}
         tab with everything wired up. After that, reopening a project resumes the
@@ -216,9 +216,13 @@ function GettingStarted() {
       </P>
       <H2>What if I'm not doing sustainability?</H2>
       <P>
-        Pick <em>Other</em> in the wizard's focus step. The project will be created empty;
-        head to <strong>Keywords</strong> and <strong>Lenses</strong> in the left nav to build
-        your own taxonomy, then to Settings to define a scoring rule.
+        Pick <em>General</em> in the wizard's focus step. The project will be created
+        empty; head to <strong>Keywords</strong> and <strong>Lenses</strong> in the left
+        nav to build your own taxonomy, then to <strong>Settings</strong> to define a
+        scoring rule. Two patterns are available: <strong>Coverage Count</strong> (flat —
+        how many of your categories does this document cover?) or{' '}
+        <strong>Cross Coverage</strong> (layered — how many Subjects cover all required
+        Layers?). The Cross Coverage pattern is what powers the Wedding Cake Score.
       </P>
     </>
   )
@@ -269,9 +273,17 @@ function SetupTopic() {
       </Tip>
       <H2>Scoring rule</H2>
       <P>
-        Pick which scoring rule to apply. The seeded one (Wedding Cake Score)
-        counts how many of four Functions deliver all three required Pillars. Custom
-        rules are built in <strong>Settings</strong>.
+        For <strong>sustainability projects</strong> the scoring rule is fixed — the
+        Wedding Cake Score is pre-wired and shown as a label (not a picker). For{' '}
+        <strong>General projects</strong>, pick whichever rule fits. If only one rule
+        exists it is auto-selected.
+      </P>
+      <P>
+        Create custom rules in <strong>Settings → New rule</strong>. Pick a pattern
+        first: <strong>Coverage Count</strong> (flat — score = how many categories are
+        covered, needs one lens) or <strong>Cross Coverage</strong> (layered — score =
+        how many Subjects cover all required Layers, needs two lenses). Configure the
+        lenses, name the rule, and it appears here.
       </P>
     </>
   )
@@ -360,20 +372,24 @@ function ScoreTopic() {
       </P>
       <UL>
         <li>
-          <strong>Full Wedding Cake Score</strong> (green) — every document has been
-          Function-classified. The score counts how many of the four{' '}
-          <strong>Functions</strong> (Teaching / Research / Engagement / Operations)
-          deliver positive keyword matches in <em>all</em> the rule's required{' '}
-          <strong>Pillars</strong> at once. The default rule requires three —
-          Biosphere, Society, Economy (Partnership is the connector, not a required
-          layer). So <Code>3 / 4</Code> = three functions cover all three pillars.
+          <strong>Full cross-coverage score</strong> (green) — every document has been
+          Subject-classified. The score counts how many <strong>Subjects</strong> deliver
+          positive keyword matches in <em>all</em> required <strong>Layers</strong> at
+          once. For the Wedding Cake Score: Subjects are Teaching / Research / Engagement
+          / Operations; required Layers are Biosphere, Society, Economy. So{' '}
+          <Code>3 / 4</Code> = three Functions cover all three Pillars.
         </li>
         <li>
-          <strong>v1 Pillar coverage prerequisite</strong> (yellow) — documents aren't
-          Function-classified yet, so the full score can't be computed. This shows a
-          fallback proxy: how many of the required Pillars the document mentions
-          positively. Run <strong>Function classification</strong> on the Setup tab
-          (the banner has a "Classify now" button) to upgrade to the full score.
+          <strong>Layer coverage only</strong> (yellow) — documents haven't been
+          Subject-classified yet, so the full score can't be computed. This fallback
+          shows how many required Layers the document mentions positively. Run{' '}
+          <strong>Function classification</strong> on the Setup tab (the banner has a
+          "Classify now" button) to upgrade to the full score.
+        </li>
+        <li>
+          <strong>Coverage count</strong> (blue) — used by flat (Coverage Count) rules.
+          Score = how many of the rule's categories this document covers with positive
+          keyword matches. No Subject classification required.
         </li>
       </UL>
 
