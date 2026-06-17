@@ -6,7 +6,7 @@
  *
  *   - Built-in lenses (isBuiltin=true) and the seeded SDG keyword
  *     list (source='SDGs (Universities)') and the Wedding Cake
- *     scoring rule (name='5-level Wedding Cake Score') are MATCHED
+ *     scoring rule (name='Wedding Cake Score') are MATCHED
  *     to the local copy by their stable identifiers. Same content,
  *     no duplication.
  *   - Custom lenses, custom keyword lists, and custom scoring rules
@@ -637,8 +637,8 @@ function resolveExistingScoringRule(bundle: BundleScoringRule, locals: ScoringRu
   // The Wedding Cake rule was originally seeded as a "built-in" but
   // the seed creates it without isBuiltin=true on every install. Fall
   // back to name match for known seeded rules.
-  if (bundle.name === '5-level Wedding Cake Score') {
-    return locals.find((r) => r.name === '5-level Wedding Cake Score') ?? null
+  if (bundle.name === 'Wedding Cake Score' || bundle.name === '5-level Wedding Cake Score') {
+    return locals.find((r) => r.name === 'Wedding Cake Score' || r.name === '5-level Wedding Cake Score') ?? null
   }
   return null
 }

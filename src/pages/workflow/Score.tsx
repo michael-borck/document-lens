@@ -75,7 +75,7 @@ export function Score() {
       <Gate>
         <EmptyState
           title="No scoring rule"
-          description="Pick a scoring rule on the Setup tab. The default 5-level Wedding Cake Score is preloaded."
+          description="Pick a scoring rule on the Setup tab. The default Wedding Cake Score is preloaded."
         />
       </Gate>
     )
@@ -87,7 +87,7 @@ export function Score() {
           title="Active rule isn't supported here yet"
           description={
             <>
-              v1 only evaluates the built-in <strong>5-level Wedding Cake Score</strong>{' '}
+              v1 only evaluates the built-in <strong>Wedding Cake Score</strong>{' '}
               rule (or custom rules with <code>type: "wedding-cake"</code>). Custom rule
               types beyond that need their own evaluator in the registry.
             </>
@@ -216,7 +216,7 @@ function V1Banner() {
       <div className="flex-1 min-w-0">
         <strong>Mode: v1 Pillar coverage prerequisite.</strong> Documents in this
         project haven't been Function-classified yet, so we can't compute the
-        full 5-level Wedding Cake Score. This view shows the structural
+        full Wedding Cake Score. This view shows the structural
         prerequisite: how many of the required pillars the document mentions
         positively. Run <strong>Function classification</strong> on the Setup
         tab to upgrade to the full score.

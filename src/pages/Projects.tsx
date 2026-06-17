@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, FolderOpen, Trash2, Package } from 'lucide-react'
+import { Plus, FolderOpen, Trash2, Package, Wand2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
@@ -15,7 +15,7 @@ import type { Project } from '@/types/data'
 export function Projects() {
   const navigate = useNavigate()
   const [projects, setProjects] = useState<Project[] | null>(null)
-  const [dialogOpen, setDialogOpen] = useState(false)
+  const [dialogOpen, setDialogOpen] = useState(false) // kept for bundle-import flow
   const [wizardOpen, setWizardOpen] = useState(false)
   const [importBundlePath, setImportBundlePath] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
@@ -80,8 +80,8 @@ export function Projects() {
               <Package className="h-4 w-4" />
               Import bundle
             </Button>
-            <Button onClick={() => setDialogOpen(true)} className="gap-2">
-              <Plus className="h-4 w-4" />
+            <Button onClick={() => setWizardOpen(true)} className="gap-2">
+              <Wand2 className="h-4 w-4" />
               New project
             </Button>
           </div>
@@ -92,7 +92,7 @@ export function Projects() {
         <EmptyState
           icon={<FolderOpen className="h-12 w-12" />}
           title="No projects yet"
-          description="A project is a workspace for analysing a set of documents through a chosen framework. The app ships with the SDG keyword list and the 5-level Wedding Cake Score pre-loaded — your first project will be productive without any configuration."
+          description="A project is a workspace for analysing a set of documents through a chosen framework. The app ships with the SDG keyword list and the Wedding Cake Score pre-loaded — your first project will be productive without any configuration."
           action={
             <div className="flex items-center gap-2">
               <Button onClick={() => setWizardOpen(true)} className="gap-2">

@@ -8,12 +8,11 @@
  *      Library; can be skipped and done later from Setup.
  *   3. Confirm pre-loaded defaults (Sustainability only). One click
  *      attaches the seeded SDG keyword list, the three built-in lenses
- *      (SDG / Pillar / Function), and the 5-level Wedding Cake Score
+ *      (SDG / Pillar / Function), and the Wedding Cake Score
  *      to the new project.
  *
- * Wizard is empty-state-only — subsequent projects use the simple
- * NewProjectDialog. Also reachable as opt-in from that dialog and
- * (future) Help menu.
+ * Wizard is the primary "New project" path — used both on first launch
+ * and for all subsequent projects from the Projects page header.
  */
 
 import { useEffect, useState } from 'react'
@@ -60,7 +59,7 @@ const FOCUS_OPTIONS: FocusOption[] = [
   {
     id: 'sustainability',
     name: 'Sustainability',
-    description: 'ESG, SDGs, climate disclosure. Ships with the SDG keyword list, three lenses (SDG, Pillar, Function), and the 5-level Wedding Cake Score pre-configured.',
+    description: 'ESG, SDGs, climate disclosure. Ships with the SDG keyword list, three lenses (SDG, Pillar, Function), and the Wedding Cake Score pre-configured.',
     icon: Leaf,
   },
   {
@@ -73,8 +72,8 @@ const FOCUS_OPTIONS: FocusOption[] = [
   },
   {
     id: 'other',
-    name: 'Other',
-    description: 'No pre-loaded keyword list or lenses. Build your own from scratch in Keywords + Lenses, or import a CSV.',
+    name: 'General',
+    description: 'No domain-specific defaults. Build your own lenses, keyword lists, and scoring rule from scratch — or import a CSV.',
     icon: FileText,
   },
 ]
@@ -509,7 +508,7 @@ function Step3({
           />
           <DefaultRow
             label="Scoring rule"
-            value="5-level Wedding Cake Score"
+            value="Wedding Cake Score"
             sub="Of four organisational Functions (Teaching, Research, Engagement, Operations), how many deliver all three Pillars (Biosphere, Society, Economy)?"
           />
           <p className="text-xs text-muted-foreground pt-1 border-t border-border">
@@ -572,7 +571,7 @@ async function applySustainabilityDefaults(projectId: string): Promise<void> {
     await setProjectLenses(projectId, builtinLenses.map((l) => l.id))
   }
 
-  const weddingCake = rules.find((r) => r.name === '5-level Wedding Cake Score')
+  const weddingCake = rules.find((r) => r.name === 'Wedding Cake Score' || r.name === '5-level Wedding Cake Score')
   if (weddingCake) {
     await updateProject(projectId, { scoringRuleId: weddingCake.id })
   }

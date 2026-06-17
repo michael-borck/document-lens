@@ -45,7 +45,7 @@ function App() {
   const navigate = useNavigate()
 
   // Seed the SDG keyword list, the SDG/Pillar/Function lenses, and the
-  // 5-level Wedding Cake Score on first launch (idempotent — no-ops if
+  // Wedding Cake Score on first launch (idempotent — no-ops if
   // the defaults are already in place). Per design principle #9.
   useEffect(() => {
     seedSustainabilityDefaults().catch((err) => {

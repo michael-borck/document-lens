@@ -27,6 +27,63 @@ import { runStatement, runBatch, now, stringifyJson, type BatchOp } from './db'
 import { api } from './api'
 import type { Document } from '@/types/data'
 
+/**
+ * Re-run text extraction for a document that previously failed. Skips the
+ * hash/dedup/create steps — the document row already exists. On success,
+ * overwrites extracted_text + metadata + status. On failure, updates
+ * status_error and re-throws so the caller can surface the error.
+ */
+export async function retryExtraction(doc: Document): Promise<void> {
+  try {
+    const response = await api.processFilePath(doc.filePath, {
+      include_extracted_text: true,
+    })
+
+    const extractedText = response.extracted_text?.full_text ?? ''
+    const pageCount = response.extracted_text?.total_pages ?? null
+    const wordCount = extractedText
+      ? extractedText.split(/\s+/).filter(Boolean).length
+      : null
+    const title = response.metadata?.title?.trim() || stripExtension(doc.filename)
+    const year = detectYearFromFilename(doc.filename) ?? response.inferred?.probable_year ?? null
+    const company =
+      detectCompanyFromFilename(doc.filename) ??
+      response.inferred?.probable_company?.trim() ??
+      null
+
+    const pages = response.extracted_text?.pages ?? []
+    const ops: BatchOp[] = [
+      {
+        key: 'import.updateExtraction',
+        params: [
+          title,
+          year,
+          company,
+          pageCount,
+          wordCount,
+          extractedText,
+          response.metadata ? stringifyJson(response.metadata) : null,
+          now(),
+          doc.id,
+        ],
+      },
+    ]
+    if (pages.length > 0) {
+      ops.push({ key: 'documentPages.deleteByDocument', params: [doc.id] })
+      for (const page of pages) {
+        if (page.text && page.text.trim().length > 0) {
+          ops.push({ key: 'documentPages.insert', params: [doc.id, page.page_number, page.text] })
+        }
+      }
+    }
+    await runBatch(ops)
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err)
+    await runStatement('import.markFailed', [message, doc.id])
+    throw err
+  }
+}
+
 export type ImportPhase =
   | 'hashing'
   | 'extracting'

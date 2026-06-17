@@ -90,7 +90,7 @@ function ScoringRulesSection() {
         }
       />
       <p className="text-sm text-muted-foreground mb-3">
-        A scoring rule turns coverage data into a single rating per document. The default 5-level
+        A scoring rule turns coverage data into a single rating per document. The default
         Wedding Cake Score ships pre-loaded; create additional rules for non-sustainability
         domains.
       </p>

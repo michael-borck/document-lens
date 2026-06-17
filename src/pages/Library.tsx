@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2 } from 'lucide-react'
+import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
 import { listDocuments, updateDocumentAttributes, deleteDocument } from '@/services/documents'
-import { importDocuments, type ImportProgress } from '@/services/import'
+import { importDocuments, retryExtraction, type ImportProgress } from '@/services/import'
 import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
@@ -177,6 +177,20 @@ function DocumentTable({
     doc: Document
     projectCount: number
   } | null>(null)
+  const [retryingId, setRetryingId] = useState<string | null>(null)
+
+  const handleRetry = async (doc: Document) => {
+    setRetryingId(doc.id)
+    try {
+      await retryExtraction(doc)
+      toast.success(`Re-extracted "${doc.title ?? doc.filename}"`)
+      onChange()
+    } catch (err) {
+      toast.error(`Re-extraction failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setRetryingId(null)
+    }
+  }
 
   const handleEdit = async (
     id: string,
@@ -294,15 +308,29 @@ function DocumentTable({
                 {doc.wordCount ? doc.wordCount.toLocaleString() : '—'}
               </td>
               <td className="px-2 py-2.5">
-                <button
-                  type="button"
-                  onClick={() => handleAskDelete(doc)}
-                  className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
-                  title="Delete from Library"
-                  aria-label={`Delete ${doc.title ?? doc.filename}`}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
+                <div className="flex items-center justify-end gap-0.5">
+                  {doc.status === 'failed' && (
+                    <button
+                      type="button"
+                      onClick={() => handleRetry(doc)}
+                      disabled={retryingId === doc.id}
+                      className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors disabled:opacity-50"
+                      title={`Retry extraction${doc.statusError ? ` (${doc.statusError})` : ''}`}
+                      aria-label={`Retry extraction for ${doc.title ?? doc.filename}`}
+                    >
+                      <RotateCcw className={`h-4 w-4 ${retryingId === doc.id ? 'animate-spin' : ''}`} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => handleAskDelete(doc)}
+                    className="text-muted-foreground hover:text-destructive p-1 rounded transition-colors"
+                    title="Delete from Library"
+                    aria-label={`Delete ${doc.title ?? doc.filename}`}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </td>
             </tr>
           ))}

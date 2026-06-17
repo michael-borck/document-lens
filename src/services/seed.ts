@@ -3,7 +3,7 @@
  *
  * Creates: SDG / Pillar / Function lenses + their values; the SDG
  * keyword list (positive + counter) sourced from the Universities
- * keyword XLSX; the 5-level Wedding Cake Score scoring rule.
+ * keyword XLSX; the Wedding Cake Score scoring rule.
  *
  * Idempotent: checks for an existing SDG keyword list by source name
  * before doing anything; no-ops if defaults are already in place.
@@ -34,7 +34,7 @@ import sustainabilityKeywords from '@/data/sustainability-keywords.json'
 import type { Lens, LensValue } from '@/types/data'
 
 const SDG_KEYWORD_LIST_SOURCE = 'SDGs (Universities)'
-const WEDDING_CAKE_SCORE_NAME = '5-level Wedding Cake Score'
+const WEDDING_CAKE_SCORE_NAME = 'Wedding Cake Score'
 
 interface SourceKeyword {
   sdg: number
@@ -168,7 +168,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   }
 
   // ------------------------------------------------------------------
-  // 3. Create the 5-level Wedding Cake Score scoring rule
+  // 3. Create the Wedding Cake Score scoring rule
   // ------------------------------------------------------------------
 
   const scoringRulesCreated = await seedWeddingCakeScore(
@@ -190,9 +190,9 @@ async function seedWeddingCakeScore(
   pillarLensId: string,
   functionLensId: string
 ): Promise<number> {
-  // Idempotency: skip if a rule with this name already exists.
+  // Idempotency: skip if a rule with this name (or the legacy '5-level' name) already exists.
   const existing = await listScoringRules()
-  if (existing.some((r) => r.name === WEDDING_CAKE_SCORE_NAME)) return 0
+  if (existing.some((r) => r.name === WEDDING_CAKE_SCORE_NAME || r.name === '5-level Wedding Cake Score')) return 0
 
   // Definition shape (interpreted by the rule evaluator, not by SQL).
   // Rule logic: count how many Function values (Teaching, Research,

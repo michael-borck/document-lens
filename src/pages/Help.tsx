@@ -269,7 +269,7 @@ function SetupTopic() {
       </Tip>
       <H2>Scoring rule</H2>
       <P>
-        Pick which scoring rule to apply. The seeded one (5-level Wedding Cake Score)
+        Pick which scoring rule to apply. The seeded one (Wedding Cake Score)
         counts how many of four Functions deliver all three required Pillars. Custom
         rules are built in <strong>Settings</strong>.
       </P>
@@ -348,7 +348,7 @@ function ScoreTopic() {
       <P>
         Score runs each document through the project's <strong>scoring rule</strong>{' '}
         and gives it a level — a small integer like <Code>3 / 4</Code>. The default
-        rule is the <strong>5-level Wedding Cake Score</strong> (levels 0–4). The big
+        rule is the <strong>Wedding Cake Score</strong> (levels 0–4, counting how many of the 4 Functions achieve coverage across all 3 pillars). The big
         number is "how many criteria this document met"; the{' '}
         <strong>Why this score</strong> panel underneath lists exactly which ones.
       </P>
