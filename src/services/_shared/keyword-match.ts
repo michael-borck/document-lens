@@ -75,3 +75,35 @@ export function findConceptSpans(text: string, terms: string[]): MatchSpan[] {
 export function countConcept(text: string, terms: string[]): number {
   return findConceptSpans(text, terms).length
 }
+
+/**
+ * Extract the sentence containing a span (runs between sentence-ending
+ * punctuation or newlines). Used by applyExclusions to scope the veto check.
+ */
+function getSentenceWindow(text: string, spanStart: number, spanEnd: number): string {
+  let lo = spanStart
+  while (lo > 0 && !/[.!?\n]/.test(text[lo - 1])) lo--
+  let hi = spanEnd
+  while (hi < text.length && !/[.!?\n]/.test(text[hi])) hi++
+  return text.slice(lo, hi)
+}
+
+/**
+ * Filter spans by exclusion phrases. If any exclusion phrase appears
+ * (case-insensitively) in the same sentence as a span, that span is
+ * suppressed. Returns the surviving spans.
+ */
+export function applyExclusions(
+  text: string,
+  spans: MatchSpan[],
+  exclusionPhrases: string[]
+): MatchSpan[] {
+  if (exclusionPhrases.length === 0) return spans
+  const patterns = exclusionPhrases.map(
+    (p) => new RegExp(p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')
+  )
+  return spans.filter((span) => {
+    const window = getSentenceWindow(text, span.start, span.end)
+    return !patterns.some((p) => p.test(window))
+  })
+}

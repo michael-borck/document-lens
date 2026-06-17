@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown, Lock } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown, Lock, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -29,6 +29,7 @@ import {
 import { toast } from '@/stores/toastStore'
 import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
 import { exportProjectBundle } from '@/services/bundle-project-export'
+import { exportAllData } from '@/services/export-all'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { KeywordList, Lens, ScoringRule, Document } from '@/types/data'
 
@@ -91,6 +92,33 @@ export function Setup() {
     }
   }
 
+  const handleExportData = async () => {
+    if (!vm.keywordList) {
+      toast.error('Pick a keyword list before exporting data.')
+      return
+    }
+    const dirResult = await window.electron.openDirectoryDialog({
+      title: 'Choose folder for CSV exports',
+      buttonLabel: 'Export here',
+    })
+    if (dirResult.canceled || dirResult.filePaths.length === 0) return
+    const dir = dirResult.filePaths[0]
+    try {
+      const files = await exportAllData({
+        projectId: vm.project.id,
+        keywordListId: vm.keywordList.id,
+        scoringRule: vm.scoringRule,
+      })
+      const sep = dir.includes('\\') ? '\\' : '/'
+      for (const file of files) {
+        await window.electron.writeFile(`${dir}${sep}${file.filename}`, file.content)
+      }
+      toast.success(`Exported ${files.length} CSV files to ${dir}`)
+    } catch (err) {
+      toast.error(`Data export failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   // Scroll-to-section when arriving via a #classification hash (from Map/Score's
   // "Jump to Classification" buttons). Done in a small useEffect so the smooth
   // scroll fires after the sections have rendered.
@@ -114,16 +142,28 @@ export function Setup() {
             Assemble this project: documents, keywords, lenses, scoring rule.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportBundle}
-          className="gap-1.5"
-          title="Export this project as a .lens bundle for sharing or archiving"
-        >
-          <Package className="h-4 w-4" />
-          Export bundle
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportData}
+            className="gap-1.5"
+            title="Export all analysis data as CSV files for independent validation"
+          >
+            <Download className="h-4 w-4" />
+            Export data
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportBundle}
+            className="gap-1.5"
+            title="Export this project as a .lens bundle for sharing or archiving"
+          >
+            <Package className="h-4 w-4" />
+            Export bundle
+          </Button>
+        </div>
       </header>
 
       {/* Surfaces incomplete-classification status near the top of the page so

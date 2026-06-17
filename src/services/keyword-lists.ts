@@ -336,3 +336,59 @@ export async function listEnabledSynonymsForKeywords(
   }
   return out
 }
+
+// ---------------------------------------------------------------------------
+// Keyword exclusion phrases (per-keyword child list)
+// ---------------------------------------------------------------------------
+
+import type { KeywordExclusion } from '@/types/data'
+
+interface ExclusionRow {
+  id: string
+  keyword_id: string
+  phrase: string
+  added_at: string
+}
+
+function rowToExclusion(row: ExclusionRow): KeywordExclusion {
+  return { id: row.id, keywordId: row.keyword_id, phrase: row.phrase, addedAt: row.added_at }
+}
+
+export async function listExclusions(keywordId: string): Promise<KeywordExclusion[]> {
+  const rows = await selectAll<ExclusionRow>('exclusions.listByKeyword', [keywordId])
+  return rows.map(rowToExclusion)
+}
+
+export async function createExclusion(input: { keywordId: string; phrase: string }): Promise<KeywordExclusion> {
+  const id = newId()
+  await runStatement('exclusions.create', [id, input.keywordId, input.phrase, now()])
+  const row = await selectOne<ExclusionRow>('exclusions.getById', [id])
+  if (!row) throw new Error(`Failed to create exclusion "${input.phrase}"`)
+  return rowToExclusion(row)
+}
+
+export async function deleteExclusion(id: string): Promise<void> {
+  await runStatement('exclusions.deleteById', [id])
+}
+
+/**
+ * Map of keyword_id -> [exclusion phrases] for a set of keywords, in one
+ * query. Used by the analysis pipeline to veto spans where an exclusion
+ * phrase appears in the same sentence as the keyword match.
+ */
+export async function listExclusionPhrasesForKeywords(
+  keywordIds: string[]
+): Promise<Map<string, string[]>> {
+  const out = new Map<string, string[]>()
+  if (keywordIds.length === 0) return out
+  const rows = await selectInList<{ keyword_id: string; phrase: string }>(
+    'exclusions.phrasesByKeywordIds',
+    keywordIds
+  )
+  for (const r of rows) {
+    const list = out.get(r.keyword_id) ?? []
+    list.push(r.phrase)
+    out.set(r.keyword_id, list)
+  }
+  return out
+}

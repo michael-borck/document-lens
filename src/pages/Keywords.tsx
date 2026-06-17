@@ -60,6 +60,9 @@ import {
   createSynonym,
   deleteSynonym,
   setSynonymEnabled,
+  listExclusions,
+  createExclusion,
+  deleteExclusion,
 } from '@/services/keyword-lists'
 import {
   keywordListToCsv,
@@ -72,6 +75,7 @@ import type {
   KeywordList,
   Keyword,
   Synonym,
+  KeywordExclusion,
   KeywordPolarity,
 } from '@/types/data'
 
@@ -644,7 +648,7 @@ function KeywordRow({
             type="button"
             onClick={onToggleExpand}
             className="text-muted-foreground hover:text-foreground"
-            title={isExpanded ? 'Collapse synonyms' : 'Show synonyms'}
+            title={isExpanded ? 'Collapse' : 'Show synonyms & exclusions'}
           >
             {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
           </button>
@@ -687,7 +691,12 @@ function KeywordRow({
           </button>
         </div>
       )}
-      {isExpanded && !isEditing && <SynonymsSubList keywordId={keyword.id} />}
+      {isExpanded && !isEditing && (
+        <>
+          <SynonymsSubList keywordId={keyword.id} />
+          <ExclusionsSubList keywordId={keyword.id} />
+        </>
+      )}
     </li>
   )
 }
@@ -867,6 +876,102 @@ function SynonymsSubList({ keywordId }: { keywordId: string }) {
         title={`Delete synonym "${pendingDelete?.text ?? ''}"?`}
         description="Removes the synonym. Projects using this keyword will no longer count this term."
         confirmLabel="Delete synonym"
+        destructive
+        onConfirm={handleConfirmDelete}
+      />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Exclusion phrases sub-list
+// ---------------------------------------------------------------------------
+
+function ExclusionsSubList({ keywordId }: { keywordId: string }) {
+  const [exclusions, setExclusions] = useState<KeywordExclusion[] | null>(null)
+  const [newPhrase, setNewPhrase] = useState('')
+  const [pendingDelete, setPendingDelete] = useState<KeywordExclusion | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    listExclusions(keywordId).then((rows) => {
+      if (!cancelled) setExclusions(rows)
+    })
+    return () => { cancelled = true }
+  }, [keywordId])
+
+  const refresh = async () => { setExclusions(await listExclusions(keywordId)) }
+
+  const handleAdd = async () => {
+    const t = newPhrase.trim()
+    if (!t) return
+    await createExclusion({ keywordId, phrase: t })
+    setNewPhrase('')
+    await refresh()
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return
+    await deleteExclusion(pendingDelete.id)
+    setPendingDelete(null)
+    await refresh()
+  }
+
+  return (
+    <div className="bg-muted/10 px-12 py-3 border-t border-border">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        Exclusion phrases
+      </div>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        If this phrase appears in the same sentence as a keyword match, the match is suppressed.
+        Use to filter out wrong-context hits (e.g. add <em>gas station</em> on the keyword <em>gas</em>).
+      </p>
+      {exclusions === null ? (
+        <div className="text-xs text-muted-foreground py-1">Loading…</div>
+      ) : exclusions.length === 0 ? (
+        <div className="text-xs text-muted-foreground italic py-1">No exclusion phrases.</div>
+      ) : (
+        <ul className="space-y-1 mb-2">
+          {exclusions.map((e) => (
+            <li key={e.id} className="group flex items-center gap-2 text-sm">
+              <span className="flex-1 truncate font-mono text-xs">{e.phrase}</span>
+              <button
+                type="button"
+                onClick={() => setPendingDelete(e)}
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-muted-foreground hover:text-destructive transition-colors p-1"
+                title="Remove exclusion phrase"
+              >
+                <Trash2 className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-1.5">
+        <Input
+          value={newPhrase}
+          onChange={(e) => setNewPhrase(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+          placeholder="Add an exclusion phrase…"
+          className="h-7 text-xs"
+        />
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleAdd}
+          disabled={!newPhrase.trim()}
+          className="h-7 gap-1"
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+        title={`Remove exclusion phrase "${pendingDelete?.phrase ?? ''}"?`}
+        description="Matches of this keyword near that phrase will count again."
+        confirmLabel="Remove"
         destructive
         onConfirm={handleConfirmDelete}
       />

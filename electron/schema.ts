@@ -193,6 +193,18 @@ CREATE TABLE IF NOT EXISTS synonyms (
 );
 CREATE INDEX IF NOT EXISTS idx_synonyms_keyword ON synonyms(keyword_id);
 
+-- Exclusion phrases per keyword. When any phrase matches in the same sentence
+-- as a keyword hit, that span is suppressed from match counts. Lets researchers
+-- flag "gas" in "gas station" without removing the keyword entirely.
+CREATE TABLE IF NOT EXISTS keyword_exclusions (
+  id TEXT PRIMARY KEY,
+  keyword_id TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  phrase TEXT NOT NULL,
+  added_at TEXT NOT NULL,
+  UNIQUE(keyword_id, phrase)
+);
+CREATE INDEX IF NOT EXISTS idx_keyword_exclusions_keyword ON keyword_exclusions(keyword_id);
+
 -- Scoring rules. The 5-level Wedding Cake Score is one such rule; users
 -- can define more for non-sustainability domains.
 CREATE TABLE IF NOT EXISTS scoring_rules (

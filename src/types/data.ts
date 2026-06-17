@@ -109,6 +109,13 @@ export interface Synonym {
   addedAt: string
 }
 
+export interface KeywordExclusion {
+  id: string
+  keywordId: string
+  phrase: string
+  addedAt: string
+}
+
 // ---------------------------------------------------------------------------
 // Scoring rules
 // ---------------------------------------------------------------------------

@@ -213,6 +213,16 @@ export const QUERIES = {
   'synonyms.enabledByKeywordIds':
     'SELECT keyword_id, text FROM synonyms WHERE enabled = 1 AND keyword_id IN (__IN__)',
 
+  // keyword exclusion phrases
+  'exclusions.listByKeyword':
+    'SELECT * FROM keyword_exclusions WHERE keyword_id = ? ORDER BY added_at',
+  'exclusions.create':
+    'INSERT INTO keyword_exclusions (id, keyword_id, phrase, added_at) VALUES (?, ?, ?, ?)',
+  'exclusions.getById': 'SELECT * FROM keyword_exclusions WHERE id = ?',
+  'exclusions.deleteById': 'DELETE FROM keyword_exclusions WHERE id = ?',
+  'exclusions.phrasesByKeywordIds':
+    'SELECT keyword_id, phrase FROM keyword_exclusions WHERE keyword_id IN (__IN__)',
+
   // sections
   'sections.listByDocument':
     'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',
