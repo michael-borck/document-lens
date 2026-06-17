@@ -235,6 +235,16 @@ export const QUERIES = {
   'suppressedSpans.byKeywordIds':
     'SELECT keyword_id, document_id, start_offset, end_offset FROM suppressed_spans WHERE keyword_id IN (__IN__)',
 
+  // antonym links (positive keyword ↔ counter keyword)
+  'antonyms.forPositiveKeyword': `SELECT k.* FROM keywords k
+       JOIN keyword_antonyms ka ON ka.counter_keyword_id = k.id
+      WHERE ka.positive_keyword_id = ?
+      ORDER BY k.text`,
+  'antonyms.link':
+    'INSERT OR IGNORE INTO keyword_antonyms (positive_keyword_id, counter_keyword_id) VALUES (?, ?)',
+  'antonyms.unlink':
+    'DELETE FROM keyword_antonyms WHERE positive_keyword_id = ? AND counter_keyword_id = ?',
+
   // sections
   'sections.listByDocument':
     'SELECT * FROM document_sections WHERE document_id = ? ORDER BY section_index',

@@ -220,6 +220,18 @@ CREATE TABLE IF NOT EXISTS suppressed_spans (
 );
 CREATE INDEX IF NOT EXISTS idx_suppressed_spans_kw_doc ON suppressed_spans(keyword_id, document_id);
 
+-- Antonym links: which counter keywords are the explicit antonym of a given
+-- positive keyword. A pure join table so no ALTER TABLE is needed. Counter
+-- keywords remain full first-class keywords; this just records the semantic
+-- relationship an author intended when creating them as antonyms.
+CREATE TABLE IF NOT EXISTS keyword_antonyms (
+  positive_keyword_id TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  counter_keyword_id  TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  PRIMARY KEY (positive_keyword_id, counter_keyword_id)
+);
+CREATE INDEX IF NOT EXISTS idx_keyword_antonyms_positive ON keyword_antonyms(positive_keyword_id);
+CREATE INDEX IF NOT EXISTS idx_keyword_antonyms_counter  ON keyword_antonyms(counter_keyword_id);
+
 -- Scoring rules. The 5-level Wedding Cake Score is one such rule; users
 -- can define more for non-sustainability domains.
 CREATE TABLE IF NOT EXISTS scoring_rules (

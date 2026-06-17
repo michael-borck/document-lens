@@ -453,6 +453,48 @@ export async function listSuppressedSpansForKeyword(
  * Map of keywordId -> documentId -> Set<startOffset> for the analysis
  * pipeline. Lets spansFor() check suppression in O(1) per span.
  */
+// ---------------------------------------------------------------------------
+// Antonym links (positive keyword ↔ counter keyword)
+// ---------------------------------------------------------------------------
+
+/**
+ * Return counter keywords that are marked as antonyms of the given positive keyword.
+ */
+export async function listAntonymKeywords(positiveKeywordId: string): Promise<Keyword[]> {
+  const rows = await selectAll<KeywordRow>('antonyms.forPositiveKeyword', [positiveKeywordId])
+  return rows.map(rowToKeyword)
+}
+
+/**
+ * Link an existing counter keyword as an antonym of a positive keyword.
+ * Safe to call if the link already exists (INSERT OR IGNORE).
+ */
+export async function linkAntonym(positiveKeywordId: string, counterKeywordId: string): Promise<void> {
+  await runStatement('antonyms.link', [positiveKeywordId, counterKeywordId])
+}
+
+/**
+ * Remove the antonym link between a positive keyword and a counter keyword.
+ * Does NOT delete the counter keyword itself.
+ */
+export async function unlinkAntonym(positiveKeywordId: string, counterKeywordId: string): Promise<void> {
+  await runStatement('antonyms.unlink', [positiveKeywordId, counterKeywordId])
+}
+
+/**
+ * Create a new counter keyword in the same list as the given positive keyword,
+ * then immediately link it as an antonym. Returns the new counter keyword.
+ */
+export async function createAndLinkAntonym(
+  positiveKeywordId: string,
+  listId: string,
+  text: string
+): Promise<Keyword> {
+  const counterKw = await createKeyword({ listId, text, polarity: 'counter' })
+  await linkAntonym(positiveKeywordId, counterKw.id)
+  return counterKw
+}
+
 export async function loadSuppressedOffsetsForKeywords(
   keywordIds: string[]
 ): Promise<Map<string, Map<string, Set<number>>>> {

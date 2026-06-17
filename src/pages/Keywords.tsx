@@ -63,6 +63,9 @@ import {
   listExclusions,
   createExclusion,
   deleteExclusion,
+  listAntonymKeywords,
+  createAndLinkAntonym,
+  unlinkAntonym,
 } from '@/services/keyword-lists'
 import {
   keywordListToCsv,
@@ -695,6 +698,9 @@ function KeywordRow({
         <>
           <SynonymsSubList keywordId={keyword.id} />
           <ExclusionsSubList keywordId={keyword.id} />
+          {keyword.polarity === 'positive' && (
+            <AntonymsSubList keywordId={keyword.id} listId={keyword.listId} />
+          )}
         </>
       )}
     </li>
@@ -974,6 +980,103 @@ function ExclusionsSubList({ keywordId }: { keywordId: string }) {
         confirmLabel="Remove"
         destructive
         onConfirm={handleConfirmDelete}
+      />
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Antonyms sub-list (positive keywords only)
+// ---------------------------------------------------------------------------
+
+function AntonymsSubList({ keywordId, listId }: { keywordId: string; listId: string }) {
+  const [antonyms, setAntonyms] = useState<Keyword[] | null>(null)
+  const [newText, setNewText] = useState('')
+  const [pendingUnlink, setPendingUnlink] = useState<Keyword | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    listAntonymKeywords(keywordId).then((rows) => {
+      if (!cancelled) setAntonyms(rows)
+    })
+    return () => { cancelled = true }
+  }, [keywordId])
+
+  const refresh = async () => { setAntonyms(await listAntonymKeywords(keywordId)) }
+
+  const handleAdd = async () => {
+    const t = newText.trim()
+    if (!t) return
+    await createAndLinkAntonym(keywordId, listId, t)
+    setNewText('')
+    await refresh()
+  }
+
+  const handleConfirmUnlink = async () => {
+    if (!pendingUnlink) return
+    await unlinkAntonym(keywordId, pendingUnlink.id)
+    setPendingUnlink(null)
+    await refresh()
+  }
+
+  return (
+    <div className="bg-muted/5 px-12 py-3 border-t border-border">
+      <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1">
+        Antonyms
+      </div>
+      <p className="text-[10px] text-muted-foreground mb-2 leading-relaxed">
+        Counter keywords that directly oppose this concept. Adding one here creates a counter
+        keyword in the same list and records the pairing for reference.
+        Unlinking removes only the pairing — the counter keyword stays in the list.
+      </p>
+      {antonyms === null ? (
+        <div className="text-xs text-muted-foreground py-1">Loading…</div>
+      ) : antonyms.length === 0 ? (
+        <div className="text-xs text-muted-foreground italic py-1">No antonyms linked.</div>
+      ) : (
+        <ul className="space-y-1 mb-2">
+          {antonyms.map((a) => (
+            <li key={a.id} className="group flex items-center gap-2 text-sm">
+              <span className="flex-1 truncate font-mono text-xs">{a.text}</span>
+              <button
+                type="button"
+                onClick={() => setPendingUnlink(a)}
+                className="opacity-0 group-hover:opacity-100 focus:opacity-100 text-muted-foreground hover:text-destructive transition-colors p-1"
+                title="Unlink antonym"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="flex items-center gap-1.5">
+        <Input
+          value={newText}
+          onChange={(e) => setNewText(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') handleAdd() }}
+          placeholder="Add an antonym…"
+          className="h-7 text-xs"
+        />
+        <Button
+          type="button"
+          size="sm"
+          onClick={handleAdd}
+          disabled={!newText.trim()}
+          className="h-7 gap-1"
+        >
+          <Plus className="h-3 w-3" />
+          Add
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={pendingUnlink !== null}
+        onOpenChange={(open) => { if (!open) setPendingUnlink(null) }}
+        title={`Unlink antonym "${pendingUnlink?.text ?? ''}"?`}
+        description="Removes the antonym pairing. The counter keyword stays in the list and continues to count against positive matches."
+        confirmLabel="Unlink"
+        destructive
+        onConfirm={handleConfirmUnlink}
       />
     </div>
   )
