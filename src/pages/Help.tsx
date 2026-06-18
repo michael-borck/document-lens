@@ -23,6 +23,7 @@ import {
   Package,
   FileText,
   ScatterChart,
+  Tag,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { HELP_SCREENSHOTS } from './help-screenshots'
@@ -42,6 +43,7 @@ interface Topic {
 export const TOPICS: Topic[] = [
   { id: 'getting-started', title: 'Getting started', group: 'Start here', icon: Compass, render: GettingStarted },
   { id: 'setup', title: 'Setup tab', group: 'Setup', icon: SettingsIcon, render: SetupTopic },
+  { id: 'keywords', title: 'Keywords', group: 'Setup', icon: Tag, render: KeywordsTopic },
   // Mirrors the workspace tab strip: Explore → Measure → Verify.
   { id: 'coverage', title: 'Coverage', group: 'Explore', icon: Grid3x3, render: CoverageTopic },
   { id: 'map', title: 'Map', group: 'Explore', icon: Layers, render: MapTopic },
@@ -267,9 +269,18 @@ function SetupTopic() {
         <em>whole</em> corpus, not just new documents — so you only need it after adding
         documents or changing the Function lens.
       </P>
+      <H2>Exporting raw data</H2>
+      <P>
+        The <strong>Export data</strong> button (top-right header, beside <em>Export bundle</em>)
+        writes four CSVs to a folder you choose: <Code>documents.csv</Code>,{' '}
+        <Code>keyword-matches.csv</Code> (one row per match, with lens-tag columns),{' '}
+        <Code>score-breakdown.csv</Code>, and <Code>track.csv</Code>. Useful for a
+        collaborator who wants the raw numbers without installing the app, or for
+        independent analysis in a spreadsheet or statistical package.
+      </P>
       <Tip>
-        <strong>Bundle export</strong> lives in the Setup tab header, top right. See the{' '}
-        <em>Project bundle</em> topic.
+        <strong>Bundle export</strong> (.lens file) is different — it packages the whole
+        project for another Document Lens user. See the <em>Project bundle</em> topic.
       </Tip>
       <H2>Scoring rule</H2>
       <P>
@@ -576,6 +587,73 @@ function ReadTopic() {
         the heading, so you can tell what part of the document you're looking at without
         opening the PDF.
       </P>
+      <H2>Suppressing wrong-context matches</H2>
+      <P>
+        If a match is using the right keyword in the wrong context — "gas" meaning a
+        roadside fuel stop, not natural gas policy — hit the <strong>Suppress</strong>{' '}
+        (eye-off) button on that match card. The card turns grey with strikethrough text
+        and a "suppressed" badge, and the match is excluded from all analysis counts
+        (Coverage, Score, Track, Map). The <strong>Restore</strong> (↺) button undoes it.
+      </P>
+      <P>
+        Read deliberately shows <em>all</em> raw matches — including suppressed ones — so
+        you can review, suppress, or restore at any time without running analysis again.
+      </P>
+      <Tip>
+        Per-instance suppression is for one-off corrections that don't generalise. If the
+        same wrong-context pattern appears across many documents (e.g. "gas station"
+        everywhere), add an <strong>exclusion phrase</strong> on the keyword instead —
+        Keywords page → expand the keyword → Exclusion phrases. That suppresses the
+        pattern in all documents at once.
+      </Tip>
+    </>
+  )
+}
+
+function KeywordsTopic() {
+  return (
+    <>
+      <P><em>What should the app search for, and in what context?</em></P>
+      <P>
+        The Keywords page is where you curate your search vocabulary. Each keyword has a{' '}
+        <strong>polarity</strong>: <em>positive</em> (signals delivery — "carbon reduction")
+        or <em>counter</em> (signals unwanted vocabulary — "performative disclosure"). The
+        polarity filter pills let you view each group separately. Click the chevron on any
+        row to open its sub-sections.
+      </P>
+      <H2>Synonyms</H2>
+      <P>
+        Synonyms extend a keyword's match without adding another row to the list. Add
+        domain-specific variants the corpus actually uses (e.g. "net zero" as a synonym of
+        "carbon neutrality"). Synonyms surfaced by Discover → Synonyms appear with an "ai"
+        source badge; user-added ones show "user". Uncheck a synonym to stop counting it
+        without deleting it.
+      </P>
+      <H2>Exclusion phrases</H2>
+      <P>
+        An exclusion phrase vetoes a keyword match when the phrase appears in the same
+        sentence as the hit. Example: add <Code>gas station</Code> on the keyword{' '}
+        <Code>gas</Code> so roadside fuel stops don't count as energy policy mentions.
+        Suppression is silent — counts and scores drop, but the match still appears in
+        Read for review. Exclusion phrases apply to every document in the corpus
+        automatically.
+      </P>
+      <H2>Antonyms</H2>
+      <P>
+        On positive keywords, the <strong>Antonyms</strong> sub-section lets you record
+        which counter keywords directly oppose this concept. "Add an antonym…" creates a
+        new counter keyword in the same list and notes the pairing — useful for bespoke
+        lists where the relationship isn't obvious from the name alone. The counter keyword
+        is fully independent: it appears in the counter keyword list, can have its own
+        synonyms and exclusions, and keeps counting in analysis. Unlinking removes only
+        the pairing label, not the keyword.
+      </P>
+      <Tip>
+        For word-sense disambiguation, exclusion phrases (broad, corpus-wide) and
+        per-instance suppression in Read (surgical, one document at a time) complement each
+        other. Start with exclusion phrases for patterns you can name; use Read's Suppress
+        button for the edge cases that don't fit a phrase.
+      </Tip>
     </>
   )
 }
