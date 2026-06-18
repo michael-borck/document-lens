@@ -37,6 +37,12 @@ export const HELP_SCREENSHOTS: Record<string, HelpScreenshot[]> = {
       caption: 'The Setup tab assembles documents, keyword list, lenses, and scoring rule.',
     },
   ],
+  keywords: [
+    {
+      file: 'keywords.png',
+      caption: 'Keywords page: expand any keyword to manage its synonyms, exclusion phrases, and antonyms.',
+    },
+  ],
   coverage: [
     {
       file: 'coverage.png',

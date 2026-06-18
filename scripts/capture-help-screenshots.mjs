@@ -139,6 +139,8 @@ async function main() {
         log('running Function classification (can take a few minutes)…')
         await classify.scrollIntoViewIfNeeded()
         await classify.click({ timeout: 10_000 })
+        // Give the UI a moment to enter the busy state before polling.
+        await page.waitForTimeout(3000)
         const deadline = Date.now() + 6 * 60_000
         while (Date.now() < deadline) {
           await page.waitForTimeout(5000)
@@ -148,6 +150,7 @@ async function main() {
             .catch(() => 0)
           if (!busy) break
         }
+        log('classification done')
       }
     } catch (e) {
       log('classification skipped:', e.message.split('\n')[0])
@@ -180,6 +183,23 @@ async function main() {
       } catch (e) {
         log(`SKIPPED ${id}:`, e.message.split('\n')[0])
       }
+    }
+
+    // --- Keywords page (global nav — navigate there last so we don't lose
+    //     the project workspace context during the workflow walk above).
+    //     Expand the first keyword to show the synonyms/exclusions/antonyms
+    //     sub-sections.
+    try {
+      await page.getByRole('link', { name: 'Keywords', exact: true }).click({ timeout: 4000 })
+      await page.waitForTimeout(1000)
+      const expandBtn = page.locator('button[title="Show synonyms & exclusions"]').first()
+      if (await expandBtn.count().catch(() => 0)) {
+        await expandBtn.click({ timeout: 2000 })
+        await page.waitForTimeout(600)
+      }
+      await shot('keywords')
+    } catch (e) {
+      log('SKIPPED keywords:', e.message.split('\n')[0])
     }
 
     log('captured files:', readdirSync(OUT).filter((f) => f.endsWith('.png')).join(', '))
