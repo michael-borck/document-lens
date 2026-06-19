@@ -6,10 +6,10 @@ import { WorkflowTabs } from '@/components/project/WorkflowTabs'
 import { rememberWorkflow } from '@/components/project/workflows'
 import { getProjectWithSetup, updateProject } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
-import { listLenses } from '@/services/lenses'
+import { listAxes } from '@/services/axes'
 import { listScoringRules } from '@/services/scoring-rules'
 import { countDocumentsInProject } from '@/services/documents'
-import type { ProjectWithSetup, KeywordList, Lens, ScoringRule } from '@/types/data'
+import type { ProjectWithSetup, KeywordList, Axis, ScoringRule } from '@/types/data'
 
 /**
  * Aggregated read of everything the ProjectWorkspace shell + nested
@@ -23,7 +23,7 @@ export interface ProjectViewModel {
   project: ProjectWithSetup
   documentCount: number
   keywordList: KeywordList | null
-  lenses: Lens[]
+  axes: Axis[]
   scoringRule: ScoringRule | null
   /** Setup is "complete enough" to enable workflow tabs. */
   setupComplete: boolean
@@ -50,9 +50,9 @@ export function ProjectWorkspace() {
     const project = await getProjectWithSetup(projectId)
     if (!project) return null
 
-    const [allLists, allLenses, allRules, documentCount] = await Promise.all([
+    const [allLists, allAxes, allRules, documentCount] = await Promise.all([
       listKeywordLists(),
-      listLenses(),
+      listAxes(),
       listScoringRules(),
       countDocumentsInProject(projectId),
     ])
@@ -60,9 +60,9 @@ export function ProjectWorkspace() {
     const keywordList = project.keywordListIds[0]
       ? allLists.find((l) => l.id === project.keywordListIds[0]) ?? null
       : null
-    const lenses = project.lensIds
-      .map((id) => allLenses.find((l) => l.id === id))
-      .filter((l): l is Lens => Boolean(l))
+    const axes = project.axisIds
+      .map((id) => allAxes.find((a) => a.id === id))
+      .filter((a): a is Axis => Boolean(a))
     const scoringRule = project.scoringRuleId
       ? allRules.find((r) => r.id === project.scoringRuleId) ?? null
       : null
@@ -77,7 +77,7 @@ export function ProjectWorkspace() {
       project,
       documentCount,
       keywordList,
-      lenses,
+      axes,
       scoringRule,
       setupComplete,
       refresh: async () => {
@@ -133,9 +133,9 @@ function buildContextSegments(vm: ProjectViewModel) {
     label: vm.keywordList ? `${vm.keywordList.name} keywords` : 'No keyword list',
   })
   segments.push({
-    label: vm.lenses.length > 0
-      ? `${vm.lenses.length} lens${vm.lenses.length === 1 ? '' : 'es'}`
-      : 'No lenses',
+    label: vm.axes.length > 0
+      ? `${vm.axes.length} axis${vm.axes.length === 1 ? '' : '/axes'}`
+      : 'No axes',
   })
   segments.push({
     label: vm.scoringRule ? vm.scoringRule.name : 'No scoring rule',

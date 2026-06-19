@@ -16,11 +16,11 @@ import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
 import { evaluateScore } from './scoring'
-import { getKeywordListLenses } from './keyword-lists'
-import { getLens, listLensValues } from './lenses'
+import { getKeywordListAxes } from './keyword-lists'
+import { getAxis, listAxisValues } from './axes'
 import { getClassificationStatus } from './classification'
 import { selectAll } from './db'
-import type { Document, LensValue, ScoringRule } from '@/types/data'
+import type { Document, AxisValue, ScoringRule } from '@/types/data'
 
 export interface ExportFile {
   filename: string
@@ -91,15 +91,15 @@ async function buildKeywordMatchesCSV(
   cntCorpus: ProjectCorpus,
   keywordListId: string
 ): Promise<ExportFile> {
-  const kwListLensIds = await getKeywordListLenses(keywordListId)
+  const kwListLensIds = await getKeywordListAxes(keywordListId)
 
-  // Resolve lens names and all their values
-  const lensInfoById = new Map<string, { name: string; values: LensValue[] }>()
+  // Resolve axis names and all their values
+  const lensInfoById = new Map<string, { name: string; values: AxisValue[] }>()
   for (const lensId of kwListLensIds) {
-    const lens = await getLens(lensId)
-    if (!lens) continue
-    const values = await listLensValues(lensId)
-    lensInfoById.set(lensId, { name: lens.name, values })
+    const axis = await getAxis(lensId)
+    if (!axis) continue
+    const values = await listAxisValues(lensId)
+    lensInfoById.set(lensId, { name: axis.name, values })
   }
 
   // keyword_id → value_id[] per lens
@@ -195,8 +195,8 @@ async function buildCrossCoverageBreakdown(
     const matrix = await computeCoverage2D({
       projectId,
       keywordListId,
-      rowLensId: layerLensId,
-      colLensId: subjectLensId,
+      rowAxisId: layerLensId,
+      colAxisId: subjectLensId,
       polarity: 'positive',
     })
 
@@ -247,7 +247,7 @@ async function buildCrossCoverageBreakdown(
     projectId,
     keywordListId,
     polarity: 'positive',
-    lensId: layerLensId,
+    axisId: layerLensId,
   })
 
   const layerValues = coverage.lensValues ?? []
@@ -295,7 +295,7 @@ async function buildCoverageCountBreakdown(
     projectId,
     keywordListId,
     polarity: 'positive',
-    lensId: categoryLensId,
+    axisId: categoryLensId,
   })
 
   const categories = coverage.lensValues ?? []

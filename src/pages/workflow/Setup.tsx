@@ -12,12 +12,12 @@ import {
 } from '@/components/ui/select'
 import {
   setProjectKeywordList,
-  setProjectLenses,
+  setProjectAxes,
   updateProject,
   removeDocumentFromProject,
 } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
-import { listLenses } from '@/services/lenses'
+import { listAxes } from '@/services/axes'
 import { listScoringRules } from '@/services/scoring-rules'
 import { getDocument, isSourceMissing, relinkDocumentSource } from '@/services/documents'
 import {
@@ -31,23 +31,23 @@ import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
 import { exportProjectBundle } from '@/services/bundle-project-export'
 import { exportAllData } from '@/services/export-all'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { KeywordList, Lens, ScoringRule, Document } from '@/types/data'
+import type { KeywordList, Axis, ScoringRule, Document } from '@/types/data'
 
 export function Setup() {
   const vm = useOutletContext<ProjectViewModel>()
 
   const [allLists, setAllLists] = useState<KeywordList[]>([])
-  const [allLenses, setAllLenses] = useState<Lens[]>([])
+  const [allAxes, setAllAxes] = useState<Axis[]>([])
   const [allRules, setAllRules] = useState<ScoringRule[]>([])
 
   useEffect(() => {
     Promise.all([
       listKeywordLists(),
-      listLenses(),
+      listAxes(),
       listScoringRules(),
-    ]).then(([lists, lenses, rules]) => {
+    ]).then(([lists, axes, rules]) => {
       setAllLists(lists)
-      setAllLenses(lenses)
+      setAllAxes(axes)
       setAllRules(rules)
     })
   }, [])
@@ -61,15 +61,15 @@ export function Setup() {
     }
   }
 
-  const handleToggleLens = async (lensId: string, enabled: boolean) => {
+  const handleToggleAxis = async (axisId: string, enabled: boolean) => {
     const next = enabled
-      ? Array.from(new Set([...vm.project.lensIds, lensId]))
-      : vm.project.lensIds.filter((id) => id !== lensId)
+      ? Array.from(new Set([...vm.project.axisIds, axisId]))
+      : vm.project.axisIds.filter((id) => id !== axisId)
     try {
-      await setProjectLenses(vm.project.id, next)
+      await setProjectAxes(vm.project.id, next)
       await vm.refresh()
     } catch (err) {
-      toast.error(`Could not update lenses: ${err instanceof Error ? err.message : String(err)}`)
+      toast.error(`Could not update axes: ${err instanceof Error ? err.message : String(err)}`)
     }
   }
 
@@ -139,7 +139,7 @@ export function Setup() {
         <div>
           <h1 className="font-display text-2xl font-medium tracking-tight">Setup</h1>
           <p className="text-muted-foreground italic mt-1">
-            Assemble this project: documents, keywords, lenses, scoring rule.
+            Assemble this project: documents, keywords, axes, scoring rule.
           </p>
         </div>
         <div className="flex gap-2">
@@ -179,17 +179,17 @@ export function Setup() {
           activeListId={vm.keywordList?.id ?? null}
           onSelect={handleSelectKeywordList}
         />
-        <LensesSection
-          allLenses={allLenses}
-          activeLensIds={new Set(vm.project.lensIds)}
-          onToggle={handleToggleLens}
+        <AxesSection
+          allAxes={allAxes}
+          activeAxisIds={new Set(vm.project.axisIds)}
+          onToggle={handleToggleAxis}
         />
         <ClassificationSection vm={vm} />
         <ScoringRuleSection
           allRules={allRules}
           activeRuleId={vm.scoringRule?.id ?? null}
           onSelect={handleSelectScoringRule}
-          locked={vm.project.researchFocus === 'sustainability'}
+          locked={vm.project.lens === 'sustainability'}
         />
       </div>
     </div>
@@ -204,8 +204,8 @@ export function Setup() {
  * refactor needed to share state.
  */
 function ClassificationBanner({ vm }: { vm: ProjectViewModel }) {
-  const contextLenses = vm.lenses.filter((l) => l.type === 'document-context')
-  const activeLensId = contextLenses[0]?.id ?? ''
+  const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
+  const activeLensId = contextAxes[0]?.id ?? ''
   const [status, setStatus] = useState<ClassificationStatus | null>(null)
 
   useEffect(() => {
@@ -216,13 +216,13 @@ function ClassificationBanner({ vm }: { vm: ProjectViewModel }) {
     getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
   }, [vm.project.id, vm.documentCount, activeLensId])
 
-  // Don't render when there's nothing actionable: no context lens, no docs,
+  // Don't render when there's nothing actionable: no context axis, no docs,
   // status not loaded yet, or all docs already classified.
-  if (!status || contextLenses.length === 0 || vm.documentCount === 0) return null
+  if (!status || contextAxes.length === 0 || vm.documentCount === 0) return null
   if (status.classifiedDocuments === status.totalDocuments) return null
 
   const remaining = status.totalDocuments - status.classifiedDocuments
-  const lensName = contextLenses[0]?.name ?? 'document-context'
+  const lensName = contextAxes[0]?.name ?? 'document-context'
 
   return (
     <div
@@ -467,53 +467,53 @@ function KeywordsSection({
   )
 }
 
-function LensesSection({
-  allLenses,
-  activeLensIds,
+function AxesSection({
+  allAxes,
+  activeAxisIds,
   onToggle,
 }: {
-  allLenses: Lens[]
-  activeLensIds: Set<string>
+  allAxes: Axis[]
+  activeAxisIds: Set<string>
   onToggle: (id: string, enabled: boolean) => void
 }) {
   return (
     <section>
       <SectionHeader
         icon={<Layers className="h-5 w-5" />}
-        title="Lenses"
-        count={`${activeLensIds.size} active`}
+        title="Axes"
+        count={`${activeAxisIds.size} active`}
       />
       <div className="border border-border rounded-md divide-y divide-border">
-        {allLenses.length === 0 ? (
+        {allAxes.length === 0 ? (
           <div className="p-4 text-sm text-muted-foreground">
-            No lenses available.
+            No axes available.
           </div>
         ) : (
-          allLenses.map((lens) => (
+          allAxes.map((axis) => (
             <label
-              key={lens.id}
+              key={axis.id}
               className="flex items-start gap-3 p-3 cursor-pointer hover:bg-muted/30 transition-colors"
             >
               <Checkbox
-                checked={activeLensIds.has(lens.id)}
-                onCheckedChange={(checked) => onToggle(lens.id, Boolean(checked))}
+                checked={activeAxisIds.has(axis.id)}
+                onCheckedChange={(checked) => onToggle(axis.id, Boolean(checked))}
                 className="mt-0.5"
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium flex items-center gap-2">
-                  {lens.name}
+                  {axis.name}
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
-                    {lens.type === 'keyword-attached' ? 'keyword tag' : 'document context'}
+                    {axis.type === 'keyword-attached' ? 'keyword tag' : 'document context'}
                   </span>
-                  {lens.isBuiltin && (
+                  {axis.isBuiltin && (
                     <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
                       built-in
                     </span>
                   )}
                 </div>
-                {lens.description && (
+                {axis.description && (
                   <div className="text-xs text-muted-foreground mt-0.5">
-                    {lens.description}
+                    {axis.description}
                   </div>
                 )}
               </div>
@@ -526,20 +526,20 @@ function LensesSection({
 }
 
 function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
-  // Find a document-context lens active on the project. v1 only handles
-  // one such lens at a time (typically Function); the dropdown is not
+  // Find a document-context axis active on the project. v1 only handles
+  // one such axis at a time (typically Function); the dropdown is not
   // shown unless a project has more than one.
-  const contextLenses = vm.lenses.filter((l) => l.type === 'document-context')
-  const [activeLensId, setActiveLensId] = useState<string>(contextLenses[0]?.id ?? '')
+  const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
+  const [activeLensId, setActiveLensId] = useState<string>(contextAxes[0]?.id ?? '')
   const [status, setStatus] = useState<ClassificationStatus | null>(null)
   const [running, setRunning] = useState(false)
   const [progress, setProgress] = useState<ClassifyDocumentProgress | null>(null)
 
   useEffect(() => {
-    if (contextLenses.length > 0 && !activeLensId) {
-      setActiveLensId(contextLenses[0].id)
+    if (contextAxes.length > 0 && !activeLensId) {
+      setActiveLensId(contextAxes[0].id)
     }
-  }, [contextLenses, activeLensId])
+  }, [contextAxes, activeLensId])
 
   useEffect(() => {
     if (!activeLensId || vm.documentCount === 0) {
@@ -549,7 +549,7 @@ function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
     getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
   }, [vm.project.id, vm.documentCount, activeLensId])
 
-  const lens = contextLenses.find((l) => l.id === activeLensId)
+  const lens = contextAxes.find((a) => a.id === activeLensId)
 
   const handleRun = async () => {
     if (!activeLensId) return
@@ -579,8 +579,8 @@ function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
     }
   }
 
-  if (contextLenses.length === 0) {
-    // No document-context lens active — nothing to classify. Hide the
+  if (contextAxes.length === 0) {
+    // No document-context axis active — nothing to classify. Hide the
     // section entirely to keep Setup clean for projects that don't use
     // Function-style classification.
     return null
@@ -600,7 +600,7 @@ function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
       <div className="border border-border rounded-md p-4 space-y-3">
         <p className="text-sm text-muted-foreground">
           Classifies each section of each document on the{' '}
-          <strong>{lens?.name ?? 'document-context'}</strong> lens via embedding similarity.
+          <strong>{lens?.name ?? 'document-context'}</strong> axis via embedding similarity.
           Required for the Map two-axis matrix and the full Wedding Cake Score.
           {status && status.unavailableDocuments > 0 && (
             <>

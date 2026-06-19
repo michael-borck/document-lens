@@ -114,15 +114,15 @@ export async function deleteKeywordList(id: string): Promise<void> {
   await runStatement('keywordLists.deleteById', [id])
 }
 
-export async function setKeywordListLenses(listId: string, lensIds: string[]): Promise<void> {
-  // Clear-then-insert atomically so a crash can't leave the list with no lenses.
+export async function setKeywordListAxes(listId: string, axisIds: string[]): Promise<void> {
+  // Clear-then-insert atomically so a crash can't leave the list with no axes.
   await runBatch([
     { key: 'keywordLists.clearLenses', params: [listId] },
-    ...lensIds.map((lensId) => ({ key: 'keywordLists.addLens', params: [listId, lensId] })),
+    ...axisIds.map((axisId) => ({ key: 'keywordLists.addLens', params: [listId, axisId] })),
   ])
 }
 
-export async function getKeywordListLenses(listId: string): Promise<string[]> {
+export async function getKeywordListAxes(listId: string): Promise<string[]> {
   const rows = await selectAll<{ lens_id: string }>('keywordLists.listLensIds', [listId])
   return rows.map((r) => r.lens_id)
 }
@@ -214,7 +214,7 @@ export async function listKeywordTags(keywordId: string): Promise<KeywordTag[]> 
   const rows = await selectAll<KeywordTagRow>('keywords.listTags', [keywordId])
   return rows.map((r) => ({
     keywordId: r.keyword_id,
-    lensId: r.lens_id,
+    axisId: r.lens_id,
     valueId: r.value_id,
   }))
 }

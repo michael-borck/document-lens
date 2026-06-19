@@ -10,7 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { computeCoverage, type CoverageMatrix } from '@/services/coverage'
-import { getKeywordListLenses } from '@/services/keyword-lists'
+import { getKeywordListAxes } from '@/services/keyword-lists'
 import { CoverageHeatmap } from '@/components/coverage/CoverageHeatmap'
 import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
@@ -25,18 +25,18 @@ interface CoverageResult {
 export function Coverage() {
   const vm = useOutletContext<ProjectViewModel>()
   const [polarity, setPolarity] = useState<Polarity>('both')
-  // Lens id to roll up by, or '' meaning "keyword level (no roll-up)".
-  const [lensId, setLensId] = useState<string>('')
-  const [eligibleLensIds, setEligibleLensIds] = useState<string[]>([])
+  // Axis id to roll up by, or '' meaning "keyword level (no roll-up)".
+  const [axisId, setAxisId] = useState<string>('')
+  const [eligibleAxisIds, setEligibleAxisIds] = useState<string[]>([])
 
   // The run lifecycle (running / clear-before-run / cancel-safety) lives in the
   // hook; Coverage's dual-polarity Promise.all just lives inside the fn.
   const { run, running, result } = useAnalysis<CoverageResult>(async () => {
-    const lensIdOrNull = lensId || null
+    const axisIdOrNull = axisId || null
     if (polarity === 'both') {
       const [pos, cnt] = await Promise.all([
-        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'positive', lensId: lensIdOrNull }),
-        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'counter', lensId: lensIdOrNull }),
+        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'positive', axisId: axisIdOrNull }),
+        computeCoverage({ projectId: vm.project.id, keywordListId: vm.keywordList!.id, polarity: 'counter', axisId: axisIdOrNull }),
       ])
       return { positive: pos, counter: cnt }
     }
@@ -44,28 +44,28 @@ export function Coverage() {
       projectId: vm.project.id,
       keywordListId: vm.keywordList!.id,
       polarity,
-      lensId: lensIdOrNull,
+      axisId: axisIdOrNull,
     })
     return polarity === 'positive' ? { positive: m, counter: null } : { positive: null, counter: m }
   })
   const positive = result?.positive ?? null
   const counter = result?.counter ?? null
 
-  // Resolve which of the project's active lenses are usable for Coverage
+  // Resolve which of the project's active axes are usable for Coverage
   // (keyword-attached only, AND declared by the active keyword list).
   useEffect(() => {
     if (!vm.keywordList) {
-      setEligibleLensIds([])
+      setEligibleAxisIds([])
       return
     }
-    getKeywordListLenses(vm.keywordList.id).then((declared) => {
-      const projectLensIds = new Set(vm.lenses.map((l) => l.id))
-      setEligibleLensIds(declared.filter((id) => projectLensIds.has(id)))
+    getKeywordListAxes(vm.keywordList.id).then((declared) => {
+      const projectAxisIds = new Set(vm.axes.map((a) => a.id))
+      setEligibleAxisIds(declared.filter((id) => projectAxisIds.has(id)))
     })
-  }, [vm.keywordList, vm.lenses])
+  }, [vm.keywordList, vm.axes])
 
-  const eligibleLenses = vm.lenses.filter(
-    (l) => l.type === 'keyword-attached' && eligibleLensIds.includes(l.id)
+  const eligibleAxes = vm.axes.filter(
+    (a) => a.type === 'keyword-attached' && eligibleAxisIds.includes(a.id)
   )
 
   if (!vm.keywordList) {
@@ -94,7 +94,7 @@ export function Coverage() {
   }
 
   const hasResults = positive !== null || counter !== null
-  const byLens = Boolean(lensId)
+  const byAxis = Boolean(axisId)
 
   return (
     <div className="px-8 py-8 max-w-7xl">
@@ -106,9 +106,9 @@ export function Coverage() {
           <PolaritySelector value={polarity} onChange={setPolarity} />
         </div>
         <LensField
-          value={lensId}
-          onChange={setLensId}
-          options={eligibleLenses.map((l) => ({ id: l.id, label: l.name }))}
+          value={axisId}
+          onChange={setAxisId}
+          options={eligibleAxes.map((a) => ({ id: a.id, label: a.name }))}
         />
         <div className="flex-1" />
         <Button onClick={run} disabled={running} className="gap-2">
@@ -130,20 +130,20 @@ export function Coverage() {
         <div className="text-sm text-muted-foreground border border-dashed border-border rounded-md p-6 text-center">
           {docCount} document{docCount === 1 ? '' : 's'} attached · using
           {' '}<strong>{vm.keywordList.name}</strong> keywords
-          {byLens && ` · grouped by ${eligibleLenses.find((l) => l.id === lensId)?.name}`}
+          {byAxis && ` · grouped by ${eligibleAxes.find((a) => a.id === axisId)?.name}`}
           . Click <strong>Run coverage</strong> to compute.
         </div>
       )}
 
       {polarity === 'both' && positive && counter ? (
         <div className="space-y-8">
-          <PolarityPanel title="Positive matches" matrix={positive} polarityHint="positive" byLens={byLens} />
-          <PolarityPanel title="Counter matches" matrix={counter} polarityHint="counter" byLens={byLens} />
+          <PolarityPanel title="Positive matches" matrix={positive} polarityHint="positive" byLens={byAxis} />
+          <PolarityPanel title="Counter matches" matrix={counter} polarityHint="counter" byLens={byAxis} />
         </div>
       ) : polarity === 'positive' && positive ? (
-        <PolarityPanel title="Positive matches" matrix={positive} polarityHint="positive" byLens={byLens} />
+        <PolarityPanel title="Positive matches" matrix={positive} polarityHint="positive" byLens={byAxis} />
       ) : polarity === 'counter' && counter ? (
-        <PolarityPanel title="Counter matches" matrix={counter} polarityHint="counter" byLens={byLens} />
+        <PolarityPanel title="Counter matches" matrix={counter} polarityHint="counter" byLens={byAxis} />
       ) : null}
     </div>
   )

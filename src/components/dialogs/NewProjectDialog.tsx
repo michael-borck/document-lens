@@ -43,7 +43,7 @@ export function NewProjectDialog({ open, onOpenChange, onCreated, onSwitchToWiza
       const project = await createProject({
         name: name.trim(),
         description: description.trim() || undefined,
-        researchFocus: 'sustainability',
+        lens: 'sustainability',
       })
       onCreated(project)
       reset()
@@ -68,7 +68,7 @@ export function NewProjectDialog({ open, onOpenChange, onCreated, onSwitchToWiza
             <DialogTitle>New project</DialogTitle>
             <DialogDescription>
               Give the project a name. You can configure documents, keywords,
-              lenses, and scoring rule on the Setup tab afterwards.
+              axes, and scoring rule on the Setup tab afterwards.
             </DialogDescription>
           </DialogHeader>
 

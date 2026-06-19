@@ -39,24 +39,26 @@ export interface Document {
 }
 
 // ---------------------------------------------------------------------------
-// Lenses (Tag Axes)
+// Axes (analysis dimensions — SDG, Pillar, Function, etc.)
+// DB tables: lenses, lens_values. "Axis/Axes" is the TypeScript/UI concept;
+// the DB schema uses "lens" historically.
 // ---------------------------------------------------------------------------
 
-export type LensType = 'keyword-attached' | 'document-context'
+export type AxisType = 'keyword-attached' | 'document-context'
 
-export interface Lens {
+export interface Axis {
   id: string
   name: string
   description: string | null
-  type: LensType
+  type: AxisType
   isHierarchical: boolean
   isBuiltin: boolean
   createdAt: string
 }
 
-export interface LensValue {
+export interface AxisValue {
   id: string
-  lensId: string
+  axisId: string
   value: string
   displayName: string | null
   description: string | null
@@ -94,7 +96,7 @@ export interface Keyword {
 
 export interface KeywordTag {
   keywordId: string
-  lensId: string
+  axisId: string
   valueId: string
 }
 
@@ -166,7 +168,8 @@ export interface Project {
   id: string
   name: string
   description: string | null
-  researchFocus: string | null
+  /** The domain lens for this project: 'sustainability' | 'cybersecurity' | 'general'. DB column: research_focus. */
+  lens: string | null
   scoringRuleId: string | null
   filterState: ProjectFilterState | null
   createdAt: string
@@ -180,5 +183,5 @@ export interface Project {
 export interface ProjectWithSetup extends Project {
   documentIds: string[]
   keywordListIds: string[]
-  lensIds: string[]
+  axisIds: string[]
 }

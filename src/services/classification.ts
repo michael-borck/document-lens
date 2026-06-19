@@ -11,9 +11,9 @@
  *      section_lens_tags row.
  *   5. Mark sections as classified.
  *
- * v1 only handles one lens at a time (typically the Function lens).
- * The same machinery generalises to any document-context lens; the
- * caller passes the lens id.
+ * v1 only handles one axis at a time (typically the Function axis).
+ * The same machinery generalises to any document-context axis; the
+ * caller passes the axis id.
  */
 
 import { api } from './api'
@@ -27,9 +27,9 @@ import {
   listSections,
   type DocumentSection,
 } from './sections'
-import { getLens, listLensValues } from './lenses'
+import { getAxis, listAxisValues } from './axes'
 import { selectAll } from './db'
-import type { LensValue } from '@/types/data'
+import type { AxisValue } from '@/types/data'
 
 const BATCH_SIZE = 50  // max sections per backend call — keeps single requests reasonable
 
@@ -80,13 +80,13 @@ export async function classifyProjectFunctions(
   lensId: string,
   onProgress?: (p: ClassifyDocumentProgress) => void
 ): Promise<ClassifyResult> {
-  // Validate lens.
-  const lens = await getLens(lensId)
-  if (!lens) throw new Error(`Lens ${lensId} not found`)
-  const lensValues = await listLensValues(lensId)
+  // Validate axis.
+  const axis = await getAxis(lensId)
+  if (!axis) throw new Error(`Axis ${lensId} not found`)
+  const lensValues = await listAxisValues(lensId)
   if (lensValues.length < 2) {
     throw new Error(
-      `Lens "${lens.name}" needs at least 2 values to classify against; has ${lensValues.length}.`
+      `Axis "${axis.name}" needs at least 2 values to classify against; has ${lensValues.length}.`
     )
   }
 
@@ -101,7 +101,7 @@ export async function classifyProjectFunctions(
   // Pre-compute the "domains" payload sent to the backend. We use each
   // value's display name + description as the label so the embedding
   // model has useful semantic context, not just the bare value code.
-  const domainLabels = lensValues.map((v) => domainLabelFor(v))
+  const domainLabels = lensValues.map((v: AxisValue) => domainLabelFor(v))
 
   const perDocument: ClassifyDocumentResult[] = []
   let documentsUnavailable = 0
@@ -176,7 +176,7 @@ export async function classifyProjectFunctions(
           const response = responses[j]
           if (!response || response.mappings.length === 0) continue
           const primary = response.mappings[0].primary_domain
-          const value = lensValues.find((v) => domainLabelFor(v) === primary)
+          const value = lensValues.find((v: AxisValue) => domainLabelFor(v) === primary)
           if (!value) continue
           await setSectionTag(
             section.id,
@@ -280,7 +280,7 @@ export async function getClassificationStatus(
  * The exact same string is used to map the response's `primary_domain`
  * back to the lens value, so we look up by this label.
  */
-function domainLabelFor(value: LensValue): string {
+function domainLabelFor(value: AxisValue): string {
   const head = value.displayName ?? value.value
   return value.description ? `${head}: ${value.description}` : head
 }

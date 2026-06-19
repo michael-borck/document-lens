@@ -15,7 +15,7 @@
  */
 
 import { selectAll } from './db'
-import { getKeywordListLenses } from './keyword-lists'
+import { getKeywordListAxes } from './keyword-lists'
 import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
 import { evaluateScore, type ScoreEvaluation, type ScoringMode } from './scoring'
 import type {
@@ -32,12 +32,12 @@ export type TrackGroup = 'none' | 'polarity' | 'company' | 'sector'
  * Topic to track. One of:
  *   { kind: 'all' }                — all enabled keywords (filtered by polarity)
  *   { kind: 'keyword', keywordId } — a single keyword
- *   { kind: 'lens-value', lensId, valueId } — all keywords carrying this tag
+ *   { kind: 'axis-value', axisId, valueId } — all keywords carrying this tag
  */
 export type TrackTopic =
   | { kind: 'all' }
   | { kind: 'keyword'; keywordId: string }
-  | { kind: 'lens-value'; lensId: string; valueId: string }
+  | { kind: 'axis-value'; axisId: string; valueId: string }
 
 export interface TrackPoint {
   year: number
@@ -397,12 +397,12 @@ async function filterToTopic(
   if (topic.kind === 'keyword') {
     return keywords.filter((k) => k.id === topic.keywordId)
   }
-  // lens-value: keep keywords that carry this (lens, value) tag.
-  const declaredLensIds = await getKeywordListLenses(keywordListId)
-  if (!declaredLensIds.includes(topic.lensId)) return []
+  // axis-value: keep keywords that carry this (axis, value) tag.
+  const declaredAxisIds = await getKeywordListAxes(keywordListId)
+  if (!declaredAxisIds.includes(topic.axisId)) return []
 
   const tagRows = await selectAll<{ keyword_id: string }>('keywords.idsByLensValue', [
-    topic.lensId,
+    topic.axisId,
     topic.valueId,
   ])
   const taggedIds = new Set(tagRows.map((r) => r.keyword_id))

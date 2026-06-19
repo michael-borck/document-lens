@@ -31,7 +31,7 @@ describe('computeCoverage', () => {
       projectId: pid,
       keywordListId: list,
       polarity: 'positive',
-      lensId: null,
+      axisId: null,
     })
 
     expect(m.documents).toHaveLength(1)
@@ -51,7 +51,7 @@ describe('computeCoverage', () => {
     const empty = t.document({ extractedText: '' })
     t.addDocToProject(pid, empty)
 
-    const m = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', lensId: null })
+    const m = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', axisId: null })
     expect(m.documents).toHaveLength(0)
   })
 
@@ -72,7 +72,7 @@ describe('computeCoverage', () => {
     const doc = t.document({ extractedText: 'energy energy energy' })
     t.addDocToProject(pid, doc)
 
-    const m = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', lensId: sdg })
+    const m = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', axisId: sdg })
     expect(m.lensValues?.map((v) => v.id)).toContain(sdg7)
     expect(m.lensTotals?.[doc][sdg7]).toBe(3)
   })

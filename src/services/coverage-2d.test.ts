@@ -59,8 +59,8 @@ describe('computeCoverage2D', () => {
     const m = await computeCoverage2D({
       projectId: s.pid,
       keywordListId: s.list,
-      rowLensId: s.pillar,
-      colLensId: s.fn,
+      rowAxisId: s.pillar,
+      colAxisId: s.fn,
       polarity: 'positive',
     })
 
@@ -77,8 +77,8 @@ describe('computeCoverage2D', () => {
     const m = await computeCoverage2D({
       projectId: s.pid,
       keywordListId: s.list,
-      rowLensId: s.pillar,
-      colLensId: s.fn,
+      rowAxisId: s.pillar,
+      colAxisId: s.fn,
       polarity: 'positive',
     })
 
@@ -93,8 +93,8 @@ describe('computeCoverage2D', () => {
     const m = await computeCoverage2D({
       projectId: s.pid,
       keywordListId: s.list,
-      rowLensId: s.pillar,
-      colLensId: s.fn,
+      rowAxisId: s.pillar,
+      colAxisId: s.fn,
       polarity: 'counter',
     })
     expect(m.documents).toHaveLength(0)
@@ -108,8 +108,8 @@ describe('computeCoverage2D', () => {
       computeCoverage2D({
         projectId: s.pid,
         keywordListId: s.list,
-        rowLensId: otherPillar,
-        colLensId: s.fn,
+        rowAxisId: otherPillar,
+        colAxisId: s.fn,
         polarity: 'positive',
       })
     ).rejects.toThrow(/isn't declared/)

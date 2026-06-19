@@ -15,7 +15,7 @@ function ProjectLanding() {
 const Projects = lazy(() => import('./pages/Projects').then(m => ({ default: m.Projects })))
 const Library = lazy(() => import('./pages/Library').then(m => ({ default: m.Library })))
 const Keywords = lazy(() => import('./pages/Keywords').then(m => ({ default: m.Keywords })))
-const Lenses = lazy(() => import('./pages/Lenses').then(m => ({ default: m.Lenses })))
+const Axes = lazy(() => import('./pages/Axes').then(m => ({ default: m.Axes })))
 const Settings = lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })))
 const Help = lazy(() => import('./pages/Help').then(m => ({ default: m.Help })))
 
@@ -44,7 +44,7 @@ function PageLoader() {
 function App() {
   const navigate = useNavigate()
 
-  // Seed the SDG keyword list, the SDG/Pillar/Function lenses, and the
+  // Seed the SDG keyword list, the SDG/Pillar/Function axes, and the
   // Wedding Cake Score on first launch (idempotent — no-ops if
   // the defaults are already in place). Per design principle #9.
   useEffect(() => {
@@ -73,7 +73,7 @@ function App() {
           <Route index element={<Projects />} />
           <Route path="library" element={<Library />} />
           <Route path="keywords" element={<Keywords />} />
-          <Route path="lenses" element={<Lenses />} />
+          <Route path="axes" element={<Axes />} />
           <Route path="settings" element={<Settings />} />
           <Route path="help" element={<Help />} />
 

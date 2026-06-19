@@ -9,7 +9,7 @@
  * N=4, NIST CSF with N=5, etc.).
  */
 
-import type { LensValue } from '@/types/data'
+import type { AxisValue } from '@/types/data'
 import type { DocScore, TraceStep } from './wedding-cake'
 
 export { DocScore, TraceStep }
@@ -20,7 +20,7 @@ export { DocScore, TraceStep }
  */
 export function coverageCount(
   lensTotals: Record<string, number>,
-  categoryValues: LensValue[]
+  categoryValues: AxisValue[]
 ): DocScore {
   const trace: TraceStep[] = categoryValues.map((v) => {
     const count = lensTotals[v.id] ?? 0

@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { weddingCakeFull, weddingCakeV1 } from './wedding-cake'
-import type { LensValue } from '@/types/data'
+import type { AxisValue } from '@/types/data'
 
-function lv(id: string, value: string): LensValue {
-  return { id, lensId: 'L', value, displayName: null, description: null, parentValueId: null, sortOrder: 0 }
+function lv(id: string, value: string): AxisValue {
+  return { id, axisId: 'L', value, displayName: null, description: null, parentValueId: null, sortOrder: 0 }
 }
 
 const B = lv('B', 'Biosphere')

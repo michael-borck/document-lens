@@ -35,7 +35,7 @@ describe('cross-workflow reconciliation', () => {
     t.addDocToProject(pid, d2)
 
     // Coverage total across all positive keywords.
-    const cov = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', lensId: null })
+    const cov = await computeCoverage({ projectId: pid, keywordListId: list, polarity: 'positive', axisId: null })
     const coverageTotal = Object.values(cov.counts)
       .flatMap((perKw) => Object.values(perKw))
       .reduce((a, b) => a + b, 0)

@@ -14,14 +14,14 @@
  */
 
 import {
-  createLens,
-  createLensValue,
-  listLenses,
-} from './lenses'
+  createAxis,
+  createAxisValue,
+  listAxes,
+} from './axes'
 import {
   createKeywordList,
   createKeyword,
-  setKeywordListLenses,
+  setKeywordListAxes,
   setKeywordTag,
   listKeywordLists,
 } from './keyword-lists'
@@ -31,7 +31,7 @@ import {
 } from './scoring-rules'
 import { SDGS, PILLARS, FUNCTIONS } from '@/data/sdg-meta'
 import sustainabilityKeywords from '@/data/sustainability-keywords.json'
-import type { Lens, LensValue } from '@/types/data'
+import type { Axis, AxisValue } from '@/types/data'
 
 const SDG_KEYWORD_LIST_SOURCE = 'SDGs (Universities)'
 const WEDDING_CAKE_SCORE_NAME = 'Wedding Cake Score'
@@ -69,7 +69,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   // 1. Create the three built-in lenses + their values
   // ------------------------------------------------------------------
 
-  const sdgLens = await createLens({
+  const sdgAxis = await createAxis({
     name: 'SDG',
     description: 'UN Sustainable Development Goals 1–17. Each keyword in the SDG list carries one or more SDG values.',
     type: 'keyword-attached',
@@ -77,7 +77,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
     isBuiltin: true,
   })
 
-  const pillarLens = await createLens({
+  const pillarAxis = await createAxis({
     name: 'Pillar',
     description: 'Wedding Cake model: Biosphere supports Society which supports Economy, with Partnership as connector. Derived from each keyword\'s SDG value.',
     type: 'keyword-attached',
@@ -85,7 +85,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
     isBuiltin: true,
   })
 
-  const functionLens = await createLens({
+  const functionAxis = await createAxis({
     name: 'Function',
     description: 'Universities core functions: Teaching, Research, Engagement, Operations. Inferred per section via embedding similarity (deterministic, batch-friendly).',
     type: 'document-context',
@@ -94,10 +94,10 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   })
 
   // SDG values: 1–17 with display names from SDG metadata
-  const sdgValueByNumber = new Map<number, LensValue>()
+  const sdgValueByNumber = new Map<number, AxisValue>()
   for (const sdg of SDGS) {
-    const value = await createLensValue({
-      lensId: sdgLens.id,
+    const value = await createAxisValue({
+      axisId: sdgAxis.id,
       value: String(sdg.number),
       displayName: `SDG ${sdg.number} — ${sdg.name}`,
       sortOrder: sdg.number,
@@ -106,10 +106,10 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   }
 
   // Pillar values: biosphere / society / economy / partnership
-  const pillarValueByKey = new Map<string, LensValue>()
+  const pillarValueByKey = new Map<string, AxisValue>()
   for (const p of PILLARS) {
-    const value = await createLensValue({
-      lensId: pillarLens.id,
+    const value = await createAxisValue({
+      axisId: pillarAxis.id,
       value: p.value,
       displayName: p.displayName,
       description: p.description,
@@ -120,8 +120,8 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
 
   // Function values: teaching / research / engagement / operations
   for (const f of FUNCTIONS) {
-    await createLensValue({
-      lensId: functionLens.id,
+    await createAxisValue({
+      axisId: functionAxis.id,
       value: f.value,
       displayName: f.displayName,
       description: f.description,
@@ -141,7 +141,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   })
 
   // The SDG list's keywords carry SDG and Pillar tags.
-  await setKeywordListLenses(sdgList.id, [sdgLens.id, pillarLens.id])
+  await setKeywordListAxes(sdgList.id, [sdgAxis.id, pillarAxis.id])
 
   let keywordsCreated = 0
   for (const polarity of ['positive', 'counter'] as const) {
@@ -161,8 +161,8 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
         notes: entry.note ?? undefined,
         sortOrder: order++,
       })
-      await setKeywordTag(keyword.id, sdgLens.id, sdgValue.id)
-      await setKeywordTag(keyword.id, pillarLens.id, pillarValue.id)
+      await setKeywordTag(keyword.id, sdgAxis.id, sdgValue.id)
+      await setKeywordTag(keyword.id, pillarAxis.id, pillarValue.id)
       keywordsCreated++
     }
   }
@@ -172,9 +172,9 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
   // ------------------------------------------------------------------
 
   const scoringRulesCreated = await seedWeddingCakeScore(
-    sdgLens.id,
-    pillarLens.id,
-    functionLens.id
+    sdgAxis.id,
+    pillarAxis.id,
+    functionAxis.id
   )
 
   return {
@@ -229,11 +229,11 @@ async function seedWeddingCakeScore(
 }
 
 /**
- * Helper exposed to UI / tests: have any of the built-in lenses been
+ * Helper exposed to UI / tests: have any of the built-in axes been
  * seeded? Used to gate the seeding call so we don't run it on every
  * app launch when the user already has the defaults.
  */
-export async function hasBuiltinLenses(): Promise<boolean> {
-  const lenses = await listLenses()
-  return lenses.some((l: Lens) => l.isBuiltin)
+export async function hasBuiltinAxes(): Promise<boolean> {
+  const axes = await listAxes()
+  return axes.some((a: Axis) => a.isBuiltin)
 }

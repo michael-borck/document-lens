@@ -48,7 +48,7 @@ describe('runAudit — anomalies', () => {
       }],
     })
 
-    const r = await runAudit({ projectId: s.pid, keywordListId: s.list, lensId: s.fn, mode: 'anomalies' })
+    const r = await runAudit({ projectId: s.pid, keywordListId: s.list, axisId: s.fn, mode: 'anomalies' })
 
     expect(r.findings).toHaveLength(1)
     expect(r.findings[0]).toMatchObject({
@@ -73,7 +73,7 @@ describe('runAudit — anomalies', () => {
         dislocation_score: 0.5, severity: 'medium',
       }],
     })
-    const input = { projectId: s.pid, keywordListId: s.list, lensId: s.fn, mode: 'anomalies' as const }
+    const input = { projectId: s.pid, keywordListId: s.list, axisId: s.fn, mode: 'anomalies' as const }
 
     await runAudit(input)
     const second = await runAudit(input)
@@ -87,14 +87,14 @@ describe('runAudit — anomalies', () => {
     const kwLens = t.lens({ name: 'Pillar', type: 'keyword-attached' })
     t.lensValue(kwLens, 'A'); t.lensValue(kwLens, 'B')
     await expect(
-      runAudit({ projectId: s.pid, keywordListId: s.list, lensId: kwLens, mode: 'anomalies' })
+      runAudit({ projectId: s.pid, keywordListId: s.list, axisId: kwLens, mode: 'anomalies' })
     ).rejects.toThrow(/keyword-attached/)
   })
 
   it('returns empty without a backend call when no keyword matches the polarity', async () => {
     const s = seedAudit() // only a positive keyword
     const r = await runAudit({
-      projectId: s.pid, keywordListId: s.list, lensId: s.fn, mode: 'anomalies', polarity: 'counter',
+      projectId: s.pid, keywordListId: s.list, axisId: s.fn, mode: 'anomalies', polarity: 'counter',
     })
     expect(r.findings).toHaveLength(0)
     expect(detectMock).not.toHaveBeenCalled()
@@ -112,7 +112,7 @@ describe('runAudit — confirmations', () => {
     })
     t.sectionTag(sec, s.fn, s.teaching, 0.5)
 
-    const r = await runAudit({ projectId: s.pid, keywordListId: s.list, lensId: s.fn, mode: 'confirmations' })
+    const r = await runAudit({ projectId: s.pid, keywordListId: s.list, axisId: s.fn, mode: 'confirmations' })
 
     expect(detectMock).not.toHaveBeenCalled()
     expect(r.findings).toHaveLength(1)

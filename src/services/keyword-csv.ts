@@ -21,12 +21,12 @@ import {
   createKeyword,
   listKeywordTags,
   setKeywordTag,
-  getKeywordListLenses,
-  setKeywordListLenses,
+  getKeywordListAxes,
+  setKeywordListAxes,
   listSynonyms,
   createSynonym,
 } from './keyword-lists'
-import { listLenses, listLensValues } from './lenses'
+import { listAxes, listAxisValues } from './axes'
 import type { KeywordPolarity } from '@/types/data'
 
 const BASE_HEADERS = ['text', 'polarity', 'enabled', 'notes', 'synonyms'] as const
@@ -43,25 +43,25 @@ export async function keywordListToCsv(listId: string): Promise<string> {
 
   const keywords = await listKeywords(listId)
 
-  // Lenses to emit as tag columns: the list's declared lenses, plus any lens
+  // Axes to emit as tag columns: the list's declared axes, plus any axis
   // actually referenced by a keyword tag (so nothing is silently dropped).
-  const tagsByKeyword = new Map<string, { lensId: string; valueId: string }[]>()
-  const lensIdSet = new Set<string>(await getKeywordListLenses(listId))
+  const tagsByKeyword = new Map<string, { axisId: string; valueId: string }[]>()
+  const axisIdSet = new Set<string>(await getKeywordListAxes(listId))
   for (const kw of keywords) {
     const tags = await listKeywordTags(kw.id)
     tagsByKeyword.set(kw.id, tags)
-    for (const t of tags) lensIdSet.add(t.lensId)
+    for (const t of tags) axisIdSet.add(t.axisId)
   }
 
-  // Build lens metadata: lensId -> { name, valueId -> code }.
-  const allLenses = await listLenses()
-  const lensCols: { lensId: string; name: string; valueCode: Map<string, string> }[] = []
-  for (const lensId of lensIdSet) {
-    const lens = allLenses.find((l) => l.id === lensId)
-    if (!lens) continue
-    const values = await listLensValues(lensId)
+  // Build axis metadata: axisId -> { name, valueId -> code }.
+  const allAxes = await listAxes()
+  const axisCols: { axisId: string; name: string; valueCode: Map<string, string> }[] = []
+  for (const axisId of axisIdSet) {
+    const axis = allAxes.find((a) => a.id === axisId)
+    if (!axis) continue
+    const values = await listAxisValues(axisId)
     const valueCode = new Map(values.map((v) => [v.id, v.value]))
-    lensCols.push({ lensId, name: lens.name, valueCode })
+    axisCols.push({ axisId, name: axis.name, valueCode })
   }
 
   // Synonyms per keyword.
@@ -71,13 +71,13 @@ export async function keywordListToCsv(listId: string): Promise<string> {
     synonymsByKeyword.set(kw.id, syns.map((s) => s.text))
   }
 
-  const header = [...BASE_HEADERS, ...lensCols.map((l) => l.name)]
+  const header = [...BASE_HEADERS, ...axisCols.map((c) => c.name)]
   const rows: (string | number)[][] = [header]
   for (const kw of keywords) {
     const tags = tagsByKeyword.get(kw.id) ?? []
-    const lensCells = lensCols.map((col) =>
+    const lensCells = axisCols.map((col) =>
       tags
-        .filter((t) => t.lensId === col.lensId)
+        .filter((t) => t.axisId === col.axisId)
         .map((t) => col.valueCode.get(t.valueId))
         .filter((c): c is string => Boolean(c))
         .join(SYNONYM_SEP)
@@ -166,38 +166,38 @@ export async function csvToNewKeywordList(
   const notesIdx = col('notes')
   const synIdx = col('synonyms')
 
-  // Match any non-base column header to an existing lens (case-insensitive).
-  const allLenses = await listLenses()
+  // Match any non-base column header to an existing axis (case-insensitive).
+  const allAxes2 = await listAxes()
   const baseSet = new Set<string>(BASE_HEADERS)
   const ignoredColumns: string[] = []
-  const lensColumns: {
+  const axisColumns: {
     index: number
-    lensId: string
+    axisId: string
     // lowercased code OR display name -> valueId
     valueMatch: Map<string, string>
   }[] = []
   for (let i = 0; i < header.length; i++) {
     if (i === textIdx || baseSet.has(lower[i])) continue
-    const lens = allLenses.find((l) => l.name.toLowerCase() === lower[i])
-    if (!lens) {
+    const axis = allAxes2.find((a) => a.name.toLowerCase() === lower[i])
+    if (!axis) {
       if (header[i]) ignoredColumns.push(header[i])
       continue
     }
-    const values = await listLensValues(lens.id)
+    const values = await listAxisValues(axis.id)
     const valueMatch = new Map<string, string>()
     for (const v of values) {
       valueMatch.set(v.value.toLowerCase(), v.id)
       if (v.displayName) valueMatch.set(v.displayName.toLowerCase(), v.id)
     }
-    lensColumns.push({ index: i, lensId: lens.id, valueMatch })
+    axisColumns.push({ index: i, axisId: axis.id, valueMatch })
   }
 
-  // Create the list (unique name) and wire up the matched lenses.
+  // Create the list (unique name) and wire up the matched axes.
   const existingNames = (await listKeywordLists()).map((l) => l.name)
   const name = uniqueName(desiredName.trim() || 'Imported keywords', existingNames)
   const list = await createKeywordList({ name, type: 'custom', source: 'csv-import' })
-  if (lensColumns.length > 0) {
-    await setKeywordListLenses(list.id, lensColumns.map((c) => c.lensId))
+  if (axisColumns.length > 0) {
+    await setKeywordListAxes(list.id, axisColumns.map((c) => c.axisId))
   }
 
   let keywordsCreated = 0
@@ -227,11 +227,11 @@ export async function csvToNewKeywordList(
       }
     }
 
-    for (const lc of lensColumns) {
+    for (const lc of axisColumns) {
       for (const raw of splitMulti(row[lc.index])) {
         const valueId = lc.valueMatch.get(raw.toLowerCase())
         if (valueId) {
-          await setKeywordTag(keyword.id, lc.lensId, valueId)
+          await setKeywordTag(keyword.id, lc.axisId, valueId)
           tagsApplied++
         } else {
           unmatched.add(raw)

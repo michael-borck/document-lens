@@ -13,7 +13,7 @@
  *                used until every document is Function-classified).
  */
 
-import type { LensValue } from '@/types/data'
+import type { AxisValue } from '@/types/data'
 
 export type TraceStatus = 'met' | 'unmet' | 'partial'
 
@@ -41,8 +41,8 @@ export interface DocScore {
  */
 export function weddingCakeFull(
   cells: Record<string, Record<string, number>>,
-  requiredPillars: LensValue[],
-  functionValues: LensValue[]
+  requiredPillars: AxisValue[],
+  functionValues: AxisValue[]
 ): DocScore {
   const trace: TraceStep[] = functionValues.map((fn) => {
     const hits = requiredPillars.map((p) => cells[p.id]?.[fn.id] ?? 0)
@@ -72,7 +72,7 @@ export function weddingCakeFull(
  */
 export function weddingCakeV1(
   lensTotals: Record<string, number>,
-  requiredPillars: LensValue[]
+  requiredPillars: AxisValue[]
 ): DocScore {
   const trace: TraceStep[] = requiredPillars.map((p) => {
     const count = lensTotals[p.id] ?? 0

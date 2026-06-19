@@ -201,7 +201,7 @@ function GettingStarted() {
       <P>
         From the empty <strong>Projects</strong> page, click <em>Create your first project</em>{' '}
         to launch the three-step wizard. Defaults are pre-loaded for sustainability research:
-        the SDG keyword list, three lenses (SDG, Pillar, Function), and the
+        the SDG keyword list, three axes (SDG, Pillar, Function), and the
         Wedding Cake Score. Pick documents (or skip and add them from the Library
         later), confirm the defaults, and you'll land on the project's <strong>Setup</strong>{' '}
         tab with everything wired up. After that, reopening a project resumes the
@@ -211,15 +211,15 @@ function GettingStarted() {
       <P>
         Each <strong>keyword</strong> carries a <strong>polarity</strong>: positive (signals
         delivery — "carbon reduction") or counter (signals greenwashing — "performative
-        disclosure"). Keywords carry tags against keyword-attached lenses (SDG, Pillar).
-        Documents carry section-level tags against document-context lenses (Function — what
+        disclosure"). Keywords carry tags against keyword-attached axes (SDG, Pillar).
+        Documents carry section-level tags against document-context axes (Function — what
         kind of activity each section describes). The two-axis Map and Wedding Cake Score
         work by intersecting these tag sets.
       </P>
       <H2>What if I'm not doing sustainability?</H2>
       <P>
-        Pick <em>General</em> in the wizard's focus step. The project will be created
-        empty; head to <strong>Keywords</strong> and <strong>Lenses</strong> in the left
+        Pick <em>General</em> in the wizard's lens step. The project will be created
+        empty; head to <strong>Keywords</strong> and <strong>Axes</strong> in the left
         nav to build your own taxonomy, then to <strong>Settings</strong> to define a
         scoring rule. Two patterns are available: <strong>Coverage Count</strong> (flat —
         how many of your categories does this document cover?) or{' '}
@@ -235,7 +235,7 @@ function SetupTopic() {
     <>
       <P>
         Setup is where a project's components live: <strong>documents</strong>,{' '}
-        <strong>keyword list</strong>, active <strong>lenses</strong>,{' '}
+        <strong>keyword list</strong>, active <strong>axes</strong>,{' '}
         <strong>Function classification</strong>, and the <strong>scoring rule</strong>.
         Every workflow tab reads from this configuration.
       </P>
@@ -253,11 +253,11 @@ function SetupTopic() {
         the file you pick to be sure it's the same one (otherwise extracted text +
         sections + tags would no longer match).
       </P>
-      <H2>Keywords + Lenses</H2>
+      <H2>Keywords + Axes</H2>
       <P>
-        Pick the active keyword list (one per project) and the active lenses (multiple).
+        Pick the active keyword list (one per project) and the active axes (multiple).
         For sustainability projects you typically want <Code>SDGs (Universities)</Code>{' '}
-        as the list and the three built-in lenses (SDG, Pillar, Function) all active.
+        as the list and the three built-in axes (SDG, Pillar, Function) all active.
       </P>
       <H2>Function classification</H2>
       <P>
@@ -267,13 +267,13 @@ function SetupTopic() {
         It's deterministic per model version. Re-running (the button becomes{' '}
         <em>Re-classify</em>) wipes and re-detects sections and reclassifies the{' '}
         <em>whole</em> corpus, not just new documents — so you only need it after adding
-        documents or changing the Function lens.
+        documents or changing the Function axis.
       </P>
       <H2>Exporting raw data</H2>
       <P>
         The <strong>Export data</strong> button (top-right header, beside <em>Export bundle</em>)
         writes four CSVs to a folder you choose: <Code>documents.csv</Code>,{' '}
-        <Code>keyword-matches.csv</Code> (one row per match, with lens-tag columns),{' '}
+        <Code>keyword-matches.csv</Code> (one row per match, with axis-tag columns),{' '}
         <Code>score-breakdown.csv</Code>, and <Code>track.csv</Code>. Useful for a
         collaborator who wants the raw numbers without installing the app, or for
         independent analysis in a spreadsheet or statistical package.
@@ -292,9 +292,9 @@ function SetupTopic() {
       <P>
         Create custom rules in <strong>Settings → New rule</strong>. Pick a pattern
         first: <strong>Coverage Count</strong> (flat — score = how many categories are
-        covered, needs one lens) or <strong>Cross Coverage</strong> (layered — score =
-        how many Subjects cover all required Layers, needs two lenses). Configure the
-        lenses, name the rule, and it appears here.
+        covered, needs one axis) or <strong>Cross Coverage</strong> (layered — score =
+        how many Subjects cover all required Layers, needs two axes). Configure the
+        axes, name the rule, and it appears here.
       </P>
     </>
   )
@@ -308,7 +308,7 @@ function CoverageTopic() {
         Coverage is the natural first workflow once a project is set up — the start of
         the <em>Explore</em> phase. It computes
         per-document × per-keyword match counts and displays them as a heatmap, plus
-        a roll-up by lens value (e.g. by Pillar — Biosphere / Society / Economy) to
+        a roll-up by axis value (e.g. by Pillar — Biosphere / Society / Economy) to
         give you the framework-level view.
       </P>
       <H2>Stacked positive + counter heatmaps</H2>
@@ -330,22 +330,22 @@ function CoverageTopic() {
 function MapTopic() {
   return (
     <>
-      <P><em>How does each document distribute across one or two lens axes?</em></P>
+      <P><em>How does each document distribute across one or two axes?</em></P>
       <P>
         Map has two modes, toggled at the top:
       </P>
       <UL>
         <li>
           <strong>One axis</strong> (the default) — how a document's keyword usage
-          spreads across a single keyword-attached lens (SDG, Pillar, …).
+          spreads across a single keyword-attached axis (SDG, Pillar, …).
         </li>
         <li>
-          <strong>Two axes</strong> — cross-tabulates a keyword-attached lens (rows)
-          against a document-context lens (columns), e.g. the methodology's{' '}
+          <strong>Two axes</strong> — cross-tabulates a keyword-attached axis (rows)
+          against a document-context axis (columns), e.g. the methodology's{' '}
           <strong>SDG × Function</strong> table. Each cell is the number of keyword
           hits (positive by default; counter is also selectable) in sections
           classified as that column value, for keywords tagged with that row value.
-          The Rows / Columns dropdowns default to the first eligible lens of each kind.
+          The Rows / Columns dropdowns default to the first eligible axis of each kind.
         </li>
       </UL>
       <P>
@@ -355,7 +355,7 @@ function MapTopic() {
         that activity type.
       </P>
       <P>
-        Two-axis mode needs a document-context lens classified on Setup. With no
+        Two-axis mode needs a document-context axis classified on Setup. With no
         classified documents the matrix still renders but every cell is zero; a
         partly-classified corpus shows a "classification incomplete" banner with a
         Classify-now shortcut.
@@ -509,7 +509,7 @@ function AuditTopic() {
         sensitivity.
       </P>
       <P>
-        Per-doc responses are cached by content hash + lens config + threshold. The
+        Per-doc responses are cached by content hash + axis config + threshold. The
         first run on a project is slow (sentence embedding is expensive); re-runs with
         the same inputs are instant.
       </P>
@@ -758,7 +758,7 @@ function ProjectBundleTopic() {
       <P>
         Setup tab → top-right <em>Export bundle</em> button. Writes the project's
         documents (metadata + extracted text + per-page text + sections + tags),
-        keyword list, lenses, scoring rule, and (by default) the original source
+        keyword list, axes, scoring rule, and (by default) the original source
         files into a single ZIP.
       </P>
       <H2>Import</H2>
@@ -771,8 +771,8 @@ function ProjectBundleTopic() {
       <H2>How identity is handled</H2>
       <UL>
         <li><strong>Documents</strong> are matched by file content hash. Same PDF already in your Library → the existing doc is reused. New PDF + bundle includes the file → written to your app data folder. New PDF + no file in the bundle → metadata-only doc, marked <em>Source missing</em> in Setup until you locate the file.</li>
-        <li><strong>Built-in lenses</strong> are matched by name (so SDG / Pillar / Function and any other built-in are reused, not duplicated), the keyword list is matched by its <em>source</em> identifier, and a built-in scoring rule (e.g. the Wedding Cake Score) is matched by name — your sustainability defaults are never duplicated by an import.</li>
-        <li><strong>Custom lenses, lists, and rules</strong> get fresh IDs. Name collisions get a <Code>(imported)</Code> suffix; you can rename anytime.</li>
+        <li><strong>Built-in axes</strong> are matched by name (so SDG / Pillar / Function and any other built-in are reused, not duplicated), the keyword list is matched by its <em>source</em> identifier, and a built-in scoring rule (e.g. the Wedding Cake Score) is matched by name — your sustainability defaults are never duplicated by an import.</li>
+        <li><strong>Custom axes, lists, and rules</strong> get fresh IDs. Name collisions get a <Code>(imported)</Code> suffix; you can rename anytime.</li>
         <li><strong>Project name</strong> collisions also get the suffix. Two researchers can each have their own "Acme 2024 Sustainability" without overwriting.</li>
       </UL>
       <H2>Re-linking missing source files</H2>

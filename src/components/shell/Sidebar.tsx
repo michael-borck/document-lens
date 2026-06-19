@@ -14,7 +14,7 @@ interface NavSection {
   items: NavItem[]
 }
 
-// Projects are where you work; Library/Keywords/Lenses are assets shared
+// Projects are where you work; Library/Keywords/Axes are assets shared
 // ACROSS projects — the label makes that mental model visible up front
 // instead of discovered by surprise ("why is it still in Library?").
 const NAV_SECTIONS: NavSection[] = [
@@ -24,7 +24,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { to: '/library', label: 'Library', icon: Library },
       { to: '/keywords', label: 'Keywords', icon: Tag },
-      { to: '/lenses', label: 'Lenses', icon: Layers },
+      { to: '/axes', label: 'Axes', icon: Layers },
     ],
   },
 ]

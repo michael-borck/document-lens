@@ -10,14 +10,14 @@
  */
 
 import { selectAll } from './db'
-import { getKeywordListLenses } from './keyword-lists'
-import { listLensValues } from './lenses'
+import { getKeywordListAxes } from './keyword-lists'
+import { listAxisValues } from './axes'
 import { loadProjectCorpus } from './_shared/project-corpus'
 import type {
   Document,
   Keyword,
   KeywordPolarity,
-  LensValue,
+  AxisValue,
 } from '@/types/data'
 
 export interface CoverageMatrix {
@@ -25,9 +25,9 @@ export interface CoverageMatrix {
   keywords: Keyword[]
   /** counts[documentId][keywordId] = match count */
   counts: Record<string, Record<string, number>>
-  /** Set of (documentId, lensValueId) totals when a lens is selected. */
+  /** Set of (documentId, axisValueId) totals when an axis is selected. */
   lensTotals: Record<string, Record<string, number>> | null
-  lensValues: LensValue[] | null
+  lensValues: AxisValue[] | null
   polarity: KeywordPolarity | 'both'
   /** Human-readable summary for the context strip. */
   summary: string
@@ -37,7 +37,7 @@ export interface ComputeCoverageInput {
   projectId: string
   keywordListId: string
   polarity: KeywordPolarity | 'both'
-  lensId: string | null
+  axisId: string | null
 }
 
 /**
@@ -68,13 +68,13 @@ export async function computeCoverage(input: ComputeCoverageInput): Promise<Cove
 
   // 3. Optional lens roll-up.
   let lensTotals: Record<string, Record<string, number>> | null = null
-  let lensValues: LensValue[] | null = null
+  let lensValues: AxisValue[] | null = null
 
-  if (input.lensId) {
-    const declaredLensIds = await getKeywordListLenses(input.keywordListId)
-    if (declaredLensIds.includes(input.lensId)) {
-      lensValues = await listLensValues(input.lensId)
-      const tagsByKeyword = await loadKeywordTagsForLens(input.keywordListId, input.lensId)
+  if (input.axisId) {
+    const declaredLensIds = await getKeywordListAxes(input.keywordListId)
+    if (declaredLensIds.includes(input.axisId)) {
+      lensValues = await listAxisValues(input.axisId)
+      const tagsByKeyword = await loadKeywordTagsForLens(input.keywordListId, input.axisId)
 
       lensTotals = {}
       for (const doc of usableDocs) {

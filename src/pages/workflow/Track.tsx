@@ -21,8 +21,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Input } from '@/components/ui/input'
-import { listKeywords, getKeywordListLenses } from '@/services/keyword-lists'
-import { listLensValues } from '@/services/lenses'
+import { listKeywords, getKeywordListAxes } from '@/services/keyword-lists'
+import { listAxisValues } from '@/services/axes'
 import {
   computeTrack,
   type TrackResult,
@@ -35,9 +35,9 @@ import { toast } from '@/stores/toastStore'
 import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Keyword, KeywordPolarity, Lens, LensValue } from '@/types/data'
+import type { Keyword, KeywordPolarity, Axis, AxisValue } from '@/types/data'
 
-type TopicKind = 'all' | 'keyword' | 'lens-value'
+type TopicKind = 'all' | 'keyword' | 'axis-value'
 
 /**
  * Track workflow.
@@ -58,8 +58,8 @@ export function Track() {
   const vm = useOutletContext<ProjectViewModel>()
 
   const [keywords, setKeywords] = useState<Keyword[]>([])
-  const [allLenses, setAllLenses] = useState<Lens[]>([])
-  const [lensValuesByLens, setLensValuesByLens] = useState<Record<string, LensValue[]>>({})
+  const [allAxes, setAllAxes] = useState<Axis[]>([])
+  const [axisValuesByAxis, setAxisValuesByAxis] = useState<Record<string, AxisValue[]>>({})
 
   const [measure, setMeasure] = useState<TrackMeasure>('match-count')
   const [topicKind, setTopicKind] = useState<TopicKind>('all')
@@ -71,25 +71,25 @@ export function Track() {
   const [yearMin, setYearMin] = useState<string>('')
   const [yearMax, setYearMax] = useState<string>('')
 
-  // Load keywords + lenses for the topic picker.
+  // Load keywords + axes for the topic picker.
   useEffect(() => {
     if (!vm.keywordList) return
     listKeywords(vm.keywordList.id).then((kws) => {
       setKeywords(kws.filter((k) => k.enabled))
     })
-    getKeywordListLenses(vm.keywordList.id).then((declaredIds) => {
-      const eligible = vm.lenses.filter(
-        (l) => l.type === 'keyword-attached' && declaredIds.includes(l.id)
+    getKeywordListAxes(vm.keywordList.id).then((declaredIds) => {
+      const eligible = vm.axes.filter(
+        (a) => a.type === 'keyword-attached' && declaredIds.includes(a.id)
       )
-      setAllLenses(eligible)
-      // Pre-load all lens values for the topic-by-lens picker.
-      Promise.all(eligible.map(async (l) => [l.id, await listLensValues(l.id)] as const)).then((pairs) => {
-        const map: Record<string, LensValue[]> = {}
+      setAllAxes(eligible)
+      // Pre-load all axis values for the topic-by-axis picker.
+      Promise.all(eligible.map(async (a) => [a.id, await listAxisValues(a.id)] as const)).then((pairs) => {
+        const map: Record<string, AxisValue[]> = {}
         for (const [id, values] of pairs) map[id] = values
-        setLensValuesByLens(map)
+        setAxisValuesByAxis(map)
       })
     })
-  }, [vm.keywordList, vm.lenses])
+  }, [vm.keywordList, vm.axes])
 
   // Filter the keyword list to the selected polarity for the topic picker.
   const keywordsByPolarity = useMemo(() => {
@@ -161,7 +161,7 @@ export function Track() {
             <SelectContent>
               <SelectItem value="all">All keywords</SelectItem>
               <SelectItem value="keyword">Single keyword</SelectItem>
-              <SelectItem value="lens-value">Lens value (e.g. SDG 13)</SelectItem>
+              <SelectItem value="axis-value">Axis value (e.g. SDG 13)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -205,7 +205,7 @@ export function Track() {
         </div>
       )}
 
-      {topicKind === 'lens-value' && (
+      {topicKind === 'axis-value' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           {group !== 'polarity' && (
             <Field label="Polarity">
@@ -218,21 +218,21 @@ export function Track() {
               </Select>
             </Field>
           )}
-          <Field label="Lens">
+          <Field label="Axis">
             <Select value={topicLensId} onValueChange={(v) => { setTopicLensId(v); setTopicValueId('') }}>
-              <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Pick an axis" /></SelectTrigger>
               <SelectContent>
-                {allLenses.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                {allAxes.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </Field>
           <Field label="Value">
             <Select value={topicValueId} onValueChange={setTopicValueId} disabled={!topicLensId}>
-              <SelectTrigger><SelectValue placeholder={topicLensId ? 'Pick a value' : 'Pick a lens first'} /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={topicLensId ? 'Pick a value' : 'Pick an axis first'} /></SelectTrigger>
               <SelectContent>
-                {(lensValuesByLens[topicLensId] ?? []).map((v) => (
+                {(axisValuesByAxis[topicLensId] ?? []).map((v) => (
                   <SelectItem key={v.id} value={v.id}>{v.displayName ?? v.value}</SelectItem>
                 ))}
               </SelectContent>
@@ -291,7 +291,7 @@ export function Track() {
             project: vm.project,
             keywordList: vm.keywordList,
             scoringRule: vm.scoringRule,
-            topicLabel: buildTopicLabel(topicKind, topicKeywordId, topicLensId, topicValueId, keywords, allLenses, lensValuesByLens),
+            topicLabel: buildTopicLabel(topicKind, topicKeywordId, topicLensId, topicValueId, keywords, allAxes, axisValuesByAxis),
             measure,
             group,
             polarity,
@@ -313,24 +313,24 @@ export function Track() {
 function buildTopicLabel(
   kind: TopicKind,
   keywordId: string,
-  lensId: string,
+  axisId: string,
   valueId: string,
   keywords: Keyword[],
-  lenses: Lens[],
-  lensValuesByLens: Record<string, LensValue[]>
+  axes: Axis[],
+  axisValuesByAxis: Record<string, AxisValue[]>
 ): string {
   if (kind === 'all') return 'All keywords'
   if (kind === 'keyword') {
     const kw = keywords.find((k) => k.id === keywordId)
     return kw ? `Keyword: ${kw.text}` : 'Keyword (unknown)'
   }
-  // lens-value
-  const lens = lenses.find((l) => l.id === lensId)
-  const value = (lensValuesByLens[lensId] ?? []).find((v) => v.id === valueId)
-  if (lens && value) {
-    return `${lens.name}: ${value.displayName ?? value.value}`
+  // axis-value
+  const axis = axes.find((a) => a.id === axisId)
+  const value = (axisValuesByAxis[axisId] ?? []).find((v) => v.id === valueId)
+  if (axis && value) {
+    return `${axis.name}: ${value.displayName ?? value.value}`
   }
-  return 'Lens value (unknown)'
+  return 'Axis value (unknown)'
 }
 
 function Header() {
@@ -356,14 +356,14 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function buildTopic(
   kind: TopicKind,
   keywordId: string,
-  lensId: string,
+  axisId: string,
   valueId: string
 ): TrackTopic | null {
   if (kind === 'all') return { kind: 'all' }
   if (kind === 'keyword') {
     return keywordId ? { kind: 'keyword', keywordId } : null
   }
-  return lensId && valueId ? { kind: 'lens-value', lensId, valueId } : null
+  return axisId && valueId ? { kind: 'axis-value', axisId, valueId } : null
 }
 
 // ---------------------------------------------------------------------------

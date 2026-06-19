@@ -164,13 +164,13 @@ function PreviewView({ preview }: { preview: BundlePreview }) {
       <div className="grid grid-cols-2 gap-2 text-xs">
         <PlanRow label="Documents" newCount={plan.newDocuments} reusedCount={plan.reusedDocuments} />
         <PlanRow label="Keyword lists" newCount={plan.newKeywordLists} reusedCount={plan.reusedKeywordLists} />
-        <PlanRow label="Lenses" newCount={plan.newLenses} reusedCount={plan.reusedLenses} />
+        <PlanRow label="Axes" newCount={plan.newAxes} reusedCount={plan.reusedAxes} />
         <PlanRow label="Scoring rules" newCount={plan.newScoringRules} reusedCount={plan.reusedScoringRules} />
       </div>
 
       <div className="text-[11px] text-muted-foreground">
         Documents are matched by file hash — duplicates of files already in your Library are reused, not re-imported.
-        Built-in lenses (SDG / Pillar / Function) and the seeded SDG keyword list are matched by name and reused.
+        Built-in axes (SDG / Pillar / Function) and the seeded SDG keyword list are matched by name and reused.
       </div>
 
       {warnings.length > 0 && (

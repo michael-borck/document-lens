@@ -16,19 +16,19 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { createLens, createLensValue } from '@/services/lenses'
-import type { Lens, LensType } from '@/types/data'
+import { createAxis, createAxisValue } from '@/services/axes'
+import type { Axis, AxisType } from '@/types/data'
 
-interface NewLensDialogProps {
+interface NewAxisDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreated: (lens: Lens) => void
+  onCreated: (axis: Axis) => void
 }
 
-export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogProps) {
+export function NewAxisDialog({ open, onOpenChange, onCreated }: NewAxisDialogProps) {
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [type, setType] = useState<LensType>('keyword-attached')
+  const [type, setType] = useState<AxisType>('keyword-attached')
   const [valuesText, setValuesText] = useState('')
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,13 +54,13 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
     if (!name.trim()) return
     const values = parseValues(valuesText)
     if (values.length < 2) {
-      setError('A lens needs at least 2 values (otherwise it has nothing to classify against).')
+      setError('An axis needs at least 2 values (otherwise it has nothing to classify against).')
       return
     }
     setCreating(true)
     setError(null)
     try {
-      const lens = await createLens({
+      const axis = await createAxis({
         name: name.trim(),
         description: description.trim() || undefined,
         type,
@@ -70,18 +70,18 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
       // Seed the initial values.
       let order = 1
       for (const value of values) {
-        await createLensValue({
-          lensId: lens.id,
+        await createAxisValue({
+          axisId: axis.id,
           value,
           displayName: value,
           sortOrder: order++,
         })
       }
-      onCreated(lens)
+      onCreated(axis)
       reset()
       onOpenChange(false)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create lens')
+      setError(err instanceof Error ? err.message : 'Failed to create axis')
       setCreating(false)
     }
   }
@@ -97,19 +97,19 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
       <DialogContent>
         <form onSubmit={handleSubmit}>
           <DialogHeader>
-            <DialogTitle>New lens</DialogTitle>
+            <DialogTitle>New axis</DialogTitle>
             <DialogDescription>
-              A lens is a tag axis — a dimension along which keyword mentions are
-              classified. Examples: SDG, Pillar, Function, Sector. Custom lenses
+              An axis is a tag dimension — a way to classify keyword mentions.
+              Examples: SDG, Pillar, Function, Sector. Custom axes
               extend the analysis to non-sustainability domains.
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             <div className="space-y-1.5">
-              <label htmlFor="lens-name" className="text-sm font-medium">Name</label>
+              <label htmlFor="axis-name" className="text-sm font-medium">Name</label>
               <Input
-                id="lens-name"
+                id="axis-name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="e.g. NIST CSF Function"
@@ -119,21 +119,21 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="lens-description" className="text-sm font-medium">
+              <label htmlFor="axis-description" className="text-sm font-medium">
                 Description <span className="text-muted-foreground font-normal">(optional)</span>
               </label>
               <Input
-                id="lens-description"
+                id="axis-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What does this lens classify?"
+                placeholder="What does this axis classify?"
                 disabled={creating}
               />
             </div>
 
             <div className="space-y-1.5">
               <label className="text-sm font-medium">Type</label>
-              <Select value={type} onValueChange={(v) => setType(v as LensType)} disabled={creating}>
+              <Select value={type} onValueChange={(v) => setType(v as AxisType)} disabled={creating}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -149,11 +149,11 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
             </div>
 
             <div className="space-y-1.5">
-              <label htmlFor="lens-values" className="text-sm font-medium">
+              <label htmlFor="axis-values" className="text-sm font-medium">
                 Initial values
               </label>
               <textarea
-                id="lens-values"
+                id="axis-values"
                 value={valuesText}
                 onChange={(e) => setValuesText(e.target.value)}
                 placeholder="One per line, or comma-separated — e.g. Identify, Protect, Detect, Respond, Recover"
@@ -162,7 +162,7 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
                 className="w-full text-sm px-3 py-2 border border-border rounded bg-background focus:outline-none focus:ring-1 focus:ring-foreground/30 resize-none"
               />
               <p className="text-xs text-muted-foreground">
-                You can add more values after creating the lens.
+                You can add more values after creating the axis.
               </p>
             </div>
 
@@ -174,7 +174,7 @@ export function NewLensDialog({ open, onOpenChange, onCreated }: NewLensDialogPr
               Cancel
             </Button>
             <Button type="submit" disabled={!name.trim() || creating}>
-              {creating ? 'Creating…' : 'Create lens'}
+              {creating ? 'Creating…' : 'Create axis'}
             </Button>
           </DialogFooter>
         </form>

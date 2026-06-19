@@ -41,23 +41,23 @@ import {
   createProject,
   addDocumentsToProject,
   setProjectKeywordList,
-  setProjectLenses,
+  setProjectAxes,
   updateProject,
 } from './projects'
 import {
   createKeywordList,
   createKeyword,
   createSynonym,
-  setKeywordListLenses,
+  setKeywordListAxes,
   setKeywordTag,
   listKeywordLists,
 } from './keyword-lists'
 import {
-  createLens,
-  createLensValue,
-  listLenses,
-  listLensValues,
-} from './lenses'
+  createAxis,
+  createAxisValue,
+  listAxes,
+  listAxisValues,
+} from './axes'
 import { createScoringRule, listScoringRules } from './scoring-rules'
 import { getDocumentByHash } from './documents'
 import {
@@ -65,19 +65,19 @@ import {
   type BundleManifest,
   type BundleProject,
   type BundleKeywordList,
-  type BundleLens,
+  type BundleAxis,
   type BundleScoringRule,
   type BundleDocument,
 } from './bundle-project-export'
-import type { Project, KeywordList, Lens, LensValue, ScoringRule } from '@/types/data'
+import type { Project, KeywordList, Axis, AxisValue, ScoringRule } from '@/types/data'
 
 export interface BundlePreview {
   manifest: BundleManifest
   project: BundleProject
   /** What will happen on apply — counts of new vs reused entities. */
   plan: {
-    newLenses: number
-    reusedLenses: number
+    newAxes: number
+    reusedAxes: number
     newKeywordLists: number
     reusedKeywordLists: number
     newScoringRules: number
@@ -94,7 +94,7 @@ export interface ImportResult {
   newDocumentCount: number
   reusedDocumentCount: number
   newKeywordCount: number
-  newLensCount: number
+  newAxisCount: number
 }
 
 // Bundle resource limits — defence against a malicious/corrupt .lens DoSing
@@ -159,7 +159,7 @@ export async function readBundlePreview(bundlePath: string): Promise<BundlePrevi
   }
 
   const project = await readJson<BundleProject>(zip, 'project.json')
-  const lenses = (await readJson<BundleLens[]>(zip, 'lenses.json')) ?? []
+  const axes = (await readJson<BundleAxis[]>(zip, 'lenses.json')) ?? []  // entry name preserved for bundle compatibility
   const keywordLists = (await readJson<BundleKeywordList[]>(zip, 'keyword-lists.json')) ?? []
   const scoringRules = (await readJson<BundleScoringRule[]>(zip, 'scoring-rules.json')) ?? []
   const documents = (await readJson<BundleDocument[]>(zip, 'documents.json')) ?? []
@@ -167,17 +167,17 @@ export async function readBundlePreview(bundlePath: string): Promise<BundlePrevi
   if (!project) throw new Error('Bundle project.json missing')
 
   // Compute new vs reused counts by checking what the local DB already has.
-  const [localLenses, localKeywordLists, localScoringRules] = await Promise.all([
-    listLenses(),
+  const [localAxes, localKeywordLists, localScoringRules] = await Promise.all([
+    listAxes(),
     listKeywordLists(),
     listScoringRules(),
   ])
 
-  let newLenses = 0
-  let reusedLenses = 0
-  for (const l of lenses) {
-    if (resolveExistingLens(l, localLenses)) reusedLenses++
-    else newLenses++
+  let newAxes = 0
+  let reusedAxes = 0
+  for (const a of axes) {
+    if (resolveExistingAxis(a, localAxes)) reusedAxes++
+    else newAxes++
   }
 
   let newKeywordLists = 0
@@ -215,8 +215,8 @@ export async function readBundlePreview(bundlePath: string): Promise<BundlePrevi
     manifest,
     project,
     plan: {
-      newLenses,
-      reusedLenses,
+      newAxes,
+      reusedAxes,
       newKeywordLists,
       reusedKeywordLists,
       newScoringRules,
@@ -250,63 +250,63 @@ export async function applyBundle(
 
   const manifest = await readJson<BundleManifest>(zip, 'manifest.json')
   const project = await readJson<BundleProject>(zip, 'project.json')
-  const bundleLenses = (await readJson<BundleLens[]>(zip, 'lenses.json')) ?? []
+  const bundleAxes = (await readJson<BundleAxis[]>(zip, 'lenses.json')) ?? []  // entry name preserved for bundle compatibility
   const bundleKeywordLists = (await readJson<BundleKeywordList[]>(zip, 'keyword-lists.json')) ?? []
   const bundleScoringRules = (await readJson<BundleScoringRule[]>(zip, 'scoring-rules.json')) ?? []
   const bundleDocuments = (await readJson<BundleDocument[]>(zip, 'documents.json')) ?? []
 
   if (!manifest || !project) throw new Error('Bundle is missing required files')
 
-  // ----- Lenses ------------------------------------------------------------
-  // lensName → local lens id (after match-or-create)
-  const lensNameToId = new Map<string, string>()
-  // (lensName, valueName) → local value id (after match-or-create)
-  const lensValueIdByPath = new Map<string, string>()  // key: `${lensName}\x1f${valueName}`
+  // ----- Axes ---------------------------------------------------------------
+  // axisName → local axis id (after match-or-create)
+  const axisNameToId = new Map<string, string>()
+  // (axisName, valueName) → local value id (after match-or-create)
+  const axisValueIdByPath = new Map<string, string>()  // key: `${axisName}\x1f${valueName}`
 
-  const localLenses = await listLenses()
-  let lensIdx = 0
-  for (const bl of bundleLenses) {
+  const localAxes = await listAxes()
+  let axisIdx = 0
+  for (const ba of bundleAxes) {
     onProgress?.({
       phase: 'lenses',
-      current: ++lensIdx,
-      total: bundleLenses.length,
-      message: bl.name,
+      current: ++axisIdx,
+      total: bundleAxes.length,
+      message: ba.name,
     })
 
-    const existing = resolveExistingLens(bl, localLenses)
-    let lensId: string
+    const existing = resolveExistingAxis(ba, localAxes)
+    let axisId: string
     if (existing) {
-      lensId = existing.id
+      axisId = existing.id
       // Reuse — load existing values into the path map.
-      const existingValues = await listLensValues(lensId)
+      const existingValues = await listAxisValues(axisId)
       for (const v of existingValues) {
-        lensValueIdByPath.set(`${bl.name}\x1f${v.value}`, v.id)
+        axisValueIdByPath.set(`${ba.name}\x1f${v.value}`, v.id)
       }
     } else {
-      const created = await createLens({
-        name: uniqueName(bl.name, localLenses.map((l) => l.name)),
-        description: bl.description ?? undefined,
-        type: bl.type,
-        isHierarchical: bl.isHierarchical,
+      const created = await createAxis({
+        name: uniqueName(ba.name, localAxes.map((a) => a.name)),
+        description: ba.description ?? undefined,
+        type: ba.type,
+        isHierarchical: ba.isHierarchical,
         isBuiltin: false,  // imported customs are never built-in
       })
-      lensId = created.id
+      axisId = created.id
       // Create values; resolve hierarchy parent in a second pass so
       // child-before-parent ordering doesn't matter.
-      const createdValuesByName = new Map<string, LensValue>()
-      for (const v of bl.values) {
-        const cv = await createLensValue({
-          lensId,
+      const createdValuesByName = new Map<string, AxisValue>()
+      for (const v of ba.values) {
+        const cv = await createAxisValue({
+          axisId,
           value: v.value,
           displayName: v.displayName ?? undefined,
           description: v.description ?? undefined,
           sortOrder: v.sortOrder,
         })
         createdValuesByName.set(v.value, cv)
-        lensValueIdByPath.set(`${bl.name}\x1f${v.value}`, cv.id)
+        axisValueIdByPath.set(`${ba.name}\x1f${v.value}`, cv.id)
       }
       // Hierarchy fix-up.
-      for (const v of bl.values) {
+      for (const v of ba.values) {
         if (!v.parentValueName) continue
         const child = createdValuesByName.get(v.value)
         const parent = createdValuesByName.get(v.parentValueName)
@@ -315,7 +315,7 @@ export async function applyBundle(
         }
       }
     }
-    lensNameToId.set(bl.name, lensId)
+    axisNameToId.set(ba.name, axisId)
   }
 
   // ----- Keyword lists -----------------------------------------------------
@@ -347,12 +347,12 @@ export async function applyBundle(
       })
       listId = created.id
 
-      // Declare the list's lenses (resolved to new IDs).
-      const declaredLensIds = bkl.declaredLenses
-        .map((name) => lensNameToId.get(name))
+      // Declare the list's axes (resolved to new IDs).
+      const declaredAxisIds = bkl.declaredLenses
+        .map((name) => axisNameToId.get(name))
         .filter((id): id is string => Boolean(id))
-      if (declaredLensIds.length > 0) {
-        await setKeywordListLenses(listId, declaredLensIds)
+      if (declaredAxisIds.length > 0) {
+        await setKeywordListAxes(listId, declaredAxisIds)
       }
 
       // Create keywords + synonyms + tags.
@@ -369,10 +369,10 @@ export async function applyBundle(
 
         // Tags
         for (const tag of bk.tags) {
-          const lensId = lensNameToId.get(tag.lensName)
-          const valueId = lensValueIdByPath.get(`${tag.lensName}\x1f${tag.valueName}`)
-          if (lensId && valueId) {
-            await setKeywordTag(keyword.id, lensId, valueId)
+          const axisId = axisNameToId.get(tag.lensName)
+          const valueId = axisValueIdByPath.get(`${tag.lensName}\x1f${tag.valueName}`)
+          if (axisId && valueId) {
+            await setKeywordTag(keyword.id, axisId, valueId)
           }
         }
 
@@ -406,12 +406,12 @@ export async function applyBundle(
     if (existing) {
       ruleId = existing.id
     } else {
-      // Rewrite *Name back to *Id using lensNameToId / lensValueIdByPath.
+      // Rewrite *Name back to *Id using axisNameToId / axisValueIdByPath.
       const remappedDef: Record<string, unknown> = {}
       for (const [k, v] of Object.entries(bsr.definition)) {
         if (typeof v === 'string') {
-          if (k.endsWith('LensName') && lensNameToId.has(v)) {
-            remappedDef[k.replace(/Name$/, 'Id')] = lensNameToId.get(v)
+          if (k.endsWith('LensName') && axisNameToId.has(v)) {
+            remappedDef[k.replace(/Name$/, 'Id')] = axisNameToId.get(v)
             continue
           }
           if (k.endsWith('ValueName')) {
@@ -446,7 +446,7 @@ export async function applyBundle(
   const newProject = await createProject({
     name: projectName,
     description: project.description ?? undefined,
-    researchFocus: project.researchFocus ?? undefined,
+    lens: project.researchFocus ?? undefined,
   })
 
   // ----- Documents ---------------------------------------------------------
@@ -540,10 +540,10 @@ export async function applyBundle(
       }
       for (const tag of bd.sectionTags) {
         const sectionId = sectionIdByIndex.get(tag.sectionIndex)
-        const lensId = lensNameToId.get(tag.lensName)
-        const valueId = lensValueIdByPath.get(`${tag.lensName}\x1f${tag.valueName}`)
-        if (sectionId && lensId && valueId) {
-          docOps.push({ key: 'sections.setTag', params: [sectionId, lensId, valueId, tag.confidence] })
+        const axisId = axisNameToId.get(tag.lensName)
+        const valueId = axisValueIdByPath.get(`${tag.lensName}\x1f${tag.valueName}`)
+        if (sectionId && axisId && valueId) {
+          docOps.push({ key: 'sections.setTag', params: [sectionId, axisId, valueId, tag.confidence] })
         }
       }
 
@@ -572,12 +572,12 @@ export async function applyBundle(
     await setProjectKeywordList(newProject.id, activeListId)
   }
 
-  // Active lenses = all lenses referenced in the bundle.
-  const activeLensIds = bundleLenses
-    .map((l) => lensNameToId.get(l.name))
+  // Active axes = all axes referenced in the bundle.
+  const activeAxisIds = bundleAxes
+    .map((a) => axisNameToId.get(a.name))
     .filter((id): id is string => Boolean(id))
-  if (activeLensIds.length > 0) {
-    await setProjectLenses(newProject.id, activeLensIds)
+  if (activeAxisIds.length > 0) {
+    await setProjectAxes(newProject.id, activeAxisIds)
   }
 
   if (scoringRuleId) {
@@ -589,8 +589,8 @@ export async function applyBundle(
     newDocumentCount,
     reusedDocumentCount,
     newKeywordCount,
-    newLensCount: bundleLenses.length - localLenses.filter((l) =>
-      bundleLenses.some((bl) => resolveExistingLens(bl, [l]))
+    newAxisCount: bundleAxes.length - localAxes.filter((a) =>
+      bundleAxes.some((ba) => resolveExistingAxis(ba, [a]))
     ).length,
   }
 }
@@ -612,11 +612,11 @@ async function readJson<T>(zip: JSZip, path: string): Promise<T | null> {
   }
 }
 
-function resolveExistingLens(bundleLens: BundleLens, locals: Lens[]): Lens | null {
-  // Built-in lenses are matched by name + isBuiltin flag (same content
+function resolveExistingAxis(bundleAxis: BundleAxis, locals: Axis[]): Axis | null {
+  // Built-in axes are matched by name + isBuiltin flag (same content
   // regardless of who exported the bundle).
-  if (bundleLens.isBuiltin) {
-    return locals.find((l) => l.isBuiltin && l.name === bundleLens.name) ?? null
+  if (bundleAxis.isBuiltin) {
+    return locals.find((a) => a.isBuiltin && a.name === bundleAxis.name) ?? null
   }
   return null
 }

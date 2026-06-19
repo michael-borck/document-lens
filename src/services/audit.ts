@@ -21,12 +21,12 @@
 
 import { selectAll, selectOne, runStatement, now } from './db'
 import { listKeywords } from './keyword-lists'
-import { listLensValues, getLens } from './lenses'
+import { listAxisValues, getAxis } from './axes'
 import { listSections, getSectionTagsForDocument } from './sections'
 import { api, type StructuralMismatchResponse } from './api'
 import type {
   KeywordPolarity,
-  LensValue,
+  AxisValue,
 } from '@/types/data'
 
 export type AuditMode = 'anomalies' | 'confirmations'
@@ -77,8 +77,8 @@ export interface AuditProgress {
 export interface RunAuditInput {
   projectId: string
   keywordListId: string
-  /** Document-context lens to use as the domain set (typically Function). */
-  lensId: string
+  /** Document-context axis to use as the domain set (typically Function). */
+  axisId: string
   /** Anomalies (off-context flags) or Confirmations (in-context proof). */
   mode: AuditMode
   /** Dislocation threshold passed to the backend (0.0–1.0; default 0.3). Anomalies only. */
@@ -99,19 +99,19 @@ export async function runAudit(
   input: RunAuditInput,
   onProgress?: (p: AuditProgress) => void
 ): Promise<AuditResult> {
-  // 1. Validate lens + load values for the domain payload.
-  const lens = await getLens(input.lensId)
-  if (!lens) throw new Error(`Lens ${input.lensId} not found`)
-  if (lens.type !== 'document-context') {
+  // 1. Validate axis + load values for the domain payload.
+  const axis = await getAxis(input.axisId)
+  if (!axis) throw new Error(`Axis ${input.axisId} not found`)
+  if (axis.type !== 'document-context') {
     throw new Error(
-      `Lens "${lens.name}" is keyword-attached; Audit needs a document-context lens (e.g., Function).`
+      `Axis "${axis.name}" is keyword-attached; Audit needs a document-context axis (e.g., Function).`
     )
   }
-  const lensValues = await listLensValues(input.lensId)
+  const lensValues = await listAxisValues(input.axisId)
   if (lensValues.length < 2) {
-    throw new Error(`Lens "${lens.name}" needs at least 2 values to audit against.`)
+    throw new Error(`Axis "${axis.name}" needs at least 2 values to audit against.`)
   }
-  const domainLabels = lensValues.map((v) => domainLabelFor(v))
+  const domainLabels = lensValues.map((v: AxisValue) => domainLabelFor(v))
 
   // 2. Load project documents (with extracted text only).
   const docs = await selectAll<ProjectDocRow>(
@@ -182,7 +182,7 @@ export async function runAudit(
       // Confirmations: per-section keyword scan over already-classified
       // sections. No backend call, no embedding work — purely local.
       const sections = await listSections(doc.id)
-      const tags = await getSectionTagsForDocument(doc.id, input.lensId)
+      const tags = await getSectionTagsForDocument(doc.id, input.axisId)
       if (sections.length === 0 || tags.size === 0) {
         // Document hasn't been classified for this lens — skip silently.
         // (User can run classification on Setup.)
@@ -220,7 +220,7 @@ export async function runAudit(
 
     // Anomalies (default): call backend (or pull from cache), find
     // keyword-bearing dislocations.
-    const cacheKey = await buildAuditCacheKey(text, input.lensId, threshold, domainLabels)
+    const cacheKey = await buildAuditCacheKey(text, input.axisId, threshold, domainLabels)
     let response = await readAuditCache(input.projectId, cacheKey)
     if (response) {
       cacheHits++
@@ -314,13 +314,13 @@ const AUDIT_CACHE_PREFIX = 'audit:v1:'
 
 async function buildAuditCacheKey(
   text: string,
-  lensId: string,
+  axisId: string,
   threshold: number,
   domainLabels: string[]
 ): Promise<string> {
   const parts = [
     text,
-    lensId,
+    axisId,
     threshold.toString(),
     [...domainLabels].sort().join('\x1f'),
   ]
@@ -363,7 +363,7 @@ async function writeAuditCache(
  * sends the same payload the Function classifier sends — keeps the
  * embedding model consistent across the two analyses.
  */
-function domainLabelFor(value: LensValue): string {
+function domainLabelFor(value: AxisValue): string {
   const head = value.displayName ?? value.value
   return value.description ? `${head}: ${value.description}` : head
 }

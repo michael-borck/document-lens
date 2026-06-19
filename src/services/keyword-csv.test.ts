@@ -3,7 +3,7 @@ import { createTestDb, type TestDb } from './_shared/test-db'
 import { setDbDriver, resetDbDriver } from './db'
 import { keywordListToCsv, csvToNewKeywordList } from './keyword-csv'
 import { listKeywordLists, listKeywords, listKeywordTags, listSynonyms } from './keyword-lists'
-import { listLensValues } from './lenses'
+import { listAxisValues } from './axes'
 
 let t: TestDb
 afterEach(() => {
@@ -57,8 +57,8 @@ describe('keyword CSV export/import', () => {
 
     // tags re-resolved to the same lens value codes
     const tags = await listKeywordTags(byText['climate action'].id)
-    const vals = await listLensValues(pillar)
-    const codeById = Object.fromEntries(vals.map((v) => [v.id, v.value]))
+    const vals = await listAxisValues(pillar)
+    const codeById = Object.fromEntries(vals.map((v: { id: string; value: string }) => [v.id, v.value]))
     expect(tags.map((tg) => codeById[tg.valueId])).toEqual(['biosphere'])
 
     const syns = (await listSynonyms(byText['climate action'].id)).map((s) => s.text).sort()

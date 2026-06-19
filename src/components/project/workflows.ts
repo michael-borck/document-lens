@@ -31,7 +31,7 @@ export const WORKFLOW_GROUPS: WorkflowGroup[] = [
       {
         to: 'setup',
         label: 'Setup',
-        question: 'Assemble this project: documents, keywords, lenses, scoring rule.',
+        question: 'Assemble this project: documents, keywords, axes, scoring rule.',
       },
     ],
   },

@@ -32,7 +32,7 @@ function rowToProject(row: ProjectRow): Project {
     id: row.id,
     name: row.name,
     description: row.description,
-    researchFocus: row.research_focus,
+    lens: row.research_focus,
     scoringRuleId: row.scoring_rule_id,
     filterState: row.filter_state
       ? parseJson<ProjectFilterState>(row.filter_state, {})
@@ -61,7 +61,7 @@ export async function getProjectWithSetup(id: string): Promise<ProjectWithSetup 
   const project = await getProject(id)
   if (!project) return null
 
-  const [documentRows, listRows, lensRows] = await Promise.all([
+  const [documentRows, listRows, axisRows] = await Promise.all([
     selectAll<{ document_id: string }>('projects.listDocumentIds', [id]),
     selectAll<{ list_id: string }>('projects.listKeywordListIds', [id]),
     selectAll<{ lens_id: string }>('projects.listLensIds', [id]),
@@ -71,14 +71,15 @@ export async function getProjectWithSetup(id: string): Promise<ProjectWithSetup 
     ...project,
     documentIds: documentRows.map((r) => r.document_id),
     keywordListIds: listRows.map((r) => r.list_id),
-    lensIds: lensRows.map((r) => r.lens_id),
+    axisIds: axisRows.map((r) => r.lens_id),
   }
 }
 
 export interface CreateProjectInput {
   name: string
   description?: string
-  researchFocus?: string
+  /** Domain lens for this project: 'sustainability' | 'cybersecurity' | 'general'. DB column: research_focus. */
+  lens?: string
   scoringRuleId?: string
 }
 
@@ -89,7 +90,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
     id,
     input.name,
     input.description ?? null,
-    input.researchFocus ?? null,
+    input.lens ?? null,
     input.scoringRuleId ?? null,
     null,
     timestamp,
@@ -105,7 +106,8 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
 export interface UpdateProjectInput {
   name?: string
   description?: string | null
-  researchFocus?: string | null
+  /** Domain lens for this project. DB column: research_focus. */
+  lens?: string | null
   scoringRuleId?: string | null
   filterState?: ProjectFilterState | null
 }
@@ -122,9 +124,9 @@ export async function updateProject(id: string, patch: UpdateProjectInput): Prom
     columns.push('description')
     params.push(patch.description)
   }
-  if (patch.researchFocus !== undefined) {
+  if (patch.lens !== undefined) {
     columns.push('research_focus')
-    params.push(patch.researchFocus)
+    params.push(patch.lens)
   }
   if (patch.scoringRuleId !== undefined) {
     columns.push('scoring_rule_id')
@@ -148,7 +150,7 @@ export async function deleteProject(id: string): Promise<void> {
 }
 
 /**
- * Clone a project's setup (documents, keyword lists, lenses, scoring
+ * Clone a project's setup (documents, keyword lists, axes, scoring
  * rule) into a new project (US-X-09). The new project has its own id,
  * its own analysis cache (empty), and a new name; everything else
  * mirrors the source.
@@ -162,12 +164,12 @@ export async function cloneProject(sourceId: string, newName: string): Promise<P
   const cloned = await createProject({
     name: newName,
     description: source.description ?? undefined,
-    researchFocus: source.researchFocus ?? undefined,
+    lens: source.lens ?? undefined,
     scoringRuleId: source.scoringRuleId ?? undefined,
   })
 
-  // Replicate document / keyword-list / lens activations atomically — a
-  // partial clone (some docs but no lenses) would be a confusing setup.
+  // Replicate document / keyword-list / axis activations atomically — a
+  // partial clone (some docs but no axes) would be a confusing setup.
   const timestamp = now()
   const ops: BatchOp[] = [
     ...source.documentIds.map((docId) => ({
@@ -178,9 +180,9 @@ export async function cloneProject(sourceId: string, newName: string): Promise<P
       key: 'projects.addKeywordList',
       params: [cloned.id, listId],
     })),
-    ...source.lensIds.map((lensId) => ({
+    ...source.axisIds.map((axisId) => ({
       key: 'projects.addLens',
-      params: [cloned.id, lensId],
+      params: [cloned.id, axisId],
     })),
   ]
   await runBatch(ops)
@@ -224,15 +226,15 @@ export async function setProjectKeywordList(
   ])
 }
 
-export async function setProjectLenses(
+export async function setProjectAxes(
   projectId: string,
-  lensIds: string[]
+  axisIds: string[]
 ): Promise<void> {
   // Clear-then-insert atomically: a crash between the two would otherwise
-  // leave the project with zero lenses.
+  // leave the project with zero axes.
   await runBatch([
     { key: 'projects.clearLenses', params: [projectId] },
-    ...lensIds.map((lensId) => ({ key: 'projects.addLens', params: [projectId, lensId] })),
+    ...axisIds.map((axisId) => ({ key: 'projects.addLens', params: [projectId, axisId] })),
     { key: 'projects.touch', params: [now(), projectId] },
   ])
 }

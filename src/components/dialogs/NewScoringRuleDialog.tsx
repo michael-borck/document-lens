@@ -19,9 +19,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
-import { listLenses, listLensValues } from '@/services/lenses'
+import { listAxes, listAxisValues } from '@/services/axes'
 import { createScoringRule } from '@/services/scoring-rules'
-import type { Lens, LensValue, ScoringRule } from '@/types/data'
+import type { Axis, AxisValue, ScoringRule } from '@/types/data'
 
 type Pattern = 'coverage-count' | 'cross-coverage'
 
@@ -35,52 +35,52 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
   const [pattern, setPattern] = useState<Pattern | null>(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [allLenses, setAllLenses] = useState<Lens[]>([])
+  const [allAxes, setAllAxes] = useState<Axis[]>([])
 
   // Coverage-count state
-  const [categoryLensId, setCategoryLensId] = useState('')
-  const [categoryValues, setCategoryValues] = useState<LensValue[]>([])
+  const [categoryAxisId, setCategoryAxisId] = useState('')
+  const [categoryValues, setCategoryValues] = useState<AxisValue[]>([])
 
   // Cross-coverage state
-  const [layerLensId, setLayerLensId] = useState('')
-  const [layerValues, setLayerValues] = useState<LensValue[]>([])
+  const [layerAxisId, setLayerAxisId] = useState('')
+  const [layerValues, setLayerValues] = useState<AxisValue[]>([])
   const [requiredLayerIds, setRequiredLayerIds] = useState<Set<string>>(new Set())
-  const [subjectLensId, setSubjectLensId] = useState('')
-  const [subjectValues, setSubjectValues] = useState<LensValue[]>([])
+  const [subjectAxisId, setSubjectAxisId] = useState('')
+  const [subjectValues, setSubjectValues] = useState<AxisValue[]>([])
 
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!open) return
-    listLenses().then(setAllLenses)
+    listAxes().then(setAllAxes)
   }, [open])
 
   useEffect(() => {
-    if (!categoryLensId) { setCategoryValues([]); return }
-    listLensValues(categoryLensId).then(setCategoryValues)
-  }, [categoryLensId])
+    if (!categoryAxisId) { setCategoryValues([]); return }
+    listAxisValues(categoryAxisId).then(setCategoryValues)
+  }, [categoryAxisId])
 
   useEffect(() => {
-    if (!layerLensId) { setLayerValues([]); setRequiredLayerIds(new Set()); return }
-    listLensValues(layerLensId).then((values) => {
+    if (!layerAxisId) { setLayerValues([]); setRequiredLayerIds(new Set()); return }
+    listAxisValues(layerAxisId).then((values) => {
       setLayerValues(values)
       setRequiredLayerIds(new Set(values.map((v) => v.id)))
     })
-  }, [layerLensId])
+  }, [layerAxisId])
 
   useEffect(() => {
-    if (!subjectLensId) { setSubjectValues([]); return }
-    listLensValues(subjectLensId).then(setSubjectValues)
-  }, [subjectLensId])
+    if (!subjectAxisId) { setSubjectValues([]); return }
+    listAxisValues(subjectAxisId).then(setSubjectValues)
+  }, [subjectAxisId])
 
   const reset = () => {
     setPattern(null)
     setName('')
     setDescription('')
-    setCategoryLensId('')
-    setLayerLensId('')
-    setSubjectLensId('')
+    setCategoryAxisId('')
+    setLayerAxisId('')
+    setSubjectAxisId('')
     setRequiredLayerIds(new Set())
     setError(null)
     setCreating(false)
@@ -98,13 +98,13 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
     if (!name.trim()) { setError('Give the rule a name.'); return }
 
     if (pattern === 'coverage-count') {
-      if (!categoryLensId) { setError('Pick a Categories lens.'); return }
-      if (categoryValues.length === 0) { setError('The selected lens has no values yet. Add values to it first.'); return }
+      if (!categoryAxisId) { setError('Pick a Categories axis.'); return }
+      if (categoryValues.length === 0) { setError('The selected axis has no values yet. Add values to it first.'); return }
     } else {
-      if (!layerLensId) { setError('Pick a Layers lens.'); return }
+      if (!layerAxisId) { setError('Pick a Layers axis.'); return }
       if (requiredLayerIds.size === 0) { setError('Select at least one required layer value.'); return }
-      if (!subjectLensId) { setError('Pick a Subjects lens.'); return }
-      if (subjectValues.length === 0) { setError('The Subjects lens has no values yet. Add values to it first.'); return }
+      if (!subjectAxisId) { setError('Pick a Subjects axis.'); return }
+      if (subjectValues.length === 0) { setError('The Subjects axis has no values yet. Add values to it first.'); return }
     }
 
     setCreating(true)
@@ -115,7 +115,8 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
       let outputLevels: Array<{ value: number; label: string; description: string }>
 
       if (pattern === 'coverage-count') {
-        definition = { type: 'coverage-count', version: 1, categoryLensId }
+        // categoryLensId DB key preserved for backwards-compatible scoring rule definitions
+        definition = { type: 'coverage-count', version: 1, categoryLensId: categoryAxisId }
         outputLevels = Array.from({ length: categoryValues.length + 1 }, (_, score) => ({
           value: score,
           label: `Level ${score}`,
@@ -129,11 +130,12 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
         const requiredLayerStrings = layerValues
           .filter((v) => requiredLayerIds.has(v.id))
           .map((v) => v.value)
+        // layerLensId / subjectLensId DB keys preserved for backwards-compatible scoring rule definitions
         definition = {
           type: 'cross-coverage',
           version: 1,
-          layerLensId,
-          subjectLensId,
+          layerLensId: layerAxisId,
+          subjectLensId: subjectAxisId,
           requiredLayers: requiredLayerStrings,
         }
         outputLevels = Array.from({ length: subjectValues.length + 1 }, (_, score) => ({
@@ -170,7 +172,7 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
           <DialogHeader>
             <DialogTitle>New scoring rule</DialogTitle>
             <DialogDescription>
-              Choose a scoring pattern, then configure which lenses it uses.
+              Choose a scoring pattern, then configure which axes it uses.
             </DialogDescription>
           </DialogHeader>
 
@@ -226,25 +228,25 @@ export function NewScoringRuleDialog({ open, onOpenChange, onCreated }: NewScori
 
                 {pattern === 'coverage-count' && (
                   <CoverageCountFields
-                    allLenses={allLenses}
-                    categoryLensId={categoryLensId}
+                    allAxes={allAxes}
+                    categoryAxisId={categoryAxisId}
                     categoryValues={categoryValues}
-                    onCategoryLensChange={setCategoryLensId}
+                    onCategoryAxisChange={setCategoryAxisId}
                     disabled={creating}
                   />
                 )}
 
                 {pattern === 'cross-coverage' && (
                   <CrossCoverageFields
-                    allLenses={allLenses}
-                    layerLensId={layerLensId}
+                    allAxes={allAxes}
+                    layerAxisId={layerAxisId}
                     layerValues={layerValues}
                     requiredLayerIds={requiredLayerIds}
-                    subjectLensId={subjectLensId}
+                    subjectAxisId={subjectAxisId}
                     subjectValues={subjectValues}
-                    onLayerLensChange={setLayerLensId}
+                    onLayerAxisChange={setLayerAxisId}
                     onToggleLayer={toggleLayer}
-                    onSubjectLensChange={setSubjectLensId}
+                    onSubjectAxisChange={setSubjectAxisId}
                     disabled={creating}
                   />
                 )}
@@ -310,33 +312,33 @@ function PatternCard({
 // ---------------------------------------------------------------------------
 
 function CoverageCountFields({
-  allLenses,
-  categoryLensId,
+  allAxes,
+  categoryAxisId,
   categoryValues,
-  onCategoryLensChange,
+  onCategoryAxisChange,
   disabled,
 }: {
-  allLenses: Lens[]
-  categoryLensId: string
-  categoryValues: LensValue[]
-  onCategoryLensChange: (id: string) => void
+  allAxes: Axis[]
+  categoryAxisId: string
+  categoryValues: AxisValue[]
+  onCategoryAxisChange: (id: string) => void
   disabled: boolean
 }) {
   return (
     <div className="space-y-4 border border-border rounded-md p-4 bg-muted/10">
       <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categories lens</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Categories axis</p>
         <p className="text-xs text-muted-foreground">
-          Each value in this lens is a category. The score counts how many
-          are covered by keyword matches. Create the lens and its values in{' '}
-          <strong>Lenses</strong> first.
+          Each value in this axis is a category. The score counts how many
+          are covered by keyword matches. Create the axis and its values in{' '}
+          <strong>Axes</strong> first.
         </p>
       </div>
-      <Select value={categoryLensId} onValueChange={onCategoryLensChange} disabled={disabled}>
-        <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+      <Select value={categoryAxisId} onValueChange={onCategoryAxisChange} disabled={disabled}>
+        <SelectTrigger><SelectValue placeholder="Pick an axis" /></SelectTrigger>
         <SelectContent>
-          {allLenses.map((l) => (
-            <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+          {allAxes.map((a) => (
+            <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -355,26 +357,26 @@ function CoverageCountFields({
 // ---------------------------------------------------------------------------
 
 function CrossCoverageFields({
-  allLenses,
-  layerLensId,
+  allAxes,
+  layerAxisId,
   layerValues,
   requiredLayerIds,
-  subjectLensId,
+  subjectAxisId,
   subjectValues,
-  onLayerLensChange,
+  onLayerAxisChange,
   onToggleLayer,
-  onSubjectLensChange,
+  onSubjectAxisChange,
   disabled,
 }: {
-  allLenses: Lens[]
-  layerLensId: string
-  layerValues: LensValue[]
+  allAxes: Axis[]
+  layerAxisId: string
+  layerValues: AxisValue[]
   requiredLayerIds: Set<string>
-  subjectLensId: string
-  subjectValues: LensValue[]
-  onLayerLensChange: (id: string) => void
+  subjectAxisId: string
+  subjectValues: AxisValue[]
+  onLayerAxisChange: (id: string) => void
   onToggleLayer: (id: string) => void
-  onSubjectLensChange: (id: string) => void
+  onSubjectAxisChange: (id: string) => void
   disabled: boolean
 }) {
   return (
@@ -382,17 +384,17 @@ function CrossCoverageFields({
       {/* Layers */}
       <div className="space-y-3 border border-border rounded-md p-4 bg-muted/10">
         <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Layers lens</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Layers axis</p>
           <p className="text-xs text-muted-foreground">
             The categories that must <strong>all</strong> be covered for a Subject to pass.
             In the Wedding Cake model this is Biosphere / Society / Economy.
           </p>
         </div>
-        <Select value={layerLensId} onValueChange={onLayerLensChange} disabled={disabled}>
-          <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+        <Select value={layerAxisId} onValueChange={onLayerAxisChange} disabled={disabled}>
+          <SelectTrigger><SelectValue placeholder="Pick an axis" /></SelectTrigger>
           <SelectContent>
-            {allLenses.map((l) => (
-              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+            {allAxes.map((a) => (
+              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -417,18 +419,18 @@ function CrossCoverageFields({
       {/* Subjects */}
       <div className="space-y-3 border border-border rounded-md p-4 bg-muted/10">
         <div className="space-y-1">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subjects lens</p>
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Subjects axis</p>
           <p className="text-xs text-muted-foreground">
             The things being evaluated — how many cover all required layers?
             In the Wedding Cake model this is Teaching / Research / Engagement / Operations.
             Subjects must be classified per-section via the Function Classification step.
           </p>
         </div>
-        <Select value={subjectLensId} onValueChange={onSubjectLensChange} disabled={disabled}>
-          <SelectTrigger><SelectValue placeholder="Pick a lens" /></SelectTrigger>
+        <Select value={subjectAxisId} onValueChange={onSubjectAxisChange} disabled={disabled}>
+          <SelectTrigger><SelectValue placeholder="Pick an axis" /></SelectTrigger>
           <SelectContent>
-            {allLenses.map((l) => (
-              <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+            {allAxes.map((a) => (
+              <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
             ))}
           </SelectContent>
         </Select>

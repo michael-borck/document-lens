@@ -33,9 +33,9 @@ import {
   listKeywords,
   listSynonyms,
   listKeywordTags,
-  getKeywordListLenses,
+  getKeywordListAxes,
 } from './keyword-lists'
-import { listLensValues } from './lenses'
+import { listAxisValues } from './axes'
 import { getScoringRule } from './scoring-rules'
 import { listSections, getSectionTagsForDocument } from './sections'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
@@ -44,8 +44,8 @@ import type {
   KeywordList,
   Keyword,
   Synonym,
-  Lens,
-  LensValue,
+  Axis,
+  AxisValue,
   ScoringRule,
   Document,
   DocumentStatus,
@@ -81,6 +81,7 @@ export interface BundleManifest {
 export interface BundleProject {
   name: string
   description: string | null
+  /** Domain lens (research_focus DB column). */
   researchFocus: string | null
   /** Reference to a scoring rule by NAME (not ID) — IDs are remapped
    *  on import. */
@@ -116,16 +117,16 @@ export interface BundleSynonym {
   addedAt: string
 }
 
-export interface BundleLens {
+export interface BundleAxis {
   name: string
   description: string | null
-  type: Lens['type']
+  type: Axis['type']
   isHierarchical: boolean
   isBuiltin: boolean
-  values: BundleLensValue[]
+  values: BundleAxisValue[]
 }
 
-export interface BundleLensValue {
+export interface BundleAxisValue {
   value: string
   displayName: string | null
   description: string | null
@@ -204,35 +205,35 @@ export async function exportProjectBundle(
 
   const zip = new JSZip()
 
-  // --- Lenses + values ------------------------------------------------------
-  const allLenses = await getProjectLenses(project.id)
-  const lensValuesByLensId = new Map<string, LensValue[]>()
-  for (const lens of allLenses) {
-    lensValuesByLensId.set(lens.id, await listLensValues(lens.id))
+  // --- Axes + values -------------------------------------------------------
+  const allAxes = await getProjectAxes(project.id)
+  const axisValuesByAxisId = new Map<string, AxisValue[]>()
+  for (const axis of allAxes) {
+    axisValuesByAxisId.set(axis.id, await listAxisValues(axis.id))
   }
-  const bundleLenses: BundleLens[] = allLenses.map((l) => ({
-    name: l.name,
-    description: l.description,
-    type: l.type,
-    isHierarchical: l.isHierarchical,
-    isBuiltin: l.isBuiltin,
-    values: (lensValuesByLensId.get(l.id) ?? []).map((v) => ({
+  const bundleAxes: BundleAxis[] = allAxes.map((a) => ({
+    name: a.name,
+    description: a.description,
+    type: a.type,
+    isHierarchical: a.isHierarchical,
+    isBuiltin: a.isBuiltin,
+    values: (axisValuesByAxisId.get(a.id) ?? []).map((v) => ({
       value: v.value,
       displayName: v.displayName,
       description: v.description,
       parentValueName: v.parentValueId
-        ? (lensValuesByLensId.get(l.id) ?? []).find((p) => p.id === v.parentValueId)?.value ?? null
+        ? (axisValuesByAxisId.get(a.id) ?? []).find((p) => p.id === v.parentValueId)?.value ?? null
         : null,
       sortOrder: v.sortOrder,
     })),
   }))
 
   // Build lookup maps so the keyword-list and document serialisers
-  // can convert (lensId, valueId) tags into (lensName, valueName).
+  // can convert (axisId, valueId) tags into (axisName, valueName).
   const lensIdToName = new Map<string, string>()
-  for (const l of allLenses) lensIdToName.set(l.id, l.name)
+  for (const a of allAxes) lensIdToName.set(a.id, a.name)
   const valueIdToName = new Map<string, string>()
-  for (const [, values] of lensValuesByLensId) {
+  for (const [, values] of axisValuesByAxisId) {
     for (const v of values) valueIdToName.set(v.id, v.value)
   }
 
@@ -243,7 +244,7 @@ export async function exportProjectBundle(
   let totalSynonyms = 0
   for (const list of keywordLists) {
     const keywords = await listKeywords(list.id)
-    const declaredLensIds = await getKeywordListLenses(list.id)
+    const declaredLensIds = await getKeywordListAxes(list.id)
     const declaredLensNames = declaredLensIds
       .map((id) => lensIdToName.get(id))
       .filter((n): n is string => Boolean(n))
@@ -256,7 +257,7 @@ export async function exportProjectBundle(
       ])
       const namedTags = tags
         .map((t) => ({
-          lensName: lensIdToName.get(t.lensId) ?? null,
+          lensName: lensIdToName.get(t.axisId) ?? null,
           valueName: valueIdToName.get(t.valueId) ?? null,
         }))
         .filter((t): t is { lensName: string; valueName: string } =>
@@ -318,10 +319,10 @@ export async function exportProjectBundle(
     )
     const sections = await listSections(doc.id)
 
-    // Section tags for every active lens at once: union per-lens results.
+    // Section tags for every active axis at once: union per-axis results.
     const sectionTagsAcc: BundleDocument['sectionTags'] = []
-    for (const lens of allLenses) {
-      const tagMap = await getSectionTagsForDocument(doc.id, lens.id)
+    for (const axis of allAxes) {
+      const tagMap = await getSectionTagsForDocument(doc.id, axis.id)
       for (const [sectionId, { valueId, confidence }] of tagMap) {
         const section = sections.find((s) => s.id === sectionId)
         if (!section) continue
@@ -329,7 +330,7 @@ export async function exportProjectBundle(
         if (!valueName) continue
         sectionTagsAcc.push({
           sectionIndex: section.sectionIndex,
-          lensName: lens.name,
+          lensName: axis.name,
           valueName,
           confidence,
         })
@@ -386,7 +387,7 @@ export async function exportProjectBundle(
   const bundleProject: BundleProject = {
     name: project.name,
     description: project.description,
-    researchFocus: project.researchFocus,
+    researchFocus: project.lens,
     scoringRuleName,
   }
 
@@ -401,7 +402,7 @@ export async function exportProjectBundle(
       keywordLists: bundleKeywordLists.length,
       keywords: totalKeywords,
       synonyms: totalSynonyms,
-      lenses: bundleLenses.length,
+      lenses: bundleAxes.length,
       scoringRules: scoringRules.length,
     },
     filesIncluded: actuallyIncludedFiles,
@@ -411,7 +412,7 @@ export async function exportProjectBundle(
   zip.file('manifest.json', JSON.stringify(manifest, null, 2))
   zip.file('project.json', JSON.stringify(bundleProject, null, 2))
   zip.file('keyword-lists.json', JSON.stringify(bundleKeywordLists, null, 2))
-  zip.file('lenses.json', JSON.stringify(bundleLenses, null, 2))
+  zip.file('lenses.json', JSON.stringify(bundleAxes, null, 2))  // entry name preserved for bundle compatibility
   zip.file('scoring-rules.json', JSON.stringify(scoringRules, null, 2))
   zip.file('documents.json', JSON.stringify(bundleDocuments, null, 2))
 
@@ -498,9 +499,9 @@ async function getProjectKeywordLists(projectId: string): Promise<KeywordList[]>
   return rows.map(rowToKeywordList)
 }
 
-async function getProjectLenses(projectId: string): Promise<Lens[]> {
-  const rows = await selectAll<LensRow>('lenses.byProject', [projectId])
-  return rows.map(rowToLens)
+async function getProjectAxes(projectId: string): Promise<Axis[]> {
+  const rows = await selectAll<AxisRow>('lenses.byProject', [projectId])
+  return rows.map(rowToAxis)
 }
 
 // ---------------------------------------------------------------------------
@@ -531,17 +532,17 @@ function rowToKeywordList(row: KeywordListRow): KeywordList {
   }
 }
 
-interface LensRow {
+interface AxisRow {
   id: string
   name: string
   description: string | null
-  type: Lens['type']
+  type: Axis['type']
   is_hierarchical: number
   is_builtin: number
   created_at: string
 }
 
-function rowToLens(row: LensRow): Lens {
+function rowToAxis(row: AxisRow): Axis {
   return {
     id: row.id,
     name: row.name,

@@ -21,10 +21,10 @@
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
 import { getClassificationStatus } from './classification'
-import { listLensValues } from './lenses'
+import { listAxisValues } from './axes'
 import { weddingCakeFull, weddingCakeV1, type DocScore } from './_shared/wedding-cake'
 import { coverageCount } from './_shared/coverage-count'
-import type { Document, KeywordPolarity, LensValue, ScoringRuleDefinition } from '@/types/data'
+import type { Document, KeywordPolarity, AxisValue, ScoringRuleDefinition } from '@/types/data'
 
 export type { DocScore, TraceStep, TraceStatus } from './_shared/wedding-cake'
 
@@ -73,22 +73,22 @@ const crossCoverageEvaluator: RuleEvaluator = async (input) => {
     throw new Error('cross-coverage rule requires a layer lens (layerLensId)')
   }
 
-  const layerValues = await listLensValues(layerLensId)
+  const layerValues = await listAxisValues(layerLensId)
   const required = requiredLayerValues
     .map((name) => layerValues.find((v) => v.value === name))
-    .filter((v): v is LensValue => Boolean(v))
+    .filter((v): v is AxisValue => Boolean(v))
 
   const mode = await resolveCrossCoverageMode(input.projectId, subjectLensId)
 
   const perDocument = new Map<string, DocScore>()
 
   if (mode === 'full' && subjectLensId) {
-    const subjectValues = await listLensValues(subjectLensId)
+    const subjectValues = await listAxisValues(subjectLensId)
     const matrix = await computeCoverage2D({
       projectId: input.projectId,
       keywordListId: input.keywordListId,
-      rowLensId: layerLensId,
-      colLensId: subjectLensId,
+      rowAxisId: layerLensId,
+      colAxisId: subjectLensId,
       polarity: input.polarity,
     })
     for (const doc of matrix.documents) {
@@ -101,7 +101,7 @@ const crossCoverageEvaluator: RuleEvaluator = async (input) => {
     projectId: input.projectId,
     keywordListId: input.keywordListId,
     polarity: input.polarity,
-    lensId: layerLensId,
+    axisId: layerLensId,
   })
   for (const doc of matrix.documents) {
     perDocument.set(doc.id, weddingCakeV1(matrix.lensTotals?.[doc.id] ?? {}, required))
@@ -134,12 +134,12 @@ const coverageCountEvaluator: RuleEvaluator = async (input) => {
     throw new Error('coverage-count rule requires a categoryLensId')
   }
 
-  const categoryValues = await listLensValues(def.categoryLensId)
+  const categoryValues = await listAxisValues(def.categoryLensId)
   const matrix = await computeCoverage({
     projectId: input.projectId,
     keywordListId: input.keywordListId,
     polarity: input.polarity,
-    lensId: def.categoryLensId,
+    axisId: def.categoryLensId,
   })
 
   const perDocument = new Map<string, DocScore>()

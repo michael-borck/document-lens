@@ -11,14 +11,14 @@ import {
 } from '@/components/ui/select'
 import { computeCoverage, type CoverageMatrix } from '@/services/coverage'
 import { computeCoverage2D, type CoverageMatrix2D } from '@/services/coverage-2d'
-import { getKeywordListLenses } from '@/services/keyword-lists'
+import { getKeywordListAxes } from '@/services/keyword-lists'
 import { getClassificationStatus } from '@/services/classification'
 import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
 import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Lens, LensValue, KeywordPolarity } from '@/types/data'
+import type { Axis, AxisValue, KeywordPolarity } from '@/types/data'
 import { cn } from '@/lib/utils'
 
 type Mode = 'one-axis' | 'two-axis'
@@ -45,74 +45,74 @@ interface MapResult {
 export function Map() {
   const vm = useOutletContext<ProjectViewModel>()
   const [mode, setMode] = useState<Mode>('one-axis')
-  const [eligibleLenses, setEligibleLenses] = useState<Lens[]>([])
-  const [contextLenses, setContextLenses] = useState<Lens[]>([])
-  const [lensId, setLensId] = useState<string>('')
-  const [colLensId, setColLensId] = useState<string>('')
+  const [eligibleAxes, setEligibleAxes] = useState<Axis[]>([])
+  const [contextAxes, setContextAxes] = useState<Axis[]>([])
+  const [axisId, setAxisId] = useState<string>('')
+  const [colAxisId, setColAxisId] = useState<string>('')
   const [polarity, setPolarity] = useState<Polarity>('positive')
   const [view, setView] = useState<ViewMode>('per-document')
   const [classifiedDocs, setClassifiedDocs] = useState<number | null>(null)
 
-  // Eligible row lenses = active project lenses that are keyword-attached
-  // AND declared by the active keyword list. Eligible col lenses (for
-  // two-axis mode) = active project lenses that are document-context.
+  // Eligible row axes = active project axes that are keyword-attached
+  // AND declared by the active keyword list. Eligible col axes (for
+  // two-axis mode) = active project axes that are document-context.
   useEffect(() => {
     if (!vm.keywordList) {
-      setEligibleLenses([])
-      setContextLenses([])
+      setEligibleAxes([])
+      setContextAxes([])
       return
     }
-    getKeywordListLenses(vm.keywordList.id).then((declaredIds) => {
-      const projectLensIds = new Set(vm.lenses.map((l) => l.id))
-      const eligible = vm.lenses.filter(
-        (l) =>
-          l.type === 'keyword-attached' &&
-          declaredIds.includes(l.id) &&
-          projectLensIds.has(l.id)
+    getKeywordListAxes(vm.keywordList.id).then((declaredIds) => {
+      const projectAxisIds = new Set(vm.axes.map((a) => a.id))
+      const eligible = vm.axes.filter(
+        (a) =>
+          a.type === 'keyword-attached' &&
+          declaredIds.includes(a.id) &&
+          projectAxisIds.has(a.id)
       )
-      const context = vm.lenses.filter(
-        (l) => l.type === 'document-context' && projectLensIds.has(l.id)
+      const context = vm.axes.filter(
+        (a) => a.type === 'document-context' && projectAxisIds.has(a.id)
       )
-      setEligibleLenses(eligible)
-      setContextLenses(context)
-      setLensId((current) => current || eligible[0]?.id || '')
-      setColLensId((current) => current || context[0]?.id || '')
+      setEligibleAxes(eligible)
+      setContextAxes(context)
+      setAxisId((current) => current || eligible[0]?.id || '')
+      setColAxisId((current) => current || context[0]?.id || '')
     })
-  }, [vm.keywordList, vm.lenses])
+  }, [vm.keywordList, vm.axes])
 
-  // Track classification progress for the chosen col lens (two-axis only).
+  // Track classification progress for the chosen col axis (two-axis only).
   useEffect(() => {
-    if (mode !== 'two-axis' || !colLensId || vm.documentCount === 0) {
+    if (mode !== 'two-axis' || !colAxisId || vm.documentCount === 0) {
       setClassifiedDocs(null)
       return
     }
-    getClassificationStatus(vm.project.id, colLensId).then((s) => {
+    getClassificationStatus(vm.project.id, colAxisId).then((s) => {
       setClassifiedDocs(s.classifiedDocuments)
     })
-  }, [mode, colLensId, vm.project.id, vm.documentCount])
+  }, [mode, colAxisId, vm.project.id, vm.documentCount])
 
   // Manual run; the hook owns running/error/result + cancel-safety. The page's
   // one-axis vs two-axis branch just lives inside the fn.
   const { run, running, result, reset } = useAnalysis<MapResult>(async () => {
-    if (!vm.keywordList || !lensId) throw new Error('Pick a keyword list and a lens.')
+    if (!vm.keywordList || !axisId) throw new Error('Pick a keyword list and an axis.')
     if (mode === 'one-axis') {
       const m = await computeCoverage({
         projectId: vm.project.id,
         keywordListId: vm.keywordList.id,
         polarity,
-        lensId,
+        axisId: axisId,
       })
       return { matrix: m, matrix2D: null }
     }
-    if (!colLensId) throw new Error('Pick a second lens for the two-axis matrix.')
+    if (!colAxisId) throw new Error('Pick a second axis for the two-axis matrix.')
     // Two-axis: polarity 'both' would need two passes. For v1, the matrix is
     // positive-only; counter and both come later.
     const polarityForMatrix: KeywordPolarity = polarity === 'counter' ? 'counter' : 'positive'
     const m = await computeCoverage2D({
       projectId: vm.project.id,
       keywordListId: vm.keywordList.id,
-      rowLensId: lensId,
-      colLensId,
+      rowAxisId: axisId,
+      colAxisId: colAxisId,
       polarity: polarityForMatrix,
     })
     return { matrix: null, matrix2D: m }
@@ -142,17 +142,17 @@ export function Map() {
       </div>
     )
   }
-  if (eligibleLenses.length === 0) {
+  if (eligibleAxes.length === 0) {
     return (
       <div className="px-8 py-10">
         <Header />
         <EmptyState
-          title="No keyword-attached lenses active"
+          title="No keyword-attached axes active"
           description={
             <>
-              Map needs at least one keyword-attached lens (SDG, Pillar, or
+              Map needs at least one keyword-attached axis (SDG, Pillar, or
               similar) active on this project. Activate one on the Setup
-              tab. The Function lens is{' '}
+              tab. The Function axis is{' '}
               <em>document-context</em> and needs a separate inference pass
               that's still in progress.
             </>
@@ -162,10 +162,10 @@ export function Map() {
     )
   }
 
-  const selectedLens = eligibleLenses.find((l) => l.id === lensId)
-  const selectedColLens = contextLenses.find((l) => l.id === colLensId)
+  const selectedAxis = eligibleAxes.find((a) => a.id === axisId)
+  const selectedColAxis = contextAxes.find((a) => a.id === colAxisId)
   const hasResults = (mode === 'one-axis' ? matrix : matrix2D) !== null
-  const twoAxisAvailable = contextLenses.length > 0
+  const twoAxisAvailable = contextAxes.length > 0
 
   return (
     <div className="px-8 py-8 max-w-7xl">
@@ -191,27 +191,27 @@ export function Map() {
             </SelectContent>
           </Select>
         </Field>
-        <Field label={mode === 'two-axis' ? 'Rows (keyword-attached)' : 'Lens'}>
-          <Select value={lensId} onValueChange={setLensId}>
+        <Field label={mode === 'two-axis' ? 'Rows (keyword-attached)' : 'Axis'}>
+          <Select value={axisId} onValueChange={setAxisId}>
             <SelectTrigger className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {eligibleLenses.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+              {eligibleAxes.map((a) => (
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
         {mode === 'two-axis' && (
           <Field label="Columns (document-context)">
-            <Select value={colLensId} onValueChange={setColLensId}>
+            <Select value={colAxisId} onValueChange={setColAxisId}>
               <SelectTrigger className="w-44">
-                <SelectValue placeholder="Pick a context lens" />
+                <SelectValue placeholder="Pick a context axis" />
               </SelectTrigger>
               <SelectContent>
-                {contextLenses.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                {contextAxes.map((a) => (
+                  <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -255,7 +255,7 @@ export function Map() {
 
       {mode === 'two-axis' && (
         <MLCaveatBanner id="map-semantic">
-          Lens classifications use semantic similarity (sentence embeddings). The
+          Axis classifications use semantic similarity (sentence embeddings). The
           same model gives the same answer every time, but it's approximate —
           treat each cell as a strong signal, not a precise category assignment.
         </MLCaveatBanner>
@@ -266,7 +266,7 @@ export function Map() {
           <div className="flex-1 min-w-0">
             <strong>Function classification incomplete:</strong>{' '}
             {classifiedDocs} of {vm.documentCount} documents classified on{' '}
-            <strong>{selectedColLens?.name}</strong>. Run classification on the
+            <strong>{selectedColAxis?.name}</strong>. Run classification on the
             Setup tab to populate the rest of the matrix — until then unclassified
             documents contribute zero to every cell.
           </div>
@@ -285,13 +285,13 @@ export function Map() {
             <>
               {vm.documentCount} document{vm.documentCount === 1 ? '' : 's'} ·
               using <strong>{vm.keywordList.name}</strong> keywords ·
-              mapped by <strong>{selectedLens?.name}</strong>. Click{' '}
+              mapped by <strong>{selectedAxis?.name}</strong>. Click{' '}
               <strong>Run map</strong> to compute.
             </>
           ) : (
             <>
-              Cross-tabulating <strong>{selectedLens?.name}</strong> (rows) ×{' '}
-              <strong>{selectedColLens?.name}</strong> (columns) on{' '}
+              Cross-tabulating <strong>{selectedAxis?.name}</strong> (rows) ×{' '}
+              <strong>{selectedColAxis?.name}</strong> (columns) on{' '}
               <strong>{vm.documentCount}</strong> document
               {vm.documentCount === 1 ? '' : 's'}. Click{' '}
               <strong>Run map</strong> to compute the matrix.
@@ -527,7 +527,7 @@ function StackedBar({
   valuesForDoc,
   maxTotal,
 }: {
-  valuesForDoc: Array<{ value: LensValue; count: number }>
+  valuesForDoc: Array<{ value: AxisValue; count: number }>
   maxTotal: number
 }) {
   const docTotal = valuesForDoc.reduce((s, v) => s + v.count, 0)
@@ -654,10 +654,10 @@ const PALETTE = [
 ]
 
 /**
- * Stable colour for a lens value. Uses the value's sortOrder to index
+ * Stable colour for an axis value. Uses the value's sortOrder to index
  * into the palette; falls back to the value string as a hash basis.
  */
-function colourForValue(v: LensValue): string {
+function colourForValue(v: AxisValue): string {
   const idx = v.sortOrder > 0 ? v.sortOrder - 1 : hash(v.value)
   return PALETTE[idx % PALETTE.length]
 }
@@ -670,7 +670,7 @@ function hash(s: string): number {
   return Math.abs(h)
 }
 
-function ColourLegend({ lensValues }: { lensValues: LensValue[] }) {
+function ColourLegend({ lensValues }: { lensValues: AxisValue[] }) {
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3 text-xs">
       {lensValues.map((v) => (

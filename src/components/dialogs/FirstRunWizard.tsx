@@ -33,21 +33,21 @@ import {
   createProject,
   addDocumentsToProject,
   setProjectKeywordList,
-  setProjectLenses,
+  setProjectAxes,
   updateProject,
 } from '@/services/projects'
 import { listKeywordLists } from '@/services/keyword-lists'
-import { listLenses } from '@/services/lenses'
+import { listAxes } from '@/services/axes'
 import { listScoringRules } from '@/services/scoring-rules'
 import { listDocuments } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
 import { toast } from '@/stores/toastStore'
 import type { Project, Document } from '@/types/data'
 
-type FocusId = 'sustainability' | 'cybersecurity' | 'other'
+type LensId = 'sustainability' | 'cybersecurity' | 'other'
 
-interface FocusOption {
-  id: FocusId
+interface LensOption {
+  id: LensId
   name: string
   description: string
   icon: typeof Leaf
@@ -55,11 +55,11 @@ interface FocusOption {
   badge?: string
 }
 
-const FOCUS_OPTIONS: FocusOption[] = [
+const LENS_OPTIONS: LensOption[] = [
   {
     id: 'sustainability',
     name: 'Sustainability',
-    description: 'ESG, SDGs, climate disclosure. Ships with the SDG keyword list, three lenses (SDG, Pillar, Function), and the Wedding Cake Score pre-configured.',
+    description: 'ESG, SDGs, climate disclosure. Ships with the SDG keyword list, three axes (SDG, Pillar, Function), and the Wedding Cake Score pre-configured.',
     icon: Leaf,
   },
   {
@@ -73,7 +73,7 @@ const FOCUS_OPTIONS: FocusOption[] = [
   {
     id: 'other',
     name: 'General',
-    description: 'No domain-specific defaults. Build your own lenses, keyword lists, and scoring rule from scratch — or import a CSV.',
+    description: 'No domain-specific defaults. Build your own axes, keyword lists, and scoring rule from scratch — or import a CSV.',
     icon: FileText,
   },
 ]
@@ -87,7 +87,7 @@ interface FirstRunWizardProps {
 export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizardProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1)
   const [name, setName] = useState('')
-  const [focus, setFocus] = useState<FocusId>('sustainability')
+  const [lens, setLens] = useState<LensId>('sustainability')
 
   // Step 2 state — docs are tracked locally until the project is
   // created in step 3, then attached in one batch.
@@ -108,7 +108,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
   const reset = () => {
     setStep(1)
     setName('')
-    setFocus('sustainability')
+    setLens('sustainability')
     setSelectedDocIds(new Set())
     setImporting(false)
     setImportProgress(null)
@@ -177,7 +177,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
       // 1. Create the bare project row.
       const project = await createProject({
         name: name.trim(),
-        researchFocus: focus,
+        lens,
       })
 
       // 2. Attach documents (if any picked).
@@ -186,7 +186,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
       }
 
       // 3. Sustainability: auto-attach the seeded defaults.
-      if (focus === 'sustainability') {
+      if (lens === 'sustainability') {
         await applySustainabilityDefaults(project.id)
       }
 
@@ -200,7 +200,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
   }
 
   const canAdvance =
-    step === 1 ? name.trim().length > 0 && !FOCUS_OPTIONS.find((f) => f.id === focus)?.disabled :
+    step === 1 ? name.trim().length > 0 && !LENS_OPTIONS.find((o) => o.id === lens)?.disabled :
     true
 
   return (
@@ -221,8 +221,8 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
             <Step1
               name={name}
               onNameChange={setName}
-              focus={focus}
-              onFocusChange={setFocus}
+              lens={lens}
+              onLensChange={setLens}
             />
           )}
           {step === 2 && (
@@ -237,7 +237,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
           )}
           {step === 3 && (
             <Step3
-              focus={focus}
+              lens={lens}
               selectedDocCount={selectedDocIds.size}
               projectName={name}
               error={error}
@@ -279,7 +279,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
               {creating ? 'Creating…' : (
                 <>
                   <Check className="h-4 w-4" />
-                  {focus === 'sustainability' ? 'Use defaults + create' : 'Create project'}
+                  {lens === 'sustainability' ? 'Use defaults + create' : 'Create project'}
                 </>
               )}
             </Button>
@@ -295,7 +295,7 @@ export function FirstRunWizard({ open, onOpenChange, onCreated }: FirstRunWizard
 // ---------------------------------------------------------------------------
 
 function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
-  const labels = ['Name + focus', 'Documents', 'Defaults']
+  const labels = ['Name + lens', 'Documents', 'Defaults']
   return (
     <ol className="flex items-center gap-2 text-xs">
       {labels.map((label, i) => {
@@ -326,13 +326,13 @@ function StepIndicator({ current }: { current: 1 | 2 | 3 }) {
 function Step1({
   name,
   onNameChange,
-  focus,
-  onFocusChange,
+  lens,
+  onLensChange,
 }: {
   name: string
   onNameChange: (v: string) => void
-  focus: FocusId
-  onFocusChange: (v: FocusId) => void
+  lens: LensId
+  onLensChange: (v: LensId) => void
 }) {
   return (
     <div className="space-y-5">
@@ -350,16 +350,16 @@ function Step1({
       </div>
 
       <fieldset className="space-y-1.5">
-        <legend className="text-sm font-medium mb-1">Research focus</legend>
+        <legend className="text-sm font-medium mb-1">Research lens</legend>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-          {FOCUS_OPTIONS.map((opt) => {
+          {LENS_OPTIONS.map((opt) => {
             const Icon = opt.icon
-            const selected = focus === opt.id
+            const selected = lens === opt.id
             return (
               <button
                 key={opt.id}
                 type="button"
-                onClick={() => !opt.disabled && onFocusChange(opt.id)}
+                onClick={() => !opt.disabled && onLensChange(opt.id)}
                 disabled={opt.disabled}
                 className={cn(
                   'text-left border rounded-md p-3 transition-colors',
@@ -471,12 +471,12 @@ function Step2({
 }
 
 function Step3({
-  focus,
+  lens,
   selectedDocCount,
   projectName,
   error,
 }: {
-  focus: FocusId
+  lens: LensId
   selectedDocCount: number
   projectName: string
   error: string | null
@@ -493,7 +493,7 @@ function Step3({
         </div>
       </div>
 
-      {focus === 'sustainability' ? (
+      {lens === 'sustainability' ? (
         <div className="border border-border rounded-md p-3 bg-muted/30 space-y-3">
           <div className="text-sm font-medium">Sustainability defaults — ready to use</div>
           <DefaultRow
@@ -502,7 +502,7 @@ function Step3({
             sub="UN SDGs 1–17, ~430 positive keywords + counter-keywords curated from Australian university annual reports."
           />
           <DefaultRow
-            label="Lenses (3)"
+            label="Axes (3)"
             value="SDG · Pillar · Function"
             sub="SDG and Pillar tag each keyword. Function tags each document section automatically via embedding classification — required for the full Wedding Cake Score."
           />
@@ -518,7 +518,7 @@ function Step3({
       ) : (
         <div className="border border-dashed border-border rounded-md p-3 text-sm text-muted-foreground">
           You picked <strong>Other</strong>. The project will be created empty — head to Setup to pick or build a
-          keyword list, choose lenses, and define a scoring rule.
+          keyword list, choose axes, and define a scoring rule.
         </div>
       )}
 
@@ -555,9 +555,9 @@ function DefaultRow({ label, value, sub }: { label: string; value: string; sub: 
  * wizard finishes these all exist.
  */
 async function applySustainabilityDefaults(projectId: string): Promise<void> {
-  const [lists, lenses, rules] = await Promise.all([
+  const [lists, axes, rules] = await Promise.all([
     listKeywordLists(),
-    listLenses(),
+    listAxes(),
     listScoringRules(),
   ])
 
@@ -566,9 +566,9 @@ async function applySustainabilityDefaults(projectId: string): Promise<void> {
     await setProjectKeywordList(projectId, sdgList.id)
   }
 
-  const builtinLenses = lenses.filter((l) => l.isBuiltin)
-  if (builtinLenses.length > 0) {
-    await setProjectLenses(projectId, builtinLenses.map((l) => l.id))
+  const builtinAxes = axes.filter((a) => a.isBuiltin)
+  if (builtinAxes.length > 0) {
+    await setProjectAxes(projectId, builtinAxes.map((a) => a.id))
   }
 
   const weddingCake = rules.find((r) => r.name === 'Wedding Cake Score' || r.name === '5-level Wedding Cake Score')

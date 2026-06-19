@@ -16,8 +16,8 @@
  */
 
 import { selectAll } from './db'
-import { getKeywordListLenses } from './keyword-lists'
-import { listLensValues } from './lenses'
+import { getKeywordListAxes } from './keyword-lists'
+import { listAxisValues } from './axes'
 import {
   listSectionsForDocuments,
   getSectionTagsForDocuments,
@@ -27,15 +27,15 @@ import { loadProjectCorpus } from './_shared/project-corpus'
 import type {
   Document,
   KeywordPolarity,
-  LensValue,
+  AxisValue,
 } from '@/types/data'
 
 export interface CoverageMatrix2D {
   documents: Document[]
   rowLens: { id: string; name: string }
   colLens: { id: string; name: string }
-  rowValues: LensValue[]
-  colValues: LensValue[]
+  rowValues: AxisValue[]
+  colValues: AxisValue[]
   /** Per-document cell counts: cells[docId][rowValueId][colValueId] = count. */
   cells: Record<string, Record<string, Record<string, number>>>
   /** Aggregate cell counts summed across all documents. */
@@ -58,10 +58,10 @@ interface KeywordTagRow {
 export interface ComputeCoverage2DInput {
   projectId: string
   keywordListId: string
-  /** Lens whose values become the rows (must be keyword-attached). */
-  rowLensId: string
-  /** Lens whose values become the columns (must be document-context). */
-  colLensId: string
+  /** Axis whose values become the rows (must be keyword-attached). */
+  rowAxisId: string
+  /** Axis whose values become the columns (must be document-context). */
+  colAxisId: string
   /** Filter keywords to this polarity. */
   polarity: KeywordPolarity
 }
@@ -69,17 +69,17 @@ export interface ComputeCoverage2DInput {
 export async function computeCoverage2D(
   input: ComputeCoverage2DInput
 ): Promise<CoverageMatrix2D> {
-  // Load lens values + names.
-  const rowValues = await listLensValues(input.rowLensId)
-  const colValues = await listLensValues(input.colLensId)
-  const rowLens = await loadLensSummary(input.rowLensId)
-  const colLens = await loadLensSummary(input.colLensId)
+  // Load axis values + names.
+  const rowValues = await listAxisValues(input.rowAxisId)
+  const colValues = await listAxisValues(input.colAxisId)
+  const rowLens = await loadAxisSummary(input.rowAxisId)
+  const colLens = await loadAxisSummary(input.colAxisId)
 
-  // Verify the row lens is declared by the keyword list.
-  const declaredLensIds = await getKeywordListLenses(input.keywordListId)
-  if (!declaredLensIds.includes(input.rowLensId)) {
+  // Verify the row axis is declared by the keyword list.
+  const declaredLensIds = await getKeywordListAxes(input.keywordListId)
+  if (!declaredLensIds.includes(input.rowAxisId)) {
     throw new Error(
-      `Row lens "${rowLens.name}" isn't declared by the active keyword list — keywords don't carry tags for it.`
+      `Row axis "${rowLens.name}" isn't declared by the active keyword list — keywords don't carry tags for it.`
     )
   }
 
@@ -99,7 +99,7 @@ export async function computeCoverage2D(
   // Load keyword -> rowValueId mappings (keyword_tags joined to lens_id = rowLensId).
   const keywordTagRows = await selectAll<KeywordTagRow>('keywords.tagsForList', [
     input.keywordListId,
-    input.rowLensId,
+    input.rowAxisId,
   ])
   const keywordRowValueIds = new Map<string, string[]>()
   for (const row of keywordTagRows) {
@@ -128,7 +128,7 @@ export async function computeCoverage2D(
   // round-trips total) instead of two per document.
   const docIds = usableDocs.map((d) => d.id)
   const sectionsByDoc = await listSectionsForDocuments(docIds)
-  const tagsByDoc = await getSectionTagsForDocuments(docIds, input.colLensId)
+  const tagsByDoc = await getSectionTagsForDocuments(docIds, input.colAxisId)
 
   for (const doc of usableDocs) {
     cells[doc.id] = {}
@@ -193,8 +193,8 @@ export async function computeCoverage2D(
 function emptyMatrix(
   rowLens: { id: string; name: string },
   colLens: { id: string; name: string },
-  rowValues: LensValue[],
-  colValues: LensValue[]
+  rowValues: AxisValue[],
+  colValues: AxisValue[]
 ): CoverageMatrix2D {
   return {
     documents: [],
@@ -211,9 +211,9 @@ function emptyMatrix(
   }
 }
 
-async function loadLensSummary(lensId: string): Promise<{ id: string; name: string }> {
-  const rows = await selectAll<{ id: string; name: string }>('lenses.getIdName', [lensId])
-  if (rows.length === 0) throw new Error(`Lens ${lensId} not found`)
+async function loadAxisSummary(axisId: string): Promise<{ id: string; name: string }> {
+  const rows = await selectAll<{ id: string; name: string }>('lenses.getIdName', [axisId])
+  if (rows.length === 0) throw new Error(`Axis ${axisId} not found`)
   return rows[0]
 }
 

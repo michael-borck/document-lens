@@ -16,7 +16,7 @@ import { PolaritySelector, type Polarity } from '@/components/workflow/PolarityS
 import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import { toast } from '@/stores/toastStore'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
-import type { Lens } from '@/types/data'
+import type { Axis } from '@/types/data'
 import { cn } from '@/lib/utils'
 
 type Severity = 'high' | 'medium' | 'low'
@@ -38,8 +38,8 @@ export function Audit() {
   const vm = useOutletContext<ProjectViewModel>()
 
   const [mode, setMode] = useState<AuditMode>('anomalies')
-  const [contextLenses, setContextLenses] = useState<Lens[]>([])
-  const [lensId, setLensId] = useState<string>('')
+  const [contextAxes, setContextAxes] = useState<Axis[]>([])
+  const [axisId, setAxisId] = useState<string>('')
   const [polarity, setPolarity] = useState<Polarity>('both')
   const [threshold, setThreshold] = useState<number>(0.3)
   const [severityFilter, setSeverityFilter] = useState<Severity | 'all'>('all')
@@ -49,20 +49,20 @@ export function Audit() {
   const [progress, setProgress] = useState<AuditProgress | null>(null)
 
   useEffect(() => {
-    const docContextLenses = vm.lenses.filter((l) => l.type === 'document-context')
-    setContextLenses(docContextLenses)
-    setLensId((current) => current || docContextLenses[0]?.id || '')
-  }, [vm.lenses])
+    const docContextAxes = vm.axes.filter((a) => a.type === 'document-context')
+    setContextAxes(docContextAxes)
+    setAxisId((current) => current || docContextAxes[0]?.id || '')
+  }, [vm.axes])
 
   const { run, running, error, result, reset } = useAnalysis<AuditResult>(async () => {
-    if (!vm.keywordList || !lensId) throw new Error('Pick a keyword list and a context lens.')
+    if (!vm.keywordList || !axisId) throw new Error('Pick a keyword list and a context axis.')
     setProgress(null)
     try {
       const out = await runAudit(
         {
           projectId: vm.project.id,
           keywordListId: vm.keywordList.id,
-          lensId,
+          axisId,
           mode,
           threshold,
           polarity: polarity === 'both' ? undefined : polarity,
@@ -110,15 +110,15 @@ export function Audit() {
       </div>
     )
   }
-  if (contextLenses.length === 0) {
+  if (contextAxes.length === 0) {
     return (
       <div className="px-8 py-10">
         <Header />
         <EmptyState
-          title="No document-context lens active"
+          title="No document-context axis active"
           description={
             <>
-              Audit needs a document-context lens (e.g., Function) active on this project.
+              Audit needs a document-context axis (e.g., Function) active on this project.
               Activate one on the Setup tab.
             </>
           }
@@ -140,12 +140,12 @@ export function Audit() {
       <CaveatBanner mode={mode} />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-        <Field label="Lens (domains)">
-          <Select value={lensId} onValueChange={setLensId}>
+        <Field label="Axis (domains)">
+          <Select value={axisId} onValueChange={setAxisId}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              {contextLenses.map((l) => (
-                <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+              {contextAxes.map((a) => (
+                <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>
               ))}
             </SelectContent>
           </Select>
