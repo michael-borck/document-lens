@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Document Lens — A reading instrument for document corpora</title>
+  <meta name="description" content="Document Lens is a local-first desktop app for keyword analysis of document corpora — built for researchers studying corporate disclosure. Coverage heatmaps, scores, concordances, and audits over your own PDFs. Everything stays on your device." />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <nav class="topnav">
+    <div class="container topnav-inner">
+      <span class="brand">Document&nbsp;<em>Lens</em></span>
+      <div class="topnav-links">
+        <a href="https://github.com/michael-borck/document-lens">GitHub</a>
+        <a href="https://github.com/michael-borck/document-lens/releases">Releases</a>
+        <a href="#download" class="nav-cta">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero" id="top">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">A reading instrument</p>
+        <h1>Close reading, <em>at corpus scale.</em></h1>
+        <p class="sub">Does the document talk about a topic — and does it talk about it in the
+          <em>right place</em>? Document Lens turns a folder of PDFs, a keyword list, and the
+          axes you care about into coverage heatmaps, scores, trend lines, and concordances.
+          Built for researchers studying corporate disclosure; at home in any keyword-driven
+          study of unstructured text.</p>
+
+        <div class="download-block" id="download">
+          <a id="download-btn" class="btn btn-primary" href="https://github.com/michael-borck/document-lens/releases/latest">Download</a>
+          <div class="platform-toggle" role="group" aria-label="Choose platform">
+            <button data-platform="mac" class="platform-btn">macOS</button>
+            <button data-platform="windows" class="platform-btn">Windows</button>
+            <button data-platform="linux" class="platform-btn">Linux</button>
+          </div>
+          <p class="version"><span id="version">&nbsp;</span> <a id="alt-arch" class="alt-arch" href="#" hidden></a></p>
+          <p class="all-releases"><a href="https://github.com/michael-borck/document-lens/releases">All releases &amp; older versions →</a></p>
+        </div>
+
+        <p class="privacy-tag">Local-first. Your documents and every analysis live in SQLite on this device.</p>
+      </div>
+
+      <div class="hero-shots">
+        <!-- Screenshots auto-discovered from screenshots/document-lens-1.png, -2.png, -3.png…
+             Drop a new numbered PNG in docs/screenshots/ and it joins the rotation. -->
+        <div class="carousel" id="carousel" aria-label="App screenshots">
+          <noscript><img src="screenshots/document-lens-1.png" alt="Document Lens project screen" /></noscript>
+        </div>
+        <div class="carousel-dots" id="carousel-dots"></div>
+      </div>
+    </div>
+  </header>
+
+  <section class="container steps">
+    <h2>The analysis workflow</h2>
+    <div class="grid four">
+      <div class="card">
+        <div class="card-num">01</div>
+        <h3>Import &amp; Analyze</h3>
+        <p>Import PDFs and run document-level analysis: readability, writing quality,
+          word frequency. A shared library means each document is processed once,
+          reused everywhere.</p>
+      </div>
+      <div class="card">
+        <div class="card-num">02</div>
+        <h3>Keyword Search</h3>
+        <p>Search your framework terms across every document at once. Taxonomy
+          hierarchies give you tier-level analysis; polarity separates genuine
+          delivery from performative language.</p>
+      </div>
+      <div class="card">
+        <div class="card-num">03</div>
+        <h3>N-gram Discovery</h3>
+        <p>Find the two- and three-word phrases the corpus actually uses, so the
+          vocabulary you search for is the vocabulary that's there — not just the
+          one you started with.</p>
+      </div>
+      <div class="card">
+        <div class="card-num">04</div>
+        <h3>Visualize</h3>
+        <p>Generate charts comparing keyword usage, trends, and document coverage —
+          then export the tables and figures straight into your paper.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="providers-band">
+    <div class="container">
+      <h2>Nine workflows over one project</h2>
+      <div class="grid three">
+        <div class="card plain">
+          <h3>Measure</h3>
+          <p>Coverage heatmaps for every keyword × document pair. A single Wedding
+            Cake score per report when you need one number, year-over-year tracking
+            when you need the trend, and rankings when you need the comparison.</p>
+        </div>
+        <div class="card plain">
+          <h3>Interrogate</h3>
+          <p>Audit whether each keyword is used in the right context — anomalies and
+            confirmations side by side. Then open the concordance and read what the
+            document actually says, with the PDF right alongside.</p>
+        </div>
+        <div class="card plain">
+          <h3>Map</h3>
+          <p>Cross two axes — SDG × Function, Pillar × section, any pair you define —
+            and see how each document distributes its attention. Talking about a
+            topic is one thing; talking about it in the right place is the finding.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="container privacy">
+    <div class="privacy-grid">
+      <div>
+        <h2>Local-first, by design</h2>
+        <p>Research corpora are often confidential, embargoed, or simply <em>yours</em>.
+          Document Lens is built so your documents and your analysis never leave
+          your machine.</p>
+      </div>
+      <ul class="privacy-list">
+        <li><strong>No account, no telemetry.</strong> Install it and start reading.</li>
+        <li><strong>Documents stay local.</strong> Your library and projects live in SQLite and files on disk.</li>
+        <li><strong>Analysis runs on your machine.</strong> An embedded analysis engine does the work — no cloud, no upload.</li>
+        <li><strong>Open source.</strong> MIT-licensed, auditable, yours.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="container audience">
+    <div class="grid two">
+      <div class="card">
+        <h3>For disclosure researchers</h3>
+        <p>The original use case: sustainability reporting in university annual
+          reports. Keyword polarity supports both narratives from one list — terms
+          that signal delivery, and counter-terms that signal greenwashing — with
+          the Wedding Cake score grounding it all in the SDG model.</p>
+      </div>
+      <div class="card">
+        <h3>For any keyword-driven study</h3>
+        <p>Policy documents, curricula, submissions, transcripts — if you have a
+          corpus, a framework, and a question about who says what, where, the same
+          projects, axes, and scoring rules apply. Bring your own taxonomy.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <a href="https://github.com/michael-borck/document-lens">GitHub</a>
+      <a href="https://github.com/michael-borck/document-lens/releases">Releases</a>
+      <span class="copyright">MIT © Michael Borck</span>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
