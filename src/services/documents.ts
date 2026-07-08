@@ -58,6 +58,7 @@ export interface UpdateDocumentAttributesInput {
   year?: number | null
   company?: string | null
   sector?: string | null
+  type?: string | null
 }
 
 /**
@@ -75,6 +76,7 @@ export async function updateDocumentAttributes(
   if (patch.year !== undefined) { columns.push('year'); params.push(patch.year) }
   if (patch.company !== undefined) { columns.push('company'); params.push(patch.company) }
   if (patch.sector !== undefined) { columns.push('sector'); params.push(patch.sector) }
+  if (patch.type !== undefined) { columns.push('type'); params.push(patch.type) }
 
   if (columns.length === 0) return
   params.push(id)

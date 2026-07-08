@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
-import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw } from 'lucide-react'
+import { useEffect, useMemo, useState } from 'react'
+import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw, Search, ArrowUp, ArrowDown, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
-import { listDocuments, updateDocumentAttributes, deleteDocument } from '@/services/documents'
+import { listDocuments, updateDocumentAttributes, deleteDocument, type UpdateDocumentAttributesInput } from '@/services/documents'
 import { importDocuments, retryExtraction, type ImportProgress } from '@/services/import'
 import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
@@ -14,12 +14,93 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { BulkAttributesDialog } from '@/components/dialogs/BulkAttributesDialog'
 import { selectOne } from '@/services/db'
 
+// The document types the backend's content inference can assign. Seeded as
+// suggestions so a fresh library offers sensible options; the field is
+// free-text, so users can add their own (e.g. "Strategic Report").
+const KNOWN_DOCUMENT_TYPES = [
+  'Annual Report',
+  'Sustainability Report',
+  'Integrated Report',
+  'CSR Report',
+  'Climate Report',
+]
+
+// Sortable columns and the fields the bulk editor can set.
+type SortKey = 'title' | 'type' | 'year' | 'company' | 'sector' | 'status' | 'pageCount' | 'wordCount'
+type SortDir = 'asc' | 'desc'
+type BulkField = 'type' | 'sector' | 'company' | 'year'
+
+/** Comparable value for a document on a given sort key. */
+function sortValue(doc: Document, key: SortKey): string | number | null {
+  switch (key) {
+    case 'title': return (doc.title ?? doc.filename).toLowerCase()
+    case 'type': return doc.type?.toLowerCase() ?? null
+    case 'company': return doc.company?.toLowerCase() ?? null
+    case 'sector': return doc.sector?.toLowerCase() ?? null
+    case 'status': return doc.status
+    case 'year': return doc.year
+    case 'pageCount': return doc.pageCount
+    case 'wordCount': return doc.wordCount
+  }
+}
+
+/** Sort comparator with nulls always last, regardless of direction. */
+function compareDocs(a: Document, b: Document, key: SortKey, dir: SortDir): number {
+  const av = sortValue(a, key)
+  const bv = sortValue(b, key)
+  if (av === null && bv === null) return 0
+  if (av === null) return 1
+  if (bv === null) return -1
+  const cmp = typeof av === 'number' && typeof bv === 'number'
+    ? av - bv
+    : String(av).localeCompare(String(bv))
+  return dir === 'asc' ? cmp : -cmp
+}
+
+/** A clickable, sort-aware table header cell. */
+function SortableTh({
+  label,
+  sortKey,
+  sort,
+  onSort,
+  className,
+  align = 'left',
+}: {
+  label: string
+  sortKey: SortKey
+  sort: { key: SortKey; dir: SortDir } | null
+  onSort: (key: SortKey) => void
+  className?: string
+  align?: 'left' | 'right'
+}) {
+  const active = sort?.key === sortKey
+  return (
+    <th
+      className={cn(
+        'font-medium px-4 py-2 select-none cursor-pointer hover:text-foreground',
+        align === 'right' ? 'text-right' : 'text-left',
+        className
+      )}
+      onClick={() => onSort(sortKey)}
+      aria-sort={active ? (sort!.dir === 'asc' ? 'ascending' : 'descending') : 'none'}
+    >
+      <span className={cn('inline-flex items-center gap-1', align === 'right' && 'flex-row-reverse')}>
+        {label}
+        {active && (sort!.dir === 'asc'
+          ? <ArrowUp className="h-3 w-3" />
+          : <ArrowDown className="h-3 w-3" />)}
+      </span>
+    </th>
+  )
+}
+
 export function Library() {
   const [docs, setDocs] = useState<Document[] | null>(null)
   const [importing, setImporting] = useState(false)
   const [progress, setProgress] = useState<ImportProgress | null>(null)
   const [sectorSuggestions, setSectorSuggestions] = useState<string[]>([])
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([])
+  const [typeSuggestions, setTypeSuggestions] = useState<string[]>([])
   const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
@@ -38,6 +119,13 @@ export function Library() {
       new Set(fresh.map((d) => d.company).filter((c): c is string => Boolean(c)))
     ).sort((a, b) => a.localeCompare(b))
     setCompanySuggestions(companies)
+    // Type suggestions: the backend's inferred vocabulary seeded up front (so a
+    // fresh library still offers sensible options) plus whatever's already in
+    // the corpus — free-text, but consistent enough to group/filter on.
+    const types = Array.from(
+      new Set([...KNOWN_DOCUMENT_TYPES, ...fresh.map((d) => d.type).filter((t): t is string => Boolean(t))])
+    ).sort((a, b) => a.localeCompare(b))
+    setTypeSuggestions(types)
   }
 
   // Shared import runner for both the file picker and the folder picker.
@@ -170,6 +258,7 @@ export function Library() {
           onChange={() => { void refresh() }}
           sectorSuggestions={sectorSuggestions}
           companySuggestions={companySuggestions}
+          typeSuggestions={typeSuggestions}
         />
       )}
 
@@ -214,17 +303,130 @@ function DocumentTable({
   onChange,
   sectorSuggestions,
   companySuggestions,
+  typeSuggestions,
 }: {
   documents: Document[]
   onChange: () => void
   sectorSuggestions: string[]
   companySuggestions: string[]
+  typeSuggestions: string[]
 }) {
   const [pendingDelete, setPendingDelete] = useState<{
     doc: Document
     projectCount: number
   } | null>(null)
   const [retryingId, setRetryingId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
+  const [sort, setSort] = useState<{ key: SortKey; dir: SortDir } | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [bulkField, setBulkField] = useState<BulkField>('type')
+  const [bulkValue, setBulkValue] = useState('')
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false)
+
+  // Search filters, then sort orders. Default (sort === null) keeps the
+  // incoming order (imported_at DESC) so the newest imports stay on top.
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    let rows = documents
+    if (q) {
+      rows = rows.filter((d) =>
+        [d.title, d.filename, d.company, d.sector, d.type].some(
+          (v) => v != null && v.toLowerCase().includes(q)
+        )
+      )
+    }
+    if (sort) rows = [...rows].sort((a, b) => compareDocs(a, b, sort.key, sort.dir))
+    return rows
+  }, [documents, search, sort])
+
+  // Keep the selection from referencing rows that are no longer visible or
+  // no longer exist (after a filter change, delete, or refresh).
+  const visibleIds = useMemo(() => new Set(visible.map((d) => d.id)), [visible])
+  const selectedVisible = useMemo(
+    () => [...selected].filter((id) => visibleIds.has(id)),
+    [selected, visibleIds]
+  )
+  const allVisibleSelected = visible.length > 0 && selectedVisible.length === visible.length
+
+  const toggleSort = (key: SortKey) => {
+    setSort((cur) =>
+      cur?.key === key
+        ? { key, dir: cur.dir === 'asc' ? 'desc' : 'asc' }
+        : { key, dir: 'asc' }
+    )
+  }
+
+  const toggleOne = (id: string) => {
+    setSelected((cur) => {
+      const next = new Set(cur)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  const toggleAllVisible = () => {
+    setSelected((cur) => {
+      const next = new Set(cur)
+      if (allVisibleSelected) visible.forEach((d) => next.delete(d.id))
+      else visible.forEach((d) => next.add(d.id))
+      return next
+    })
+  }
+
+  const clearSelection = () => setSelected(new Set())
+
+  const applyBulk = async () => {
+    const ids = selectedVisible
+    if (ids.length === 0) return
+    const raw = bulkValue.trim()
+    let patch: UpdateDocumentAttributesInput
+    if (bulkField === 'year') {
+      if (raw !== '' && !/^\d{4}$/.test(raw)) {
+        toast.error('Year must be a 4-digit number (or blank to clear).')
+        return
+      }
+      patch = { year: raw === '' ? null : Number(raw) }
+    } else {
+      patch = { [bulkField]: raw === '' ? null : raw }
+    }
+    setBulkBusy(true)
+    try {
+      for (const id of ids) await updateDocumentAttributes(id, patch)
+      toast.success(`Updated ${bulkField} on ${ids.length} document${ids.length === 1 ? '' : 's'}`)
+      setBulkValue('')
+      clearSelection()
+      onChange()
+    } catch (err) {
+      toast.error(`Bulk update failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    const ids = selectedVisible
+    setBulkDeleteOpen(false)
+    if (ids.length === 0) return
+    setBulkBusy(true)
+    try {
+      for (const id of ids) await deleteDocument(id)
+      toast.success(`Deleted ${ids.length} document${ids.length === 1 ? '' : 's'}`)
+      clearSelection()
+      onChange()
+    } catch (err) {
+      toast.error(`Bulk delete failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setBulkBusy(false)
+    }
+  }
+
+  const bulkSuggestions =
+    bulkField === 'type' ? typeSuggestions
+    : bulkField === 'sector' ? sectorSuggestions
+    : bulkField === 'company' ? companySuggestions
+    : []
 
   const handleRetry = async (doc: Document) => {
     setRetryingId(doc.id)
@@ -241,7 +443,7 @@ function DocumentTable({
 
   const handleEdit = async (
     id: string,
-    field: 'title' | 'year' | 'company' | 'sector',
+    field: 'title' | 'year' | 'company' | 'sector' | 'type',
     raw: string | null
   ) => {
     let patch: Record<string, string | number | null> = {}
@@ -283,23 +485,115 @@ function DocumentTable({
   }
 
   return (
-    <div className="border border-border rounded-md overflow-hidden">
+    <div>
+      {/* Toolbar: search + result count */}
+      <div className="flex items-center gap-3 mb-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search title, filename, company, sector, type…"
+            className="w-full rounded-sm border border-border bg-background pl-8 pr-8 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          {search && (
+            <button
+              type="button"
+              onClick={() => setSearch('')}
+              aria-label="Clear search"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <span className="text-xs text-muted-foreground tabular-nums">
+          {visible.length === documents.length
+            ? `${documents.length} document${documents.length === 1 ? '' : 's'}`
+            : `${visible.length} of ${documents.length}`}
+        </span>
+      </div>
+
+      {/* Bulk-edit bar — shown while a selection exists */}
+      {selectedVisible.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-3 p-2 rounded-md border border-border bg-muted/40 text-sm">
+          <span className="font-medium">{selectedVisible.length} selected</span>
+          <span className="text-muted-foreground">· set</span>
+          <select
+            value={bulkField}
+            onChange={(e) => setBulkField(e.target.value as BulkField)}
+            className="rounded-sm border border-border bg-background px-2 py-1 text-sm"
+          >
+            <option value="type">Type</option>
+            <option value="sector">Sector</option>
+            <option value="company">Company</option>
+            <option value="year">Year</option>
+          </select>
+          <input
+            list="bulk-suggestions"
+            value={bulkValue}
+            onChange={(e) => setBulkValue(e.target.value)}
+            onKeyDown={(e) => { if (e.key === 'Enter') void applyBulk() }}
+            placeholder={bulkField === 'year' ? 'e.g. 2024 — blank clears' : 'value — blank clears'}
+            className="rounded-sm border border-border bg-background px-2 py-1 text-sm w-48"
+          />
+          <datalist id="bulk-suggestions">
+            {bulkSuggestions.map((s) => <option key={s} value={s} />)}
+          </datalist>
+          <Button size="sm" onClick={applyBulk} disabled={bulkBusy}>Apply</Button>
+          <Button size="sm" variant="destructive" onClick={() => setBulkDeleteOpen(true)} disabled={bulkBusy}>
+            Delete
+          </Button>
+          <Button size="sm" variant="ghost" onClick={clearSelection} disabled={bulkBusy}>Clear</Button>
+        </div>
+      )}
+
+      <div className="border border-border rounded-md overflow-hidden">
       <table className="w-full text-sm">
         <thead className="bg-muted/50 text-xs uppercase tracking-wide text-muted-foreground">
           <tr>
-            <th className="text-left font-medium px-4 py-2">Title</th>
-            <th className="text-left font-medium px-4 py-2 w-24">Year</th>
-            <th className="text-left font-medium px-4 py-2 w-44">Company</th>
-            <th className="text-left font-medium px-4 py-2 w-36">Sector</th>
-            <th className="text-left font-medium px-4 py-2 w-32">Status</th>
-            <th className="text-right font-medium px-4 py-2 w-20">Pages</th>
-            <th className="text-right font-medium px-4 py-2 w-24">Words</th>
+            <th className="px-3 py-2 w-8">
+              <input
+                type="checkbox"
+                aria-label="Select all"
+                checked={allVisibleSelected}
+                onChange={toggleAllVisible}
+                className="align-middle"
+              />
+            </th>
+            <SortableTh label="Title" sortKey="title" sort={sort} onSort={toggleSort} />
+            <SortableTh label="Year" sortKey="year" sort={sort} onSort={toggleSort} className="w-24" />
+            <SortableTh label="Company" sortKey="company" sort={sort} onSort={toggleSort} className="w-44" />
+            <SortableTh label="Sector" sortKey="sector" sort={sort} onSort={toggleSort} className="w-36" />
+            <SortableTh label="Type" sortKey="type" sort={sort} onSort={toggleSort} className="w-40" />
+            <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggleSort} className="w-32" />
+            <SortableTh label="Pages" sortKey="pageCount" sort={sort} onSort={toggleSort} className="w-20" align="right" />
+            <SortableTh label="Words" sortKey="wordCount" sort={sort} onSort={toggleSort} className="w-24" align="right" />
             <th className="font-medium px-2 py-2 w-10"></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-border">
-          {documents.map((doc) => (
-            <tr key={doc.id} className="hover:bg-muted/30 transition-colors">
+          {visible.length === 0 ? (
+            <tr>
+              <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+                No documents match “{search}”.
+              </td>
+            </tr>
+          ) : visible.map((doc) => (
+            <tr
+              key={doc.id}
+              className={cn('hover:bg-muted/30 transition-colors', selected.has(doc.id) && 'bg-muted/40')}
+            >
+              <td className="px-3 py-2">
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${doc.title ?? doc.filename}`}
+                  checked={selected.has(doc.id)}
+                  onChange={() => toggleOne(doc.id)}
+                  className="align-middle"
+                />
+              </td>
               <td className="px-4 py-2">
                 <div className="flex items-center gap-2 min-w-0">
                   <FileText className="h-4 w-4 text-muted-foreground shrink-0" />
@@ -345,6 +639,15 @@ function DocumentTable({
                   suggestions={sectorSuggestions}
                 />
               </td>
+              <td className="px-4 py-2 text-muted-foreground">
+                <InlineEditableCell
+                  value={doc.type}
+                  onCommit={(next) => handleEdit(doc.id, 'type', next)}
+                  width={150}
+                  placeholder="Unknown"
+                  suggestions={typeSuggestions}
+                />
+              </td>
               <td className="px-4 py-2.5">
                 <StatusBadge doc={doc} />
               </td>
@@ -383,6 +686,7 @@ function DocumentTable({
           ))}
         </tbody>
       </table>
+      </div>
 
       <ConfirmDialog
         open={pendingDelete !== null}
@@ -405,6 +709,23 @@ function DocumentTable({
         confirmLabel="Delete document"
         destructive
         onConfirm={handleConfirmDelete}
+      />
+
+      <ConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`Delete ${selectedVisible.length} document${selectedVisible.length === 1 ? '' : 's'}?`}
+        description={
+          <>
+            Removes the selected documents from your Library, including their
+            extracted text and metadata. The original files on disk are{' '}
+            <strong>not</strong> deleted. They'll also be removed from any
+            projects that contain them.
+          </>
+        }
+        confirmLabel="Delete selected"
+        destructive
+        onConfirm={handleBulkDelete}
       />
     </div>
   )

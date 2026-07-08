@@ -28,6 +28,8 @@ export interface Document {
   year: number | null
   company: string | null
   sector: string | null
+  /** Document type (e.g. "Annual Report"). Auto-detected on import, free-text, user-editable. */
+  type: string | null
   pageCount: number | null
   wordCount: number | null
   extractedText: string | null

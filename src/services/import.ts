@@ -50,6 +50,10 @@ export async function retryExtraction(doc: Document): Promise<void> {
       detectCompanyFromFilename(doc.filename) ??
       response.inferred?.probable_company?.trim() ??
       null
+    // Document type from backend content inference (Annual Report,
+    // Sustainability Report, …), normalised. null when undetected —
+    // shown as "Unknown" and freely user-editable on the Library page.
+    const type = normalizeDocumentType(response.inferred?.document_type)
 
     const pages = response.extracted_text?.pages ?? []
     const ops: BatchOp[] = [
@@ -59,6 +63,7 @@ export async function retryExtraction(doc: Document): Promise<void> {
           title,
           year,
           company,
+          type,
           pageCount,
           wordCount,
           extractedText,
@@ -243,6 +248,7 @@ async function importOne(
     const company = detectCompanyFromFilename(filename)
       ?? response.inferred?.probable_company?.trim()
       ?? null
+    const type = normalizeDocumentType(response.inferred?.document_type)
 
     // Persist the extraction result and per-page text in ONE transaction, so
     // the document's terminal state is consistent: it ends up 'extracted' with
@@ -261,6 +267,7 @@ async function importOne(
           title,
           year,
           company,
+          type,
           pageCount,
           wordCount,
           extractedText,
@@ -311,6 +318,19 @@ function basename(filePath: string): string {
 function stripExtension(filename: string): string {
   const dot = filename.lastIndexOf('.')
   return dot === -1 ? filename : filename.slice(0, dot)
+}
+
+/**
+ * Normalise the backend's inferred document_type into the value we store.
+ * The backend already returns Title Case labels ("Annual Report"); we just
+ * trim and collapse whitespace so free-text values stay consistent enough to
+ * group/filter on. Returns null when undetected — the UI renders that as
+ * "Unknown" and the user can set it freely.
+ */
+function normalizeDocumentType(raw: string | null | undefined): string | null {
+  if (!raw) return null
+  const cleaned = raw.trim().replace(/\s+/g, ' ')
+  return cleaned.length > 0 ? cleaned : null
 }
 
 /**

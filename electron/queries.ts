@@ -336,6 +336,7 @@ export const QUERIES = {
          SET title = ?,
              year = ?,
              company = ?,
+             type = ?,
              page_count = ?,
              word_count = ?,
              extracted_text = ?,
