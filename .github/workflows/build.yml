@@ -157,33 +157,58 @@ jobs:
 
       - name: Download NLTK data
         run: |
-          # Download NLTK data to a known location
+          # Fetch the NLTK corpora we bundle by pulling the package zips
+          # DIRECTLY from the nltk_data repo, instead of nltk.download().
+          # Why: the hosted runners' nltk refuses nltk.download() into a
+          # workspace directory with "Security Violation: Unauthorized path
+          # .../<pkg>.zip.tmp", which silently shipped builds with NO NLTK
+          # data (the root cause of "Resource cmudict not found" on clean
+          # machines). Direct zip fetch produces the exact same on-disk
+          # layout (nltk_data/<subdir>/<pkg>/...) that the packaged backend
+          # points nltk.data.path at, and is immune to the downloader's
+          # path checks. Keep this list in sync with every NLTK resource our
+          # analysers touch:
+          #   cmudict   — textstat syllable counts (Flesch/SMOG/fog/ARI)
+          #   punkt(_tab) — sentence tokenisation (readability, mismatch)
+          #   *_tagger  — POS tagging;  stopwords — keyword/ngram analysers
           python -c "
-          import nltk
-          import os
-          # Download to a directory we can bundle
-          nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
-          os.makedirs(nltk_data_dir, exist_ok=True)
-          # cmudict is REQUIRED: textstat resolves syllable counts (Flesch,
-          # SMOG, gunning-fog, ARI) via the NLTK cmudict corpus. Omitting it
-          # made the packaged backend raise 'Resource cmudict not found' on a
-          # clean machine and abort text extraction. Keep this list in sync
-          # with every NLTK resource our analysers touch.
-          resources = [
-              'punkt',
-              'punkt_tab',
-              'averaged_perceptron_tagger',
-              'averaged_perceptron_tagger_eng',
-              'stopwords',
-              'cmudict',
-          ]
-          failed = [r for r in resources if not nltk.download(r, download_dir=nltk_data_dir)]
-          if failed:
-              raise SystemExit(f'NLTK download failed for: {failed}')
-          print(f'NLTK data downloaded to {nltk_data_dir}')
-          print('Contents:', os.listdir(nltk_data_dir))
+          import os, io, time, zipfile, urllib.request
+          base = 'https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages'
+          # package id -> nltk subdir it must unzip into
+          packages = {
+              'tokenizers/punkt': 'tokenizers',
+              'tokenizers/punkt_tab': 'tokenizers',
+              'taggers/averaged_perceptron_tagger': 'taggers',
+              'taggers/averaged_perceptron_tagger_eng': 'taggers',
+              'corpora/stopwords': 'corpora',
+              'corpora/cmudict': 'corpora',
+          }
+          out = os.path.join(os.getcwd(), 'nltk_data')
+          for pkg, sub in packages.items():
+              url = f'{base}/{pkg}.zip'
+              dest = os.path.join(out, sub)
+              os.makedirs(dest, exist_ok=True)
+              for attempt in range(1, 6):
+                  try:
+                      data = urllib.request.urlopen(url, timeout=60).read()
+                      zipfile.ZipFile(io.BytesIO(data)).extractall(dest)
+                      print(f'OK {pkg} ({len(data)/1e6:.1f} MB)')
+                      break
+                  except Exception as e:
+                      if attempt == 5:
+                          raise SystemExit(f'NLTK fetch failed for {pkg}: {e}')
+                      wait = min(60, 5 * 2 ** (attempt - 1))
+                      print(f'[nltk] {pkg} attempt {attempt} failed: {e}; retry in {wait}s')
+                      time.sleep(wait)
+          # Fail loudly if any expected corpus dir is missing — never ship
+          # a build with incomplete NLTK data again.
+          expected = ['tokenizers/punkt', 'tokenizers/punkt_tab', 'corpora/cmudict']
+          missing = [e for e in expected if not os.path.isdir(os.path.join(out, e))]
+          if missing:
+              raise SystemExit(f'NLTK data missing after fetch: {missing}')
+          print('NLTK data ready at', out)
           "
-          ls -la nltk_data/
+          find nltk_data -maxdepth 2 -type d | sort
         shell: bash
 
       # Prefetch the sentence-transformers checkpoint document-analyser
