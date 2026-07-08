@@ -15,6 +15,16 @@ export interface OpenDialogResult {
   filePaths: string[]
 }
 
+export interface OpenFolderResult {
+  canceled: boolean
+  /** Importable document paths found recursively under the picked folder(s). */
+  filePaths: string[]
+  /** Number of folders the user selected. */
+  folderCount: number
+  /** True if the file cap was hit and the list was truncated. */
+  truncated: boolean
+}
+
 export interface SaveDialogResult {
   canceled: boolean
   filePath?: string
@@ -62,6 +72,8 @@ const electronAPI = {
     ipcRenderer.invoke('dialog:openFile', options),
   openDirectoryDialog: (options?: DialogOptions): Promise<OpenDialogResult> =>
     ipcRenderer.invoke('dialog:openDirectory', options),
+  openFolderDialog: (options?: DialogOptions): Promise<OpenFolderResult> =>
+    ipcRenderer.invoke('dialog:openFolder', options),
   saveFileDialog: (options?: DialogOptions): Promise<SaveDialogResult> =>
     ipcRenderer.invoke('dialog:saveFile', options),
 

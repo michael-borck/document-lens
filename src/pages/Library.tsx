@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Upload, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw } from 'lucide-react'
+import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
@@ -40,6 +40,26 @@ export function Library() {
     setCompanySuggestions(companies)
   }
 
+  // Shared import runner for both the file picker and the folder picker.
+  const runImport = async (filePaths: string[]) => {
+    setImporting(true)
+    setProgress(null)
+    try {
+      const result = await importDocuments(filePaths, setProgress)
+      await refresh()
+      const parts: string[] = []
+      if (result.completed > 0) parts.push(`${result.completed} imported`)
+      if (result.duplicates > 0) parts.push(`${result.duplicates} duplicate`)
+      if (result.failed > 0) parts.push(`${result.failed} failed`)
+      toast.success(`Import finished: ${parts.join(' · ') || 'nothing to import'}`)
+    } catch (err) {
+      toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setImporting(false)
+      setProgress(null)
+    }
+  }
+
   const handleImport = async () => {
     const electron = window.electron
     if (!electron) return
@@ -54,23 +74,28 @@ export function Library() {
     })
 
     if (dialog.canceled || dialog.filePaths.length === 0) return
+    await runImport(dialog.filePaths)
+  }
 
-    setImporting(true)
-    setProgress(null)
-    try {
-      const result = await importDocuments(dialog.filePaths, setProgress)
-      await refresh()
-      const parts: string[] = []
-      if (result.completed > 0) parts.push(`${result.completed} imported`)
-      if (result.duplicates > 0) parts.push(`${result.duplicates} duplicate`)
-      if (result.failed > 0) parts.push(`${result.failed} failed`)
-      toast.success(`Import finished: ${parts.join(' · ') || 'nothing to import'}`)
-    } catch (err) {
-      toast.error(`Import failed: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setImporting(false)
-      setProgress(null)
+  // Recursively import every supported document under one or more folders.
+  const handleImportFolder = async () => {
+    const electron = window.electron
+    if (!electron) return
+
+    const result = await electron.openFolderDialog({
+      title: 'Import a folder of documents',
+      buttonLabel: 'Import folder',
+    })
+
+    if (result.canceled) return
+    if (result.filePaths.length === 0) {
+      toast.error('No importable documents found in that folder (looked for PDF, DOCX, PPTX, TXT, MD).')
+      return
     }
+    if (result.truncated) {
+      toast.info(`Found a lot of files — importing the first ${result.filePaths.length}. Re-run on subfolders to get the rest.`)
+    }
+    await runImport(result.filePaths)
   }
 
   if (docs === null) {
@@ -95,6 +120,16 @@ export function Library() {
               <Upload className="h-4 w-4" />
               Bulk attributes
             </Button>
+            <Button
+              variant="outline"
+              onClick={handleImportFolder}
+              disabled={importing}
+              className="gap-2"
+              title="Recursively import every supported document in a folder"
+            >
+              <FolderOpen className="h-4 w-4" />
+              Import folder
+            </Button>
             <Button onClick={handleImport} disabled={importing} className="gap-2">
               <Upload className="h-4 w-4" />
               {importing ? 'Importing…' : 'Import documents'}
@@ -111,10 +146,22 @@ export function Library() {
           title="Your Library is empty"
           description="Import PDFs, Word docs, PowerPoints, plain text, or Markdown files. Documents live globally — once imported, you can use them in any project."
           action={
-            <Button onClick={handleImport} disabled={importing} className="gap-2">
-              <Upload className="h-4 w-4" />
-              {importing ? 'Importing…' : 'Import documents'}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button onClick={handleImport} disabled={importing} className="gap-2">
+                <Upload className="h-4 w-4" />
+                {importing ? 'Importing…' : 'Import documents'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleImportFolder}
+                disabled={importing}
+                className="gap-2"
+                title="Recursively import every supported document in a folder"
+              >
+                <FolderOpen className="h-4 w-4" />
+                Import folder
+              </Button>
+            </div>
           }
         />
       ) : (

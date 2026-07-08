@@ -385,6 +385,102 @@ ipcMain.handle('dialog:openDirectory', async (_, options) => {
   return result
 })
 
+// Extensions the importer understands — kept in sync with the Library file
+// dialog's filter. Lower-case, no leading dot.
+const IMPORTABLE_EXTENSIONS = new Set(['pdf', 'docx', 'pptx', 'txt', 'md'])
+// Safety cap so a mistakenly-picked huge tree (e.g. a home directory) can't
+// enumerate forever or return an unwieldy list.
+const MAX_FOLDER_IMPORT_FILES = 5000
+
+/**
+ * Recursively collect importable document paths under `root`. Tolerant of
+ * per-entry errors (permission denied, races), guards against symlink loops
+ * via a realpath visited-set, and stops at MAX_FOLDER_IMPORT_FILES. Hidden
+ * entries (dotfiles/dotdirs) are skipped — they're almost never intended
+ * document sources and include noise like .git / .DS_Store.
+ */
+async function walkForImportableFiles(root: string): Promise<{ files: string[]; truncated: boolean }> {
+  const files: string[] = []
+  const visited = new Set<string>()
+  let truncated = false
+
+  async function walk(dir: string): Promise<void> {
+    if (files.length >= MAX_FOLDER_IMPORT_FILES) {
+      truncated = true
+      return
+    }
+    let real: string
+    try {
+      real = await fs.promises.realpath(dir)
+    } catch {
+      return
+    }
+    if (visited.has(real)) return
+    visited.add(real)
+
+    let entries: import('fs').Dirent[]
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true })
+    } catch {
+      return // unreadable directory — skip, don't fail the whole import
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) continue
+      const full = path.join(dir, entry.name)
+      if (entry.isDirectory()) {
+        await walk(full)
+      } else if (entry.isFile()) {
+        const ext = path.extname(entry.name).slice(1).toLowerCase()
+        if (IMPORTABLE_EXTENSIONS.has(ext)) {
+          if (files.length >= MAX_FOLDER_IMPORT_FILES) {
+            truncated = true
+            return
+          }
+          files.push(full)
+        }
+      }
+      if (files.length >= MAX_FOLDER_IMPORT_FILES) {
+        truncated = true
+        return
+      }
+    }
+  }
+
+  await walk(root)
+  return { files, truncated }
+}
+
+// Pick one or more folders and recursively enumerate the importable documents
+// inside them. The renderer feeds the returned paths straight into
+// importDocuments(). Reading these files is already authorised by the fs-guard
+// because rememberDialogDirs() marks the picked folders as allowed prefixes.
+ipcMain.handle('dialog:openFolder', async (_, options) => {
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    properties: ['openDirectory', 'multiSelections'],
+    ...options,
+  })
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, filePaths: [], folderCount: 0, truncated: false }
+  }
+  rememberDialogDirs(result.filePaths)
+
+  const seen = new Set<string>()
+  const filePaths: string[] = []
+  let truncated = false
+  for (const folder of result.filePaths) {
+    const { files, truncated: t } = await walkForImportableFiles(folder)
+    truncated = truncated || t
+    for (const f of files) {
+      const key = path.resolve(f)
+      if (!seen.has(key)) {
+        seen.add(key)
+        filePaths.push(f)
+      }
+    }
+  }
+  return { canceled: false, filePaths, folderCount: result.filePaths.length, truncated }
+})
+
 ipcMain.handle('dialog:saveFile', async (_, options) => {
   const result = await dialog.showSaveDialog(mainWindow!, options)
   // Record the chosen save target so the fs:* guard will permit writing it.
