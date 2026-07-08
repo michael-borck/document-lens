@@ -83,7 +83,11 @@ jobs:
           #            import app` only resolves on >=0.5.0. v0.3.1 caused the
           #            v0.19.0 release build to fail with that ImportError.
           #            0.7.0 also carries the optional auth gate.
-          ref: v0.7.0
+          #   v0.7.1 — clean-machine resilience backported onto the 0.7.0 line:
+          #            readability survives missing NLTK data (cmudict) instead
+          #            of aborting extraction, and /health reports embedding-
+          #            model state for the classification pre-flight.
+          ref: v0.7.1
 
       # HuggingFace model caches use deeply-nested paths
       # (models--org--name/snapshots/<40-char-hash>/<long-filename>) that
@@ -160,11 +164,22 @@ jobs:
           # Download to a directory we can bundle
           nltk_data_dir = os.path.join(os.getcwd(), 'nltk_data')
           os.makedirs(nltk_data_dir, exist_ok=True)
-          nltk.download('punkt', download_dir=nltk_data_dir)
-          nltk.download('punkt_tab', download_dir=nltk_data_dir)
-          nltk.download('averaged_perceptron_tagger', download_dir=nltk_data_dir)
-          nltk.download('averaged_perceptron_tagger_eng', download_dir=nltk_data_dir)
-          nltk.download('stopwords', download_dir=nltk_data_dir)
+          # cmudict is REQUIRED: textstat resolves syllable counts (Flesch,
+          # SMOG, gunning-fog, ARI) via the NLTK cmudict corpus. Omitting it
+          # made the packaged backend raise 'Resource cmudict not found' on a
+          # clean machine and abort text extraction. Keep this list in sync
+          # with every NLTK resource our analysers touch.
+          resources = [
+              'punkt',
+              'punkt_tab',
+              'averaged_perceptron_tagger',
+              'averaged_perceptron_tagger_eng',
+              'stopwords',
+              'cmudict',
+          ]
+          failed = [r for r in resources if not nltk.download(r, download_dir=nltk_data_dir)]
+          if failed:
+              raise SystemExit(f'NLTK download failed for: {failed}')
           print(f'NLTK data downloaded to {nltk_data_dir}')
           print('Contents:', os.listdir(nltk_data_dir))
           "

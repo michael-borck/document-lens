@@ -90,6 +90,13 @@ export async function classifyProjectFunctions(
     )
   }
 
+  // Pre-flight: classification depends entirely on the backend's embedding
+  // model. If it failed to load, every document would come back a generic
+  // "failed" — so we check once up front and surface an actionable message
+  // instead. The model loads once at backend startup and won't recover on
+  // its own, so the fix is to restart the engine, not to wait/retry.
+  await assertEmbeddingModelReady()
+
   // Load project documents.
   const docs = await selectAll<{
     id: string
@@ -270,6 +277,36 @@ export async function getClassificationStatus(
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/**
+ * Fail fast with a human-actionable message when the backend's embedding
+ * model isn't loaded. Without this, a dead model turns into "N documents
+ * failed" with a backend stack trace per document — technically true, but
+ * it hides the single real cause and the single real fix (restart the
+ * engine). Older backends don't report the field; we treat that as "assume
+ * ready" so we never block a backend that predates model-readiness reporting.
+ */
+async function assertEmbeddingModelReady(): Promise<void> {
+  let health: Awaited<ReturnType<typeof api.healthCheck>>
+  try {
+    health = await api.healthCheck()
+  } catch {
+    // Backend unreachable — the batch calls would fail with the standard
+    // "can't reach the analysis engine" message anyway. Let the run proceed
+    // so that existing error surfaces rather than masking it here.
+    return
+  }
+  if (health.embedding_model_loaded === false) {
+    const reason = health.embedding_model_error
+      ? ` (${health.embedding_model_error})`
+      : ''
+    throw new Error(
+      `The analysis engine's language model isn't loaded${reason}. ` +
+        `Classification can't run until it is. Restart the engine (Settings → ` +
+        `Backend, or the status indicator at the top of the window) and try again.`
+    )
+  }
+}
 
 /**
  * Label used in the backend's "domains" payload. We send display name

@@ -445,6 +445,15 @@ export class ApiError extends Error {
 export interface HealthResponse {
   status: string
   version?: string
+  /**
+   * Whether the backend's embedding model loaded. Semantic features
+   * (classification, similar-terms, structural mismatch) all require it.
+   * Older backends don't report this field — treat `undefined` as "assume
+   * loaded" so we never block against a backend that predates the field.
+   */
+  embedding_model_loaded?: boolean
+  /** Reason the embedding model failed to load, when available. */
+  embedding_model_error?: string
 }
 
 export interface ProcessFileOptions {
