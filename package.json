@@ -48,6 +48,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "d3-cloud": "^1.2.7",
+    "docx": "^9.7.1",
     "electron-updater": "^6.8.3",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",

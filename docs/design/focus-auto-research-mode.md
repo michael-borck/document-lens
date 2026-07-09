@@ -83,6 +83,30 @@ Design principles:
 - A background precompute pipeline and cache-invalidation strategy become
   first-class concerns (not just per-view caching).
 
+## DOCX report: a format, not a mode
+
+The downloadable DOCX report is a **container**, not tied to one mode. What it
+contains is decided by **where it is invoked from** — three scopes:
+
+1. **This view** (from any exploratory view) — the current chart + its data
+   table + the config that produced it. Small; "I found something, put it in
+   my paper." (The app already does a primitive version for Track only.)
+2. **Full project report** (a project-level "Export report") — *everything*,
+   deterministic: document inventory, scores (X/4 tier **and** X/12 coverage),
+   substance signals, one chart per view. **Bounded** — each *view* appears
+   once with a default config, NOT every keyword × document.
+3. **Focus report** (from Focus mode) — only the **ranked "notable" items**
+   (the outliers), plus optional AI narration (flagged). The **same assembler
+   as #2, pointed at a ranked subset** instead of everything.
+
+Relationship: the full project report (#2) is the engine; the Focus report
+(#3) reuses its assembler over a ranked subset; per-view export (#1) is a
+lighter separate affordance. #1 and #2 are fully deterministic/reproducible;
+#3's deterministic sub-mode is reproducible, its AI narration is flagged.
+
+Build order: #2 first (self-contained, becomes the reusable assembler), then
+#1, then #3 with Focus mode.
+
 ## Open questions
 
 - Which notability metrics rank permutations, and how are they combined /

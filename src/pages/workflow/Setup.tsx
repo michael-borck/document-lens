@@ -30,6 +30,7 @@ import { toast } from '@/stores/toastStore'
 import { AddDocumentsDialog } from '@/components/dialogs/AddDocumentsDialog'
 import { exportProjectBundle } from '@/services/bundle-project-export'
 import { exportAllData } from '@/services/export-all'
+import { generateProjectReport } from '@/services/report-export'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { KeywordList, Axis, ScoringRule, Document } from '@/types/data'
 
@@ -119,6 +120,33 @@ export function Setup() {
     }
   }
 
+  const handleExportReport = async () => {
+    if (!vm.keywordList) {
+      toast.error('Pick a keyword list before exporting a report.')
+      return
+    }
+    const save = await window.electron.saveFileDialog({
+      title: 'Save project report',
+      defaultPath: `${vm.project.name} report.docx`,
+      filters: [{ name: 'Word document', extensions: ['docx'] }],
+    })
+    if (save.canceled || !save.filePath) return
+    try {
+      const blob = await generateProjectReport({
+        projectId: vm.project.id,
+        projectName: vm.project.name,
+        keywordListId: vm.keywordList.id,
+        keywordListName: vm.keywordList.name,
+        scoringRule: vm.scoringRule,
+        generatedAt: new Date().toLocaleString(),
+      })
+      await window.electron.writeFile(save.filePath, await blob.arrayBuffer())
+      toast.success(`Report saved to ${save.filePath}`)
+    } catch (err) {
+      toast.error(`Report export failed: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
   // Scroll-to-section when arriving via a #classification hash (from Map/Score's
   // "Jump to Classification" buttons). Done in a small useEffect so the smooth
   // scroll fires after the sections have rendered.
@@ -143,6 +171,16 @@ export function Setup() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportReport}
+            className="gap-1.5"
+            title="Export a Word (.docx) report — inventory, scores, and substance signals"
+          >
+            <FileText className="h-4 w-4" />
+            Export report
+          </Button>
           <Button
             variant="outline"
             size="sm"
