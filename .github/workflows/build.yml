@@ -72,22 +72,11 @@ jobs:
         with:
           repository: michael-borck/document-analyser
           path: document-analyser-backend
-          # Pinned for reproducible builds — bump in lockstep with
-          # document-analyser releases.
-          #   v0.3.0 — full-ML graduation (matches document-lens 0.14+)
-          #   v0.3.1 — clears 24 osv-scanner CVEs on the uv.lock
-          #            (nltk/urllib3/python-multipart/pillow/cryptography
-          #            +others). Lockfile-only; no API change.
-          #   v0.7.0 — REQUIRED: FastAPI app moved main.py -> api package in
-          #            0.5.0, so run_server.py's `from document_analyser.api
-          #            import app` only resolves on >=0.5.0. v0.3.1 caused the
-          #            v0.19.0 release build to fail with that ImportError.
-          #            0.7.0 also carries the optional auth gate.
-          #   v0.7.1 — clean-machine resilience backported onto the 0.7.0 line:
-          #            readability survives missing NLTK data (cmudict) instead
-          #            of aborting extraction, and /health reports embedding-
-          #            model state for the classification pre-flight.
-          ref: v0.7.1
+          # Always build against the latest backend. The lens family
+          # (document-lens, document-analyser, lens-contract, lens-embed) is
+          # co-developed and moves together, so we track main rather than
+          # pinning a version.
+          ref: main
 
       # HuggingFace model caches use deeply-nested paths
       # (models--org--name/snapshots/<40-char-hash>/<long-filename>) that
