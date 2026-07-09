@@ -20,9 +20,19 @@ import { MLCaveatBanner } from '@/components/workflow/MLCaveatBanner'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 import type { Axis, AxisValue, KeywordPolarity } from '@/types/data'
 import { cn } from '@/lib/utils'
+import { ChartContainer } from '@/components/charts/ChartContainer'
+import {
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
+  Legend,
+  Tooltip as RadarTooltip,
+} from 'recharts'
 
 type Mode = 'one-axis' | 'two-axis'
-type ViewMode = 'per-document' | 'aggregate'
+type ViewMode = 'per-document' | 'aggregate' | 'radar'
 
 interface MapResult {
   matrix: CoverageMatrix | null
@@ -233,6 +243,7 @@ export function Map() {
               <SelectContent>
                 <SelectItem value="per-document">Per document</SelectItem>
                 <SelectItem value="aggregate">Project aggregate</SelectItem>
+                <SelectItem value="radar">Radar (compare profiles)</SelectItem>
               </SelectContent>
             </Select>
           </Field>
@@ -305,6 +316,9 @@ export function Map() {
       )}
       {mode === 'one-axis' && matrix && view === 'aggregate' && (
         <AggregateView matrix={matrix} />
+      )}
+      {mode === 'one-axis' && matrix && view === 'radar' && (
+        <RadarView matrix={matrix} />
       )}
       {mode === 'two-axis' && matrix2D && (
         <TwoAxisMatrix matrix={matrix2D} />
@@ -518,6 +532,84 @@ function PerDocumentView({ matrix }: { matrix: CoverageMatrix }) {
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+// Two series colours for the radar overlay — distinct and legible in both
+// light and dark themes.
+const RADAR_COLORS = ['#2563eb', '#ea580c'] as const
+
+function RadarView({ matrix }: { matrix: CoverageMatrix }) {
+  const lensValues = matrix.lensValues
+  const lensTotals = matrix.lensTotals
+  const docs = matrix.documents
+
+  const [docAId, setDocAId] = useState<string>(docs[0]?.id ?? '')
+  const [docBId, setDocBId] = useState<string>('') // '' = no comparison
+
+  const docA = docs.find((d) => d.id === docAId)
+  const docB = docs.find((d) => d.id === docBId)
+  const labelA = docA ? (docA.title ?? docA.filename) : ''
+  const labelB = docB ? (docB.title ?? docB.filename) : ''
+
+  const data = useMemo(() => {
+    if (!lensValues || !lensTotals) return []
+    return lensValues.map((v) => ({
+      axis: v.displayName ?? v.value,
+      a: docA ? (lensTotals[docA.id]?.[v.id] ?? 0) : 0,
+      b: docB ? (lensTotals[docB.id]?.[v.id] ?? 0) : 0,
+    }))
+  }, [lensValues, lensTotals, docA, docB])
+
+  if (!lensValues || !lensTotals) return null
+
+  return (
+    <div>
+      <p className="text-xs text-muted-foreground mb-3">
+        Each spoke is a value on this axis; the shape is the document&apos;s match profile
+        across them. Overlay a second document to compare shapes at a glance.
+      </p>
+      <div className="flex flex-wrap gap-3 mb-4">
+        <Field label="Document">
+          <Select value={docAId} onValueChange={setDocAId}>
+            <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {docs.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.title ?? d.filename}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+        <Field label="Compare with">
+          <Select value={docBId || 'none'} onValueChange={(v) => setDocBId(v === 'none' ? '' : v)}>
+            <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">(none)</SelectItem>
+              {docs.filter((d) => d.id !== docAId).map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.title ?? d.filename}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </Field>
+      </div>
+      <div className="border border-border rounded-md p-2">
+        <ChartContainer height={440}>
+          <RadarChart data={data} outerRadius="72%">
+            <PolarGrid stroke="rgba(128,128,128,0.25)" />
+            <PolarAngleAxis dataKey="axis" tick={{ fontSize: 11, fill: 'currentColor' }} />
+            <PolarRadiusAxis tick={{ fontSize: 10, fill: 'currentColor' }} />
+            <RadarTooltip />
+            <Legend wrapperStyle={{ fontSize: '12px' }} />
+            {docA && (
+              <Radar name={labelA} dataKey="a" stroke={RADAR_COLORS[0]} fill={RADAR_COLORS[0]} fillOpacity={0.3} />
+            )}
+            {docB && (
+              <Radar name={labelB} dataKey="b" stroke={RADAR_COLORS[1]} fill={RADAR_COLORS[1]} fillOpacity={0.3} />
+            )}
+          </RadarChart>
+        </ChartContainer>
       </div>
     </div>
   )
