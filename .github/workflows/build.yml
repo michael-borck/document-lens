@@ -153,6 +153,16 @@ jobs:
           # spaCy model download — needed by the NER analyser if any
           # workflow ever calls it. Small (~50 MB), worth bundling.
           python -m spacy download en_core_web_sm
+
+          # Pin setuptools LAST (after all installs that might upgrade it).
+          # PyInstaller's pkg_resources runtime hook (pyi_rth_pkgres) calls
+          # pkg_resources.NullProvider, which setuptools >=81 REMOVED — so the
+          # bundled backend crashes on launch with
+          # "AttributeError: module 'pkg_resources' has no attribute 'NullProvider'".
+          # The backend's deps are unpinned (>=), so a fresh setuptools 81+
+          # drifted in and broke a build that passed a day earlier. Hold it
+          # below 81 until PyInstaller's hook catches up.
+          python -m pip install "setuptools<81"
         shell: bash
 
       - name: Download NLTK data
