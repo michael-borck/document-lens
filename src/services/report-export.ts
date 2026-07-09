@@ -22,7 +22,9 @@ import {
   TableRow,
   TableCell,
   WidthType,
+  ImageRun,
 } from 'docx'
+import { barChartSvg, type SvgChart, type BarItem } from './_shared/svg-chart'
 import { selectAll } from './db'
 import { rowToDocument, type DocumentRow } from './_shared/document-row'
 import { evaluateScore } from './scoring'
@@ -63,6 +65,61 @@ function heading(text: string): Paragraph {
 
 function muted(text: string): Paragraph {
   return new Paragraph({ children: [new TextRun({ text, italics: true, color: '666666', size: 18 })] })
+}
+
+/**
+ * Rasterise a chart SVG to PNG bytes via an offscreen canvas (renderer only —
+ * uses Image/canvas). Returns null on any failure so a chart can be skipped
+ * without failing the whole report.
+ */
+async function svgToPng(chart: SvgChart): Promise<Uint8Array | null> {
+  try {
+    const dataUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(chart.svg)}`
+    const img = new Image()
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('SVG failed to load'))
+      img.src = dataUrl
+    })
+    const scale = 2
+    const canvas = document.createElement('canvas')
+    canvas.width = chart.width * scale
+    canvas.height = chart.height * scale
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.scale(scale, scale)
+    ctx.drawImage(img, 0, 0, chart.width, chart.height)
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/png'))
+    if (!blob) return null
+    return new Uint8Array(await blob.arrayBuffer())
+  } catch {
+    return null
+  }
+}
+
+async function chartParagraph(chart: SvgChart): Promise<Paragraph | null> {
+  const png = await svgToPng(chart)
+  if (!png) return null
+  return new Paragraph({
+    children: [new ImageRun({ type: 'png', data: png, transformation: { width: chart.width, height: chart.height } })],
+  })
+}
+
+/** Build a ranked bar chart from a per-document value getter (desc, top 15). */
+function rankedChart(
+  title: string,
+  docs: Array<{ id: string; title: string | null; filename: string }>,
+  getValue: (docId: string) => number | undefined,
+  transform: (v: number) => number,
+  valueSuffix?: string
+): SvgChart | null {
+  const items: BarItem[] = docs
+    .map((d) => ({ label: d.title ?? d.filename, value: getValue(d.id) }))
+    .filter((x): x is { label: string; value: number } => x.value !== undefined && x.value > 0)
+    .map((x) => ({ label: x.label, value: transform(x.value) }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 15)
+  return items.length > 0 ? barChartSvg(title, items, { valueSuffix }) : null
 }
 
 /** Build the report and return it as a .docx Blob (Packer.toBlob). */
@@ -121,6 +178,25 @@ export async function generateProjectReport(input: ReportInput): Promise<Blob> {
     children.push(new Paragraph(`Scoring rule: ${input.scoringRule.name}${scoreMode ? ` (${scoreMode} mode)` : ''}`))
   }
   children.push(muted('All figures below are computed deterministically and are reproducible from the same inputs.'))
+
+  // Charts — ranked bar charts built directly from the data (deterministic).
+  const round1 = (v: number) => Math.round(v * 10) / 10
+  const pct = (v: number) => Math.round(v * 100)
+  const charts: Array<SvgChart | null> = [
+    scoresByDoc
+      ? rankedChart('Pillar coverage (X/12 %)', docs, (id) => scoresByDoc!.get(id)?.overallRatio, pct, '%')
+      : null,
+    rankedChart('Repetition (matches ÷ unique keyword)', docs, (id) => valueByDocMetric.get(id)?.['repetition'], round1),
+    rankedChart('Evidence reuse (multi-pillar %)', docs, (id) => valueByDocMetric.get(id)?.['evidence-reuse'], pct, '%'),
+  ]
+  const presentCharts = charts.filter((c): c is SvgChart => c !== null)
+  if (presentCharts.length > 0) {
+    children.push(heading('Charts'))
+    for (const chart of presentCharts) {
+      const para = await chartParagraph(chart)
+      if (para) children.push(para)
+    }
+  }
 
   children.push(heading('Document inventory'))
   children.push(makeTable(
