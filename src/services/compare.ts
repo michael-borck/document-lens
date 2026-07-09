@@ -21,7 +21,7 @@ export type CompareMetric =
   | 'pos-minus-counter'  // positive matches minus counter matches
   | 'score'              // active scoring rule output (Wedding Cake / fallback)
 
-export type CompareGroup = 'none' | 'company' | 'year' | 'sector'
+export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type'
 
 export interface ComparePoint {
   documentId: string
@@ -29,6 +29,7 @@ export interface ComparePoint {
   year: number | null
   company: string | null
   sector: string | null
+  type: string | null
   /** Numeric value the bar chart plots. */
   value: number
   /** When score metric: per-function or per-pillar breakdown. */
@@ -57,6 +58,7 @@ export interface ComputeCompareInput {
   yearMax?: number
   companies?: string[]    // empty / undefined = no filter
   sectors?: string[]
+  types?: string[]
   /** Polarity filter (used by match-count and distinct-keywords). */
   polarity: KeywordPolarity
   /**
@@ -95,6 +97,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     if (input.yearMax !== undefined && (d.year === null || d.year > input.yearMax)) return false
     if (input.companies && input.companies.length > 0 && !(d.company && input.companies.includes(d.company))) return false
     if (input.sectors && input.sectors.length > 0 && !(d.sector && input.sectors.includes(d.sector))) return false
+    if (input.types && input.types.length > 0 && !(d.type && input.types.includes(d.type))) return false
     return true
   })
 
@@ -169,6 +172,7 @@ function makePoint(doc: Document, value: number, breakdown?: Record<string, numb
     year: doc.year,
     company: doc.company,
     sector: doc.sector,
+    type: doc.type,
     value,
     breakdown,
   }

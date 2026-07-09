@@ -295,6 +295,45 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
     setDocs(rows.filter((d): d is Document => d !== null))
   }
 
+  // Classification affordance right next to "Add documents". Gated on there
+  // being a document-context (Function/Pillar) axis to classify against; the
+  // detailed axis picker + progress live in the Classification section below.
+  const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
+  const hasContextAxis = contextAxes.length > 0
+  const [classifying, setClassifying] = useState(false)
+  const [classifyStatus, setClassifyStatus] = useState<ClassificationStatus | null>(null)
+
+  useEffect(() => {
+    if (!hasContextAxis || vm.documentCount === 0) { setClassifyStatus(null); return }
+    getClassificationStatus(vm.project.id, contextAxes[0].id).then(setClassifyStatus)
+  }, [vm.project.id, vm.documentCount, hasContextAxis, contextAxes[0]?.id])
+
+  const unclassifiedCount = classifyStatus
+    ? classifyStatus.totalDocuments - classifyStatus.classifiedDocuments
+    : 0
+
+  const handleClassify = async () => {
+    if (!hasContextAxis) return
+    setClassifying(true)
+    try {
+      const result = await classifyProjectFunctions(vm.project.id, contextAxes[0].id)
+      setClassifyStatus(await getClassificationStatus(vm.project.id, contextAxes[0].id))
+      const summary = `Classified ${result.documentsProcessed} document${result.documentsProcessed === 1 ? '' : 's'} (${result.totalSectionsTagged} sections tagged)`
+      if (result.documentsFailed > 0) {
+        toast.error(
+          `${summary}. ${result.documentsFailed} document${result.documentsFailed === 1 ? '' : 's'} failed`,
+          'Check the analysis engine status and re-run to retry.'
+        )
+      } else {
+        toast.success(summary)
+      }
+    } catch (err) {
+      toast.error(`Classification failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setClassifying(false)
+    }
+  }
+
   const handleRemove = async (documentId: string) => {
     try {
       await removeDocumentFromProject(vm.project.id, documentId)
@@ -403,15 +442,48 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
             })}
           </ul>
         )}
-        <div className="border-t border-border p-3">
-          <Button
-            variant="outline"
-            onClick={() => setPickerOpen(true)}
-            className="gap-2"
-          >
-            <Plus className="h-4 w-4" />
-            Add documents from Library
-          </Button>
+        <div className="border-t border-border p-3 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setPickerOpen(true)}
+              className="gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Add documents from Library
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleClassify}
+              disabled={!hasContextAxis || vm.documentCount === 0 || classifying}
+              className="gap-2"
+              title={
+                !hasContextAxis
+                  ? 'Add a Function/Pillar (document-context) axis to enable classification'
+                  : `Classify document sections on the ${contextAxes[0]?.name ?? 'document-context'} axis`
+              }
+            >
+              {classifying ? (
+                <><RefreshCw className="h-4 w-4 animate-spin" /> Classifying…</>
+              ) : (
+                <><Sparkles className="h-4 w-4" /> Classify documents</>
+              )}
+            </Button>
+          </div>
+          {/* One combined warning: either no document-context axis is active,
+              or some documents still need classifying. */}
+          {vm.documentCount > 0 && (!hasContextAxis || unclassifiedCount > 0) && (
+            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+              <span>
+                {!hasContextAxis ? (
+                  <>No <strong>Function/Pillar</strong> axis is active — add a document-context axis (Axes section below) to enable classification for the Map matrix and Wedding Cake score.</>
+                ) : (
+                  <><strong>{unclassifiedCount}</strong> of <strong>{classifyStatus?.totalDocuments}</strong> document{classifyStatus && classifyStatus.totalDocuments === 1 ? '' : 's'} {unclassifiedCount === 1 ? 'is' : 'are'} not classified yet — classify to enable the Map matrix and full Wedding Cake score.</>
+                )}
+              </span>
+            </p>
+          )}
         </div>
       </div>
       <AddDocumentsDialog

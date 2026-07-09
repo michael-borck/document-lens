@@ -57,9 +57,11 @@ export function Compare() {
   const [yearMax, setYearMax] = useState<string>('')
   const [companies, setCompanies] = useState<Set<string>>(new Set())
   const [sectors, setSectors] = useState<Set<string>>(new Set())
+  const [types, setTypes] = useState<Set<string>>(new Set())
 
   const [allCompanies, setAllCompanies] = useState<string[]>([])
   const [allSectors, setAllSectors] = useState<string[]>([])
+  const [allTypes, setAllTypes] = useState<string[]>([])
 
 
   // Load enabled keywords for the per-keyword narrowing dropdown.
@@ -99,6 +101,15 @@ export function Compare() {
         ORDER BY value`,
       [vm.project.id]
     ).then((rows) => setAllSectors(rows.map((r) => r.value)))
+
+    selectAll<{ value: string }>(
+      `SELECT DISTINCT d.type AS value
+         FROM documents d
+         JOIN project_documents pd ON pd.document_id = d.id
+        WHERE pd.project_id = ? AND d.type IS NOT NULL AND TRIM(d.type) != ''
+        ORDER BY value`,
+      [vm.project.id]
+    ).then((rows) => setAllTypes(rows.map((r) => r.value)))
   }, [vm.project.id])
 
   // Manual run; the hook owns running/error/result + cancel-safety.
@@ -120,6 +131,7 @@ export function Compare() {
       yearMax: yearMax ? Number(yearMax) : undefined,
       companies: companies.size > 0 ? Array.from(companies) : undefined,
       sectors: sectors.size > 0 ? Array.from(sectors) : undefined,
+      types: types.size > 0 ? Array.from(types) : undefined,
       scoringRule: metric === 'score' ? vm.scoringRule?.definition : undefined,
     })
   })
@@ -133,6 +145,12 @@ export function Compare() {
     const next = new Set(sectors)
     if (next.has(s)) next.delete(s); else next.add(s)
     setSectors(next)
+  }
+
+  const toggleType = (t: string) => {
+    const next = new Set(types)
+    if (next.has(t)) next.delete(t); else next.add(t)
+    setTypes(next)
   }
 
   if (!vm.keywordList) {
@@ -205,6 +223,7 @@ export function Compare() {
               <SelectItem value="company">Company</SelectItem>
               <SelectItem value="year">Year</SelectItem>
               <SelectItem value="sector">Sector</SelectItem>
+              <SelectItem value="type">Type</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -225,8 +244,8 @@ export function Compare() {
         </div>
       </div>
 
-      {(allCompanies.length > 0 || allSectors.length > 0) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+      {(allCompanies.length > 0 || allSectors.length > 0 || allTypes.length > 0) && (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {allCompanies.length > 0 && (
             <FilterCheckboxList
               label="Filter by company"
@@ -243,6 +262,15 @@ export function Compare() {
               selected={sectors}
               onToggle={toggleSector}
               onClear={() => setSectors(new Set())}
+            />
+          )}
+          {allTypes.length > 0 && (
+            <FilterCheckboxList
+              label="Filter by type"
+              options={allTypes}
+              selected={types}
+              onToggle={toggleType}
+              onClear={() => setTypes(new Set())}
             />
           )}
         </div>
@@ -347,6 +375,7 @@ function ResultsView({ result }: { result: CompareResult }) {
       year: p.year,
       company: p.company,
       sector: p.sector,
+      type: p.type,
     }))
   }, [result])
 
@@ -424,9 +453,9 @@ function ResultsView({ result }: { result: CompareResult }) {
               contentStyle={{ fontSize: '12px' }}
               formatter={(value: number) => [formatValue(value, result.metric), metricLabel(result.metric)]}
               labelFormatter={(label, items) => {
-                const item = items?.[0]?.payload as { label: string; year: number | null; company: string | null; sector: string | null } | undefined
+                const item = items?.[0]?.payload as { label: string; year: number | null; company: string | null; sector: string | null; type: string | null } | undefined
                 if (!item) return String(label)
-                const meta = [item.year, item.company, item.sector].filter(Boolean).join(' · ')
+                const meta = [item.year, item.company, item.sector, item.type].filter(Boolean).join(' · ')
                 return meta ? `${item.label} — ${meta}` : item.label
               }}
             />
@@ -452,6 +481,7 @@ function groupKeyFor(
   if (group === 'company') return p.company ?? '(no company)'
   if (group === 'year') return p.year !== null ? String(p.year) : '(year unknown)'
   if (group === 'sector') return p.sector ?? '(no sector)'
+  if (group === 'type') return p.type ?? '(no type)'
   return 'all'
 }
 
