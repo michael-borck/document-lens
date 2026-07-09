@@ -8,6 +8,7 @@
 
 import { selectOne } from './db'
 import { loadProjectCorpus } from './_shared/project-corpus'
+import { computeSubstanceSignals } from './substance'
 import { evaluateScore } from './scoring'
 import type {
   Document,
@@ -20,6 +21,9 @@ export type CompareMetric =
   | 'distinct-keywords'  // count of unique enabled keywords with ≥1 match
   | 'pos-minus-counter'  // positive matches minus counter matches
   | 'score'              // active scoring rule output (Wedding Cake / fallback)
+  | 'repetition'         // substance: matches per unique keyword (loud-but-thin)
+  | 'diversity'          // substance: fraction of keyword set touched (0–1)
+  | 'intensity'          // substance: matches per 1,000 words (size-normalised)
 
 export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type'
 
@@ -32,6 +36,8 @@ export interface ComparePoint {
   type: string | null
   /** Numeric value the bar chart plots. */
   value: number
+  /** Evidence confidence (0–1); set only for substance metrics. */
+  confidence?: number
   /** When score metric: per-function or per-pillar breakdown. */
   breakdown?: Record<string, number>
 }
@@ -124,6 +130,36 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
       }
       const value = input.metric === 'match-count' ? total : distinctHits
       points.push(makePoint(doc, value))
+    }
+  } else if (
+    input.metric === 'repetition' ||
+    input.metric === 'diversity' ||
+    input.metric === 'intensity'
+  ) {
+    // Substance signals — always over the FULL enabled keyword set (corpus was
+    // loaded with polarity 'both'), independent of the polarity filter, since
+    // "quality of language" isn't a positive/counter question.
+    for (const doc of filteredDocs) {
+      let total = 0
+      let unique = 0
+      for (const kw of corpus.keywords) {
+        const n = corpus.countFor(doc.id, kw.id)
+        total += n
+        if (n > 0) unique++
+      }
+      const signals = computeSubstanceSignals({
+        totalMatches: total,
+        uniqueKeywords: unique,
+        enabledKeywords: corpus.keywords.length,
+        wordCount: doc.wordCount,
+      })
+      const value =
+        input.metric === 'repetition' ? signals.repetition
+        : input.metric === 'diversity' ? signals.diversity
+        : (signals.intensity ?? 0)
+      const point = makePoint(doc, value)
+      point.confidence = signals.confidence
+      points.push(point)
     }
   } else if (input.metric === 'pos-minus-counter') {
     const positives = corpus.keywords.filter((k) => k.polarity === 'positive')

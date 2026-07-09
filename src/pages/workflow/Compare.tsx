@@ -28,6 +28,7 @@ import {
   type CompareMetric,
   type CompareGroup,
 } from '@/services/compare'
+import { confidenceLabel } from '@/services/substance'
 import { listKeywords } from '@/services/keyword-lists'
 import { selectAll } from '@/services/db'
 import { EmptyState } from '@/components/EmptyState'
@@ -186,6 +187,9 @@ export function Compare() {
               <SelectItem value="match-count">Match count</SelectItem>
               <SelectItem value="distinct-keywords">Distinct keywords matched</SelectItem>
               <SelectItem value="pos-minus-counter">Positive − Counter (greenwashing index)</SelectItem>
+              <SelectItem value="repetition">Repetition (matches ÷ unique keyword)</SelectItem>
+              <SelectItem value="diversity">Diversity (keyword breadth)</SelectItem>
+              <SelectItem value="intensity">Intensity (matches / 1k words)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -376,6 +380,7 @@ function ResultsView({ result }: { result: CompareResult }) {
       company: p.company,
       sector: p.sector,
       type: p.type,
+      confidence: p.confidence,
     }))
   }, [result])
 
@@ -453,9 +458,10 @@ function ResultsView({ result }: { result: CompareResult }) {
               contentStyle={{ fontSize: '12px' }}
               formatter={(value: number) => [formatValue(value, result.metric), metricLabel(result.metric)]}
               labelFormatter={(label, items) => {
-                const item = items?.[0]?.payload as { label: string; year: number | null; company: string | null; sector: string | null; type: string | null } | undefined
+                const item = items?.[0]?.payload as { label: string; year: number | null; company: string | null; sector: string | null; type: string | null; confidence?: number } | undefined
                 if (!item) return String(label)
-                const meta = [item.year, item.company, item.sector, item.type].filter(Boolean).join(' · ')
+                const conf = item.confidence !== undefined ? `confidence: ${confidenceLabel(item.confidence)}` : null
+                const meta = [item.year, item.company, item.sector, item.type, conf].filter(Boolean).join(' · ')
                 return meta ? `${item.label} — ${meta}` : item.label
               }}
             />
@@ -489,15 +495,23 @@ function metricLabel(m: CompareMetric): string {
   if (m === 'match-count') return 'Match count'
   if (m === 'distinct-keywords') return 'Distinct keywords matched'
   if (m === 'pos-minus-counter') return 'Positive − Counter'
+  if (m === 'repetition') return 'Repetition (matches ÷ unique)'
+  if (m === 'diversity') return 'Diversity (keyword breadth)'
+  if (m === 'intensity') return 'Intensity (per 1k words)'
   return 'Score'
 }
 
 function formatValue(value: number, metric: CompareMetric): string {
   if (metric === 'score') return value.toFixed(2)
+  if (metric === 'repetition' || metric === 'intensity') return value.toFixed(1)
+  if (metric === 'diversity') return `${Math.round(value * 100)}%`
   return value.toLocaleString()
 }
 
 function DataTable({ result }: { result: CompareResult }) {
+  // Substance metrics carry an evidence-confidence; surface it as a column so
+  // the researcher can discount an extreme ratio built on thin evidence.
+  const showConfidence = result.points.some((p) => p.confidence !== undefined)
   return (
     <details>
       <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
@@ -513,6 +527,7 @@ function DataTable({ result }: { result: CompareResult }) {
               <th className="text-left px-3 py-1.5 font-medium">Company</th>
               <th className="text-left px-3 py-1.5 font-medium">Sector</th>
               <th className="text-right px-3 py-1.5 font-medium w-20">{metricLabel(result.metric)}</th>
+              {showConfidence && <th className="text-right px-3 py-1.5 font-medium w-24">Confidence</th>}
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -524,6 +539,11 @@ function DataTable({ result }: { result: CompareResult }) {
                 <td className="px-3 py-1 truncate">{p.company ?? '—'}</td>
                 <td className="px-3 py-1 truncate">{p.sector ?? '—'}</td>
                 <td className="px-3 py-1 text-right tabular-nums font-medium">{formatValue(p.value, result.metric)}</td>
+                {showConfidence && (
+                  <td className="px-3 py-1 text-right text-muted-foreground">
+                    {p.confidence !== undefined ? confidenceLabel(p.confidence) : '—'}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>
