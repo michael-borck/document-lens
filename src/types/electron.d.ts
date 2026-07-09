@@ -69,12 +69,54 @@ export interface UpdateCheckResult {
   error?: string
 }
 
+// --- AI providers (BYOK) ---
+export type AiProviderId =
+  | 'anthropic' | 'openai' | 'gemini' | 'grok'
+  | 'openai-compat' | 'ollama' | 'ollama-bearer'
+
+export interface AiProviderView {
+  id: AiProviderId
+  label: string
+  shape: 'anthropic' | 'openai' | 'gemini'
+  keyMode: 'required' | 'optional' | 'none'
+  baseUrl: string
+  model: string | null
+  hasKey: boolean
+}
+export interface AiProvidersSnapshot {
+  active: AiProviderId | null
+  encryptionAvailable: boolean
+  providers: AiProviderView[]
+}
+export interface AiTestResult {
+  ok: boolean
+  models?: string[]
+  error?: string
+}
+export interface AiSaveInput {
+  baseUrl: string
+  model: string | null
+  key?: string
+}
+export interface AiDraft {
+  baseUrl: string
+  key?: string
+}
+
 export interface ElectronAPI {
   // Dialog
   openFileDialog: (options?: DialogOptions) => Promise<OpenDialogResult>
   openDirectoryDialog: (options?: DialogOptions) => Promise<OpenDialogResult>
   openFolderDialog: (options?: DialogOptions) => Promise<OpenFolderResult>
   saveFileDialog: (options?: DialogOptions) => Promise<SaveDialogResult>
+
+  // AI providers (BYOK)
+  aiGetProviders: () => Promise<AiProvidersSnapshot>
+  aiSaveProvider: (id: AiProviderId, input: AiSaveInput) => Promise<AiProvidersSnapshot>
+  aiSetActiveProvider: (id: AiProviderId | null) => Promise<AiProvidersSnapshot>
+  aiRevealKey: (id: AiProviderId) => Promise<string | null>
+  aiTestConnection: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
+  aiListModels: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
 
   // Shell
   openPath: (filePath: string) => Promise<string>

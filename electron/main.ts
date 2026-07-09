@@ -13,6 +13,15 @@ import {
   assertReadable,
   assertWritable,
 } from './fs-guard'
+import {
+  getProviders as aiGetProviders,
+  saveProvider as aiSaveProvider,
+  setActiveProvider as aiSetActiveProvider,
+  revealKey as aiRevealKey,
+  testConnection as aiTestConnection,
+  listModels as aiListModels,
+  type ProviderId,
+} from './ai-providers'
 
 // Dev-only: point userData at a throwaway profile so scripted runs (e.g.
 // scripts/capture-help-screenshots.mjs) get a deterministic fresh state
@@ -480,6 +489,18 @@ ipcMain.handle('dialog:openFolder', async (_, options) => {
   }
   return { canceled: false, filePaths, folderCount: result.filePaths.length, truncated }
 })
+
+// AI provider (BYOK) handlers. All LLM/network calls run here in main so raw
+// keys never enter the renderer and CORS doesn't apply. See electron/ai-providers.ts.
+ipcMain.handle('ai:getProviders', async () => aiGetProviders())
+ipcMain.handle('ai:saveProvider', async (_e, id: ProviderId, input: { baseUrl: string; model: string | null; key?: string }) =>
+  aiSaveProvider(id, input))
+ipcMain.handle('ai:setActiveProvider', async (_e, id: ProviderId | null) => aiSetActiveProvider(id))
+ipcMain.handle('ai:revealKey', async (_e, id: ProviderId) => aiRevealKey(id))
+ipcMain.handle('ai:testConnection', async (_e, id: ProviderId, draft?: { baseUrl: string; key?: string }) =>
+  aiTestConnection(id, draft))
+ipcMain.handle('ai:listModels', async (_e, id: ProviderId, draft?: { baseUrl: string; key?: string }) =>
+  aiListModels(id, draft))
 
 ipcMain.handle('dialog:saveFile', async (_, options) => {
   const result = await dialog.showSaveDialog(mainWindow!, options)

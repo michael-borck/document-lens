@@ -30,6 +30,40 @@ export interface SaveDialogResult {
   filePath?: string
 }
 
+// --- AI providers (BYOK) ---
+export type AiProviderId =
+  | 'anthropic' | 'openai' | 'gemini' | 'grok'
+  | 'openai-compat' | 'ollama' | 'ollama-bearer'
+
+export interface AiProviderView {
+  id: AiProviderId
+  label: string
+  shape: 'anthropic' | 'openai' | 'gemini'
+  keyMode: 'required' | 'optional' | 'none'
+  baseUrl: string
+  model: string | null
+  hasKey: boolean
+}
+export interface AiProvidersSnapshot {
+  active: AiProviderId | null
+  encryptionAvailable: boolean
+  providers: AiProviderView[]
+}
+export interface AiTestResult {
+  ok: boolean
+  models?: string[]
+  error?: string
+}
+export interface AiSaveInput {
+  baseUrl: string
+  model: string | null
+  key?: string
+}
+export interface AiDraft {
+  baseUrl: string
+  key?: string
+}
+
 export type BackendPhase =
   | 'not-started'
   | 'starting'
@@ -74,6 +108,20 @@ const electronAPI = {
     ipcRenderer.invoke('dialog:openDirectory', options),
   openFolderDialog: (options?: DialogOptions): Promise<OpenFolderResult> =>
     ipcRenderer.invoke('dialog:openFolder', options),
+
+  // AI providers (BYOK)
+  aiGetProviders: (): Promise<AiProvidersSnapshot> =>
+    ipcRenderer.invoke('ai:getProviders'),
+  aiSaveProvider: (id: AiProviderId, input: AiSaveInput): Promise<AiProvidersSnapshot> =>
+    ipcRenderer.invoke('ai:saveProvider', id, input),
+  aiSetActiveProvider: (id: AiProviderId | null): Promise<AiProvidersSnapshot> =>
+    ipcRenderer.invoke('ai:setActiveProvider', id),
+  aiRevealKey: (id: AiProviderId): Promise<string | null> =>
+    ipcRenderer.invoke('ai:revealKey', id),
+  aiTestConnection: (id: AiProviderId, draft?: AiDraft): Promise<AiTestResult> =>
+    ipcRenderer.invoke('ai:testConnection', id, draft),
+  aiListModels: (id: AiProviderId, draft?: AiDraft): Promise<AiTestResult> =>
+    ipcRenderer.invoke('ai:listModels', id, draft),
   saveFileDialog: (options?: DialogOptions): Promise<SaveDialogResult> =>
     ipcRenderer.invoke('dialog:saveFile', options),
 

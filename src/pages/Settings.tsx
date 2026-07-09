@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react'
-import { Plus, Trash2, Lock, Award, RotateCw } from 'lucide-react'
+import { Plus, Trash2, Lock, Award, RotateCw, Sparkles, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { Loading } from '@/components/Loading'
 import { NewScoringRuleDialog } from '@/components/dialogs/NewScoringRuleDialog'
@@ -10,7 +18,9 @@ import {
   countProjectsUsingScoringRule,
 } from '@/services/scoring-rules'
 import { toast } from '@/stores/toastStore'
+import { cn } from '@/lib/utils'
 import type { ScoringRule } from '@/types/data'
+import type { AiProviderId, AiProvidersSnapshot } from '@/types/electron'
 
 export function Settings() {
   return (
@@ -24,6 +34,7 @@ export function Settings() {
 
       <div className="space-y-10">
         <ScoringRulesSection />
+        <AiProviderSection />
         <BackendSection />
       </div>
     </div>
@@ -168,6 +179,197 @@ function ScoringRulesSection() {
         destructive
         onConfirm={handleConfirmDelete}
       />
+    </section>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// AI provider section (BYOK)
+// ---------------------------------------------------------------------------
+
+function AiProviderSection() {
+  const [snapshot, setSnapshot] = useState<AiProvidersSnapshot | null>(null)
+  const [selectedId, setSelectedId] = useState<AiProviderId>('anthropic')
+  const [baseUrl, setBaseUrl] = useState('')
+  const [keyInput, setKeyInput] = useState('')
+  const [keyDirty, setKeyDirty] = useState(false)
+  const [showKey, setShowKey] = useState(false)
+  const [model, setModel] = useState('')
+  const [models, setModels] = useState<string[]>([])
+  const [busy, setBusy] = useState(false)
+  const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
+
+  useEffect(() => {
+    window.electron.aiGetProviders().then((snap) => {
+      setSnapshot(snap)
+      setSelectedId(snap.active ?? snap.providers[0]?.id ?? 'anthropic')
+    })
+  }, [])
+
+  const selected = snapshot?.providers.find((p) => p.id === selectedId)
+
+  // Hydrate the draft whenever the selected provider (or the snapshot) changes.
+  useEffect(() => {
+    if (!selected) return
+    setBaseUrl(selected.baseUrl)
+    setModel(selected.model ?? '')
+    setKeyInput('')
+    setKeyDirty(false)
+    setShowKey(false)
+    setModels([])
+    setTestMsg(null)
+  }, [selectedId, snapshot])
+
+  if (!snapshot) return <Loading />
+
+  const isActive = snapshot.active === selectedId
+  const draft = () => ({ baseUrl, key: keyDirty ? keyInput : undefined })
+
+  const handleShow = async () => {
+    // Reveal the stored key on demand (decrypted in main) so it can be viewed/edited.
+    if (!showKey && selected?.hasKey && !keyDirty && keyInput === '') {
+      const revealed = await window.electron.aiRevealKey(selectedId)
+      if (revealed !== null) setKeyInput(revealed)
+    }
+    setShowKey((s) => !s)
+  }
+
+  const handleTest = async () => {
+    setBusy(true)
+    setTestMsg(null)
+    try {
+      const res = await window.electron.aiTestConnection(selectedId, draft())
+      if (res.ok) {
+        setModels(res.models ?? [])
+        setTestMsg({ ok: true, text: `Connected — ${res.models?.length ?? 0} model${res.models?.length === 1 ? '' : 's'} available` })
+      } else {
+        setTestMsg({ ok: false, text: res.error ?? 'Connection failed' })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleSave = async () => {
+    setBusy(true)
+    try {
+      const snap = await window.electron.aiSaveProvider(selectedId, {
+        baseUrl,
+        model: model.trim() || null,
+        key: keyDirty ? keyInput : undefined,
+      })
+      setSnapshot(snap)
+      setKeyDirty(false)
+      toast.success(`Saved ${selected?.label} settings`)
+    } catch (err) {
+      toast.error(`Save failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const handleSetActive = async () => {
+    const snap = await window.electron.aiSetActiveProvider(selectedId)
+    setSnapshot(snap)
+    toast.success(`${selected?.label} is now the active AI provider`)
+  }
+
+  return (
+    <section>
+      <div className="flex items-center gap-2 mb-1">
+        <Sparkles className="h-5 w-5" />
+        <h2 className="font-medium">AI provider (bring your own key)</h2>
+      </div>
+      <p className="text-sm text-muted-foreground mb-4 max-w-3xl">
+        Configure an AI provider for the optional AI-observation features. Keys are encrypted with
+        your OS keychain and used only from the app&apos;s background process — never shown unless you
+        click Show. Anything AI-generated is always flagged as such and is not a repeatable signal.
+      </p>
+      {!snapshot.encryptionAvailable && (
+        <p className="text-xs text-amber-700 dark:text-amber-400 mb-3">
+          ⚠ OS key encryption isn&apos;t available on this machine — keys are stored with weak
+          encoding. Prefer a local provider (Ollama) here.
+        </p>
+      )}
+
+      <div className="border border-border rounded-md p-4 space-y-4 max-w-3xl">
+        <div className="flex items-center gap-3 flex-wrap">
+          <label className="text-sm w-28 shrink-0">Provider</label>
+          <Select value={selectedId} onValueChange={(v) => setSelectedId(v as AiProviderId)}>
+            <SelectTrigger className="w-64"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {snapshot.providers.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.label}{snapshot.active === p.id ? ' · active' : ''}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {isActive ? (
+            <span className="text-xs text-green-700 dark:text-green-400 flex items-center gap-1">
+              <Check className="h-3.5 w-3.5" /> Active
+            </span>
+          ) : (
+            <Button variant="outline" size="sm" onClick={handleSetActive}>Use this provider</Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-3">
+          <label className="text-sm w-28 shrink-0">Base URL</label>
+          <Input value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="https://…" className="flex-1" />
+        </div>
+
+        {selected?.keyMode !== 'none' && (
+          <div className="flex items-center gap-3">
+            <label className="text-sm w-28 shrink-0">
+              API key{selected?.keyMode === 'optional' ? ' (optional)' : ''}
+            </label>
+            <div className="relative flex-1">
+              <Input
+                type={showKey ? 'text' : 'password'}
+                value={keyInput}
+                onChange={(e) => { setKeyInput(e.target.value); setKeyDirty(true) }}
+                placeholder={selected?.hasKey ? '•••••• stored — leave blank to keep' : 'Enter key'}
+                className="pr-14"
+              />
+              <button
+                type="button"
+                onClick={handleShow}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                {showKey ? 'Hide' : 'Show'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="flex items-center gap-3">
+          <label className="text-sm w-28 shrink-0">Model</label>
+          <input
+            list="ai-models"
+            value={model}
+            onChange={(e) => setModel(e.target.value)}
+            placeholder="model id (test to fetch the list)"
+            className="flex-1 rounded-sm border border-border bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+          <datalist id="ai-models">
+            {models.map((m) => <option key={m} value={m} />)}
+          </datalist>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={handleTest} disabled={busy} className="gap-1.5">
+            {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <RotateCw className="h-4 w-4" />}
+            Test &amp; fetch models
+          </Button>
+          <Button size="sm" onClick={handleSave} disabled={busy}>Save</Button>
+          {testMsg && (
+            <span className={cn('text-xs', testMsg.ok ? 'text-green-700 dark:text-green-400' : 'text-destructive')}>
+              {testMsg.text}
+            </span>
+          )}
+        </div>
+      </div>
     </section>
   )
 }
