@@ -92,6 +92,17 @@ export function evidenceReuseRatio(reuseMatches: number, totalMatches: number): 
   return reuseMatches / totalMatches
 }
 
+/**
+ * Coverage spread: the fraction of the pillar×function matrix cells a document
+ * fills (non-zero ÷ total). High = broad commitment across the whole matrix;
+ * low = concentrated in a few cells (deep in one area, absent elsewhere).
+ * 0 when the matrix is empty or unavailable (e.g. classification not done).
+ */
+export function coverageSpreadRatio(nonZeroCells: number, totalCells: number): number {
+  if (totalCells <= 0) return 0
+  return nonZeroCells / totalCells
+}
+
 /** Coarse label for a 0–1 confidence, for compact display. */
 export function confidenceLabel(confidence: number): 'low' | 'medium' | 'high' {
   if (confidence < 0.34) return 'low'

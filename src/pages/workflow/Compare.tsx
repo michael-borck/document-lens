@@ -209,6 +209,7 @@ export function Compare() {
               <SelectItem value="diversity">Diversity (keyword breadth)</SelectItem>
               <SelectItem value="intensity">Intensity (matches / 1k words)</SelectItem>
               <SelectItem value="evidence-reuse">Evidence reuse (multi-pillar %)</SelectItem>
+              <SelectItem value="coverage-spread">Coverage spread (matrix fill %)</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -530,13 +531,14 @@ function metricLabel(m: CompareMetric): string {
   if (m === 'diversity') return 'Diversity (keyword breadth)'
   if (m === 'intensity') return 'Intensity (per 1k words)'
   if (m === 'evidence-reuse') return 'Evidence reuse (multi-pillar)'
+  if (m === 'coverage-spread') return 'Coverage spread (matrix fill)'
   return 'Score'
 }
 
 function formatValue(value: number, metric: CompareMetric): string {
   if (metric === 'score') return value.toFixed(2)
   if (metric === 'repetition' || metric === 'intensity') return value.toFixed(1)
-  if (metric === 'diversity' || metric === 'evidence-reuse') return `${Math.round(value * 100)}%`
+  if (metric === 'diversity' || metric === 'evidence-reuse' || metric === 'coverage-spread') return `${Math.round(value * 100)}%`
   return value.toLocaleString()
 }
 

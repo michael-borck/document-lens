@@ -8,7 +8,8 @@
 
 import { selectOne, selectAll } from './db'
 import { loadProjectCorpus } from './_shared/project-corpus'
-import { computeSubstanceSignals, evidenceReuseRatio, substanceConfidence } from './substance'
+import { computeSubstanceSignals, evidenceReuseRatio, coverageSpreadRatio, substanceConfidence } from './substance'
+import { computeCoverage2D } from './coverage-2d'
 import { getKeywordListAxes } from './keyword-lists'
 import { evaluateScore } from './scoring'
 import type {
@@ -26,6 +27,7 @@ export type CompareMetric =
   | 'diversity'          // substance: fraction of keyword set touched (0–1)
   | 'intensity'          // substance: matches per 1,000 words (size-normalised)
   | 'evidence-reuse'     // substance: share of matches on multi-pillar keywords (0–1)
+  | 'coverage-spread'    // substance: fraction of pillar×function cells filled (0–1)
 
 export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type' | 'companySize'
 
@@ -197,6 +199,56 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
       point.confidence = substanceConfidence({
         totalMatches: total,
         uniqueKeywords: 0, // unused by confidence
+        enabledKeywords: corpus.keywords.length,
+        wordCount: doc.wordCount,
+      })
+      points.push(point)
+    }
+  } else if (input.metric === 'coverage-spread') {
+    // Coverage spread: fraction of the pillar×function matrix cells a document
+    // fills. Needs both axes — the pillar (rows) and function (columns) come
+    // from the active scoring rule. Without a rule (or if the 2D matrix can't
+    // compute — e.g. classification incomplete) the signal is 0 for all docs.
+    const def = input.scoringRule as
+      | { layerLensId?: string; pillarLensId?: string; subjectLensId?: string; functionLensId?: string }
+      | undefined
+    const rowAxisId = def?.layerLensId ?? def?.pillarLensId
+    const colAxisId = def?.subjectLensId ?? def?.functionLensId
+    let cellsByDoc: Record<string, Record<string, Record<string, number>>> = {}
+    let totalCells = 0
+    if (rowAxisId && colAxisId) {
+      try {
+        const m = await computeCoverage2D({
+          projectId: input.projectId,
+          keywordListId: input.keywordListId,
+          rowAxisId,
+          colAxisId,
+          polarity: 'positive',
+        })
+        cellsByDoc = m.cells
+        const rowKeys = Object.keys(m.aggregate)
+        const colKeys = rowKeys.length > 0 ? Object.keys(m.aggregate[rowKeys[0]]) : []
+        totalCells = rowKeys.length * colKeys.length
+      } catch {
+        totalCells = 0 // matrix unavailable → spread 0
+      }
+    }
+    for (const doc of filteredDocs) {
+      let nonZero = 0
+      let total = 0
+      const docCells = cellsByDoc[doc.id]
+      if (docCells) {
+        for (const rv of Object.keys(docCells)) {
+          for (const cv of Object.keys(docCells[rv])) {
+            if (docCells[rv][cv] > 0) nonZero++
+          }
+        }
+      }
+      for (const kw of corpus.keywords) total += corpus.countFor(doc.id, kw.id)
+      const point = makePoint(doc, coverageSpreadRatio(nonZero, totalCells))
+      point.confidence = substanceConfidence({
+        totalMatches: total,
+        uniqueKeywords: 0,
         enabledKeywords: corpus.keywords.length,
         wordCount: doc.wordCount,
       })

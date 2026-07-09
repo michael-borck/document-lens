@@ -4,6 +4,7 @@ import {
   diversityRatio,
   intensityPer1k,
   evidenceReuseRatio,
+  coverageSpreadRatio,
   substanceConfidence,
   confidenceLabel,
   computeSubstanceSignals,
@@ -73,6 +74,15 @@ describe('evidenceReuseRatio', () => {
   })
   it('is 1 when every match is on a multi-pillar keyword', () => {
     expect(evidenceReuseRatio(40, 40)).toBe(1)
+  })
+})
+
+describe('coverageSpreadRatio', () => {
+  it('is non-zero ÷ total cells', () => {
+    expect(coverageSpreadRatio(3, 12)).toBe(0.25)
+  })
+  it('is 0 when the matrix is empty/unavailable', () => {
+    expect(coverageSpreadRatio(0, 0)).toBe(0)
   })
 })
 

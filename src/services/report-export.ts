@@ -70,7 +70,7 @@ export async function generateProjectReport(input: ReportInput): Promise<Blob> {
   const docs = (await selectAll<DocumentRow>('documents.byProjectOrdered', [input.projectId])).map(rowToDocument)
 
   // Substance signals — one computeCompare pass per metric, keyed by document.
-  const substanceMetrics: CompareMetric[] = ['repetition', 'diversity', 'intensity', 'evidence-reuse']
+  const substanceMetrics: CompareMetric[] = ['repetition', 'diversity', 'intensity', 'evidence-reuse', 'coverage-spread']
   const valueByDocMetric = new Map<string, Record<string, number>>()
   const confidenceByDoc = new Map<string, number>()
   for (const metric of substanceMetrics) {
@@ -80,6 +80,8 @@ export async function generateProjectReport(input: ReportInput): Promise<Blob> {
       metric,
       polarity: 'positive',
       group: 'none',
+      // coverage-spread needs the rule's pillar + function axes.
+      scoringRule: input.scoringRule?.definition,
     })
     for (const p of result.points) {
       const rec = valueByDocMetric.get(p.documentId) ?? {}
@@ -153,9 +155,9 @@ export async function generateProjectReport(input: ReportInput): Promise<Blob> {
   }
 
   children.push(heading('Substance signals'))
-  children.push(muted('Repetition = matches ÷ unique keyword. Diversity = keyword breadth. Intensity = matches / 1k words. Evidence reuse = share of matches on multi-pillar keywords. Confidence reflects evidence volume — discount low-confidence rows.'))
+  children.push(muted('Repetition = matches ÷ unique keyword. Diversity = keyword breadth. Intensity = matches / 1k words. Evidence reuse = share of matches on multi-pillar keywords. Coverage spread = fraction of the pillar×function matrix filled. Confidence reflects evidence volume — discount low-confidence rows.'))
   children.push(makeTable(
-    ['Document', 'Repetition', 'Diversity', 'Intensity', 'Evidence reuse', 'Confidence'],
+    ['Document', 'Repetition', 'Diversity', 'Intensity', 'Evidence reuse', 'Coverage spread', 'Confidence'],
     docs.map((d) => {
       const rec = valueByDocMetric.get(d.id) ?? {}
       const conf = confidenceByDoc.get(d.id)
@@ -167,6 +169,7 @@ export async function generateProjectReport(input: ReportInput): Promise<Blob> {
         pct(rec['diversity']),
         num(rec['intensity']),
         pct(rec['evidence-reuse']),
+        pct(rec['coverage-spread']),
         conf !== undefined ? confidenceLabel(conf) : '—',
       ]
     }),
