@@ -6,9 +6,10 @@
  * Useful for "which company / report scores highest on this framework".
  */
 
-import { selectOne } from './db'
+import { selectOne, selectAll } from './db'
 import { loadProjectCorpus } from './_shared/project-corpus'
-import { computeSubstanceSignals } from './substance'
+import { computeSubstanceSignals, evidenceReuseRatio, substanceConfidence } from './substance'
+import { getKeywordListAxes } from './keyword-lists'
 import { evaluateScore } from './scoring'
 import type {
   Document,
@@ -24,6 +25,7 @@ export type CompareMetric =
   | 'repetition'         // substance: matches per unique keyword (loud-but-thin)
   | 'diversity'          // substance: fraction of keyword set touched (0–1)
   | 'intensity'          // substance: matches per 1,000 words (size-normalised)
+  | 'evidence-reuse'     // substance: share of matches on multi-pillar keywords (0–1)
 
 export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type' | 'companySize'
 
@@ -162,6 +164,42 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
         : (signals.intensity ?? 0)
       const point = makePoint(doc, value)
       point.confidence = signals.confidence
+      points.push(point)
+    }
+  } else if (input.metric === 'evidence-reuse') {
+    // Evidence reuse across pillars: the share of a document's matches that
+    // land on keywords tagged to MORE THAN ONE value of the keyword-attached
+    // (pillar) axis — the same evidence counted toward several pillars. Uses
+    // the keyword list's first declared keyword-attached axis as "pillars".
+    // When no such axis exists (or no keyword is multi-tagged) the signal is
+    // 0 for every document — there's no reuse to detect.
+    const pillarAxes = await getKeywordListAxes(input.keywordListId)
+    const pillarAxisId = pillarAxes[0]
+    const multiPillar = new Set<string>()
+    if (pillarAxisId) {
+      const tagRows = await selectAll<{ keyword_id: string; value_id: string }>(
+        'keywords.tagsForList',
+        [input.keywordListId, pillarAxisId]
+      )
+      const tagCountByKw = new Map<string, number>()
+      for (const r of tagRows) tagCountByKw.set(r.keyword_id, (tagCountByKw.get(r.keyword_id) ?? 0) + 1)
+      for (const [kwId, n] of tagCountByKw) if (n > 1) multiPillar.add(kwId)
+    }
+    for (const doc of filteredDocs) {
+      let total = 0
+      let reuse = 0
+      for (const kw of corpus.keywords) {
+        const n = corpus.countFor(doc.id, kw.id)
+        total += n
+        if (multiPillar.has(kw.id)) reuse += n
+      }
+      const point = makePoint(doc, evidenceReuseRatio(reuse, total))
+      point.confidence = substanceConfidence({
+        totalMatches: total,
+        uniqueKeywords: 0, // unused by confidence
+        enabledKeywords: corpus.keywords.length,
+        wordCount: doc.wordCount,
+      })
       points.push(point)
     }
   } else if (input.metric === 'pos-minus-counter') {

@@ -3,6 +3,7 @@ import {
   repetitionRatio,
   diversityRatio,
   intensityPer1k,
+  evidenceReuseRatio,
   substanceConfidence,
   confidenceLabel,
   computeSubstanceSignals,
@@ -60,6 +61,18 @@ describe('substanceConfidence', () => {
   })
   it('is 0 when word count is unknown', () => {
     expect(substanceConfidence({ ...base, wordCount: null })).toBe(0)
+  })
+})
+
+describe('evidenceReuseRatio', () => {
+  it('is reuse ÷ total matches', () => {
+    expect(evidenceReuseRatio(15, 60)).toBe(0.25)
+  })
+  it('is 0 (not NaN) when there are no matches', () => {
+    expect(evidenceReuseRatio(0, 0)).toBe(0)
+  })
+  it('is 1 when every match is on a multi-pillar keyword', () => {
+    expect(evidenceReuseRatio(40, 40)).toBe(1)
   })
 })
 

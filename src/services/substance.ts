@@ -80,6 +80,18 @@ export function substanceConfidence(i: SubstanceInputs): number {
   return Math.min(wordConf, matchConf)
 }
 
+/**
+ * Evidence reuse: the fraction of a document's matches that land on keywords
+ * carrying MORE THAN ONE pillar tag — i.e. the same evidence counted toward
+ * several pillars at once. High values flag "one project, many boxes ticked"
+ * breadth that may be thinner than it looks. 0 when there are no matches (or
+ * no keyword is multi-tagged). Pure; the caller supplies the two counts.
+ */
+export function evidenceReuseRatio(reuseMatches: number, totalMatches: number): number {
+  if (totalMatches <= 0) return 0
+  return reuseMatches / totalMatches
+}
+
 /** Coarse label for a 0–1 confidence, for compact display. */
 export function confidenceLabel(confidence: number): 'low' | 'medium' | 'high' {
   if (confidence < 0.34) return 'low'
