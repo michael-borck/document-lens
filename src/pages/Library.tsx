@@ -25,10 +25,14 @@ const KNOWN_DOCUMENT_TYPES = [
   'Climate Report',
 ]
 
+// Coarse company-size buckets — a manual faceting dimension. Fixed set so the
+// values stay consistent enough to group/compare on.
+const COMPANY_SIZES = ['Small', 'Medium', 'Large']
+
 // Sortable columns and the fields the bulk editor can set.
-type SortKey = 'title' | 'type' | 'year' | 'company' | 'sector' | 'status' | 'pageCount' | 'wordCount'
+type SortKey = 'title' | 'type' | 'year' | 'company' | 'sector' | 'companySize' | 'status' | 'pageCount' | 'wordCount'
 type SortDir = 'asc' | 'desc'
-type BulkField = 'type' | 'sector' | 'company' | 'year'
+type BulkField = 'type' | 'sector' | 'company' | 'companySize' | 'year'
 
 /** Comparable value for a document on a given sort key. */
 function sortValue(doc: Document, key: SortKey): string | number | null {
@@ -37,6 +41,7 @@ function sortValue(doc: Document, key: SortKey): string | number | null {
     case 'type': return doc.type?.toLowerCase() ?? null
     case 'company': return doc.company?.toLowerCase() ?? null
     case 'sector': return doc.sector?.toLowerCase() ?? null
+    case 'companySize': return doc.companySize?.toLowerCase() ?? null
     case 'status': return doc.status
     case 'year': return doc.year
     case 'pageCount': return doc.pageCount
@@ -426,6 +431,7 @@ function DocumentTable({
     bulkField === 'type' ? typeSuggestions
     : bulkField === 'sector' ? sectorSuggestions
     : bulkField === 'company' ? companySuggestions
+    : bulkField === 'companySize' ? COMPANY_SIZES
     : []
 
   const handleRetry = async (doc: Document) => {
@@ -443,7 +449,7 @@ function DocumentTable({
 
   const handleEdit = async (
     id: string,
-    field: 'title' | 'year' | 'company' | 'sector' | 'type',
+    field: 'title' | 'year' | 'company' | 'sector' | 'type' | 'companySize',
     raw: string | null
   ) => {
     let patch: Record<string, string | number | null> = {}
@@ -528,6 +534,7 @@ function DocumentTable({
             <option value="type">Type</option>
             <option value="sector">Sector</option>
             <option value="company">Company</option>
+            <option value="companySize">Company size</option>
             <option value="year">Year</option>
           </select>
           <input
@@ -567,6 +574,7 @@ function DocumentTable({
             <SortableTh label="Company" sortKey="company" sort={sort} onSort={toggleSort} className="w-44" />
             <SortableTh label="Sector" sortKey="sector" sort={sort} onSort={toggleSort} className="w-36" />
             <SortableTh label="Type" sortKey="type" sort={sort} onSort={toggleSort} className="w-40" />
+            <SortableTh label="Size" sortKey="companySize" sort={sort} onSort={toggleSort} className="w-28" />
             <SortableTh label="Status" sortKey="status" sort={sort} onSort={toggleSort} className="w-32" />
             <SortableTh label="Pages" sortKey="pageCount" sort={sort} onSort={toggleSort} className="w-20" align="right" />
             <SortableTh label="Words" sortKey="wordCount" sort={sort} onSort={toggleSort} className="w-24" align="right" />
@@ -576,7 +584,7 @@ function DocumentTable({
         <tbody className="divide-y divide-border">
           {visible.length === 0 ? (
             <tr>
-              <td colSpan={10} className="px-4 py-8 text-center text-muted-foreground">
+              <td colSpan={11} className="px-4 py-8 text-center text-muted-foreground">
                 No documents match “{search}”.
               </td>
             </tr>
@@ -646,6 +654,15 @@ function DocumentTable({
                   width={150}
                   placeholder="Unknown"
                   suggestions={typeSuggestions}
+                />
+              </td>
+              <td className="px-4 py-2 text-muted-foreground">
+                <InlineEditableCell
+                  value={doc.companySize}
+                  onCommit={(next) => handleEdit(doc.id, 'companySize', next)}
+                  width={100}
+                  placeholder="—"
+                  suggestions={COMPANY_SIZES}
                 />
               </td>
               <td className="px-4 py-2.5">

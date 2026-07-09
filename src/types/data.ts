@@ -30,6 +30,8 @@ export interface Document {
   sector: string | null
   /** Document type (e.g. "Annual Report"). Auto-detected on import, free-text, user-editable. */
   type: string | null
+  /** Coarse company size (Small/Medium/Large) — manual faceting dimension, nullable. */
+  companySize: string | null
   pageCount: number | null
   wordCount: number | null
   extractedText: string | null

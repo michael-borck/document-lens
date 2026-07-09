@@ -25,7 +25,7 @@ export type CompareMetric =
   | 'diversity'          // substance: fraction of keyword set touched (0–1)
   | 'intensity'          // substance: matches per 1,000 words (size-normalised)
 
-export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type'
+export type CompareGroup = 'none' | 'company' | 'year' | 'sector' | 'type' | 'companySize'
 
 export interface ComparePoint {
   documentId: string
@@ -34,6 +34,7 @@ export interface ComparePoint {
   company: string | null
   sector: string | null
   type: string | null
+  companySize: string | null
   /** Numeric value the bar chart plots. */
   value: number
   /** Evidence confidence (0–1); set only for substance metrics. */
@@ -65,6 +66,7 @@ export interface ComputeCompareInput {
   companies?: string[]    // empty / undefined = no filter
   sectors?: string[]
   types?: string[]
+  companySizes?: string[]
   /** Polarity filter (used by match-count and distinct-keywords). */
   polarity: KeywordPolarity
   /**
@@ -104,6 +106,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     if (input.companies && input.companies.length > 0 && !(d.company && input.companies.includes(d.company))) return false
     if (input.sectors && input.sectors.length > 0 && !(d.sector && input.sectors.includes(d.sector))) return false
     if (input.types && input.types.length > 0 && !(d.type && input.types.includes(d.type))) return false
+    if (input.companySizes && input.companySizes.length > 0 && !(d.companySize && input.companySizes.includes(d.companySize))) return false
     return true
   })
 
@@ -209,6 +212,7 @@ function makePoint(doc: Document, value: number, breakdown?: Record<string, numb
     company: doc.company,
     sector: doc.sector,
     type: doc.type,
+    companySize: doc.companySize,
     value,
     breakdown,
   }

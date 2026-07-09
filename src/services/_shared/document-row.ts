@@ -12,6 +12,7 @@ export interface DocumentRow {
   company: string | null
   sector: string | null
   type: string | null
+  company_size: string | null
   page_count: number | null
   word_count: number | null
   extracted_text: string | null
@@ -34,6 +35,7 @@ export function rowToDocument(row: DocumentRow): Document {
     company: row.company,
     sector: row.sector,
     type: row.type,
+    companySize: row.company_size,
     pageCount: row.page_count,
     wordCount: row.word_count,
     extractedText: row.extracted_text,

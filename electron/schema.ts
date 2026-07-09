@@ -22,7 +22,7 @@
  *      per-lens tag assignments, e.g. Teaching / Research /
  *      Engagement / Operations from the Function lens)
  */
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -46,6 +46,7 @@ CREATE TABLE IF NOT EXISTS documents (
   company TEXT,
   sector TEXT,
   type TEXT,                          -- document type; auto-detected on import, user-editable, free-text
+  company_size TEXT,                  -- coarse company size (Small/Medium/Large); manual faceting dimension
   page_count INTEGER,
   word_count INTEGER,
   extracted_text TEXT,
