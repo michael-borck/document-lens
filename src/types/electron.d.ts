@@ -102,6 +102,13 @@ export interface AiDraft {
   baseUrl: string
   key?: string
 }
+export interface AiChatResult {
+  ok: boolean
+  text?: string
+  provider?: string
+  model?: string
+  error?: string
+}
 
 export interface ElectronAPI {
   // Dialog
@@ -117,6 +124,7 @@ export interface ElectronAPI {
   aiRevealKey: (id: AiProviderId) => Promise<string | null>
   aiTestConnection: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
   aiListModels: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
+  aiChat: (system: string, user: string, maxTokens?: number) => Promise<AiChatResult>
 
   // Shell
   openPath: (filePath: string) => Promise<string>

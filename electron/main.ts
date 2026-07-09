@@ -20,6 +20,7 @@ import {
   revealKey as aiRevealKey,
   testConnection as aiTestConnection,
   listModels as aiListModels,
+  chat as aiChat,
   type ProviderId,
 } from './ai-providers'
 
@@ -501,6 +502,8 @@ ipcMain.handle('ai:testConnection', async (_e, id: ProviderId, draft?: { baseUrl
   aiTestConnection(id, draft))
 ipcMain.handle('ai:listModels', async (_e, id: ProviderId, draft?: { baseUrl: string; key?: string }) =>
   aiListModels(id, draft))
+ipcMain.handle('ai:chat', async (_e, system: string, user: string, maxTokens?: number) =>
+  aiChat(system, user, maxTokens))
 
 ipcMain.handle('dialog:saveFile', async (_, options) => {
   const result = await dialog.showSaveDialog(mainWindow!, options)

@@ -25,6 +25,8 @@ import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import { PolaritySelector, type Polarity } from '@/components/workflow/PolaritySelector'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
+import { AiObservationsPanel } from '@/components/AiObservationsPanel'
+import { observeDocument } from '@/services/ai-observations'
 import type { Document, Keyword, SuppressedSpan } from '@/types/data'
 
 type ContextWindow = 50 | 100 | 250
@@ -277,6 +279,24 @@ export function Read() {
           </Select>
         </Field>
       </div>
+
+      {docId && vm.keywordList && (
+        <div className="mb-6">
+          <AiObservationsPanel
+            label="Observe this document"
+            onRun={() =>
+              observeDocument({
+                projectId: vm.project.id,
+                projectName: vm.project.name,
+                keywordListId: vm.keywordList!.id,
+                keywordListName: vm.keywordList!.name,
+                scoringRule: vm.scoringRule,
+                documentId: docId,
+              })
+            }
+          />
+        </div>
+      )}
 
       {!docId || !keywordId ? (
         <div className="text-sm text-muted-foreground border border-dashed border-border rounded-md p-6 text-center">

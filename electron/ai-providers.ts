@@ -244,3 +244,86 @@ export async function listModels(
 ): Promise<TestResult> {
   return testConnection(id, draft)
 }
+
+// --- Chat completion (used by the AI-observation features) ------------------
+
+export interface ChatResult {
+  ok: boolean
+  text?: string
+  /** Which provider/model answered (for the "AI-generated" attribution). */
+  provider?: string
+  model?: string
+  error?: string
+}
+
+async function callChat(
+  p: ResolvedProvider,
+  model: string,
+  system: string,
+  user: string,
+  maxTokens: number
+): Promise<string> {
+  const errBody = async (res: Response) => `HTTP ${res.status}: ${(await res.text()).slice(0, 300)}`
+
+  if (p.shape === 'anthropic') {
+    const res = await fetch(`${p.baseUrl}/v1/messages`, {
+      method: 'POST',
+      headers: { 'x-api-key': p.key ?? '', 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
+      body: JSON.stringify({ model, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+    })
+    if (!res.ok) throw new Error(await errBody(res))
+    const j = (await res.json()) as { content?: Array<{ type: string; text?: string }> }
+    return (j.content ?? []).filter((c) => c.type === 'text').map((c) => c.text ?? '').join('\n').trim()
+  }
+
+  if (p.shape === 'gemini') {
+    const res = await fetch(
+      `${p.baseUrl}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(p.key ?? '')}`,
+      {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: system }] },
+          contents: [{ role: 'user', parts: [{ text: user }] }],
+        }),
+      }
+    )
+    if (!res.ok) throw new Error(await errBody(res))
+    const j = (await res.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> }
+    return (j.candidates?.[0]?.content?.parts ?? []).map((x) => x.text ?? '').join('').trim()
+  }
+
+  // openai shape (OpenAI, Grok, compat, Ollama)
+  const res = await fetch(`${p.baseUrl}/chat/completions`, {
+    method: 'POST',
+    headers: { ...(p.key ? { Authorization: `Bearer ${p.key}` } : {}), 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      max_tokens: maxTokens,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: user },
+      ],
+    }),
+  })
+  if (!res.ok) throw new Error(await errBody(res))
+  const j = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> }
+  return (j.choices?.[0]?.message?.content ?? '').trim()
+}
+
+/** One-shot chat via the ACTIVE provider + its selected model. */
+export async function chat(system: string, user: string, maxTokens = 1024): Promise<ChatResult> {
+  try {
+    const config = loadConfig()
+    const activeId = config.active
+    if (!activeId) return { ok: false, error: 'No active AI provider. Configure one in Settings → AI provider.' }
+    const preset = presetFor(activeId)
+    const model = config.providers[activeId]?.model
+    if (!model) return { ok: false, error: `No model selected for ${preset.label}. Set one in Settings.` }
+    const text = await callChat(resolve(activeId), model, system, user, maxTokens)
+    if (!text) return { ok: false, error: 'The model returned an empty response.' }
+    return { ok: true, text, provider: preset.label, model }
+  } catch (e) {
+    return { ok: false, error: e instanceof Error ? e.message : String(e) }
+  }
+}

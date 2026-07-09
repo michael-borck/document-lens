@@ -3,6 +3,8 @@ import { ArrowRight, Settings2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { WORKFLOW_GROUPS } from '@/components/project/workflows'
 import { cn } from '@/lib/utils'
+import { AiObservationsPanel } from '@/components/AiObservationsPanel'
+import { observeProject } from '@/services/ai-observations'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 
 /**
@@ -109,6 +111,23 @@ export function Overview() {
           </section>
         ))}
       </div>
+
+      {vm.setupComplete && vm.documentCount > 0 && vm.keywordList && (
+        <div className="mt-10">
+          <AiObservationsPanel
+            label="Observe this project"
+            onRun={() =>
+              observeProject({
+                projectId: vm.project.id,
+                projectName: vm.project.name,
+                keywordListId: vm.keywordList!.id,
+                keywordListName: vm.keywordList!.name,
+                scoringRule: vm.scoringRule,
+              })
+            }
+          />
+        </div>
+      )}
     </div>
   )
 }

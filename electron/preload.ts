@@ -63,6 +63,13 @@ export interface AiDraft {
   baseUrl: string
   key?: string
 }
+export interface AiChatResult {
+  ok: boolean
+  text?: string
+  provider?: string
+  model?: string
+  error?: string
+}
 
 export type BackendPhase =
   | 'not-started'
@@ -122,6 +129,8 @@ const electronAPI = {
     ipcRenderer.invoke('ai:testConnection', id, draft),
   aiListModels: (id: AiProviderId, draft?: AiDraft): Promise<AiTestResult> =>
     ipcRenderer.invoke('ai:listModels', id, draft),
+  aiChat: (system: string, user: string, maxTokens?: number): Promise<AiChatResult> =>
+    ipcRenderer.invoke('ai:chat', system, user, maxTokens),
   saveFileDialog: (options?: DialogOptions): Promise<SaveDialogResult> =>
     ipcRenderer.invoke('dialog:saveFile', options),
 
