@@ -362,6 +362,14 @@ function TwoAxisMatrix({ matrix }: { matrix: CoverageMatrix2D }) {
     return out
   }, [aggregate, rowValues, colValues])
 
+  // Raw match counts can run large; a "% of total" view tames them into shares
+  // of all placed matches, which is easier to read across a big matrix.
+  const [display, setDisplay] = useState<'count' | 'percent'>('count')
+  const fmt = (v: number) =>
+    display === 'percent'
+      ? (totalMatches > 0 ? `${((v / totalMatches) * 100).toFixed(1)}%` : '0%')
+      : String(v)
+
   if (matrix.documents.length === 0) {
     return (
       <div className="text-sm text-muted-foreground py-4">
@@ -387,6 +395,24 @@ function TwoAxisMatrix({ matrix }: { matrix: CoverageMatrix2D }) {
         )}
       </div>
 
+      <div className="flex items-center gap-1 mb-2 text-xs">
+        <span className="text-muted-foreground mr-1">Cells:</span>
+        <button
+          type="button"
+          onClick={() => setDisplay('count')}
+          className={cn('px-2 py-0.5 rounded', display === 'count' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')}
+        >
+          Counts
+        </button>
+        <button
+          type="button"
+          onClick={() => setDisplay('percent')}
+          className={cn('px-2 py-0.5 rounded', display === 'percent' ? 'bg-muted font-medium' : 'text-muted-foreground hover:text-foreground')}
+        >
+          % of total
+        </button>
+      </div>
+
       <div className="overflow-auto border border-border rounded-md">
         <table className="text-xs">
           <thead className="sticky top-0 bg-card z-10">
@@ -405,7 +431,7 @@ function TwoAxisMatrix({ matrix }: { matrix: CoverageMatrix2D }) {
                     {cv.displayName ?? cv.value}
                   </div>
                   <div className="text-[10px] text-muted-foreground tabular-nums mt-0.5">
-                    {colTotals[cv.id]}
+                    {fmt(colTotals[cv.id])}
                   </div>
                 </th>
               ))}
@@ -435,14 +461,14 @@ function TwoAxisMatrix({ matrix }: { matrix: CoverageMatrix2D }) {
                         v === 0 && 'text-muted-foreground/30'
                       )}
                       style={{ backgroundColor: matrixCellColor(intensity) }}
-                      title={`${rv.displayName ?? rv.value} × ${cv.displayName ?? cv.value}: ${v}`}
+                      title={`${rv.displayName ?? rv.value} × ${cv.displayName ?? cv.value}: ${fmt(v)}`}
                     >
-                      {v || ''}
+                      {v === 0 ? '' : fmt(v)}
                     </td>
                   )
                 })}
                 <td className="px-2 py-1.5 text-center tabular-nums bg-muted/30 font-medium">
-                  {rowTotals[rv.id]}
+                  {fmt(rowTotals[rv.id])}
                 </td>
               </tr>
             ))}
