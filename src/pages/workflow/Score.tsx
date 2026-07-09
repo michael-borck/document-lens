@@ -267,7 +267,7 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 function PerDocumentScore({ doc, score }: { doc: Document; score: DocScore }) {
   return (
     <div className="space-y-6">
-      <BigScore score={score.score} max={score.max} doc={doc} />
+      <BigScore docScore={score} doc={doc} />
       <WhyThisScorePanel trace={score.trace} />
     </div>
   )
@@ -282,6 +282,8 @@ function WhyThisScorePanel({ trace }: { trace: TraceStep[] }) {
           <div key={`${step.label}-${i}`} className="flex items-center gap-3 px-4 py-3">
             {step.status === 'met' ? (
               <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0" />
+            ) : step.status === 'partial' ? (
+              <Circle className="h-5 w-5 text-amber-500 shrink-0" />
             ) : (
               <Circle className="h-5 w-5 text-muted-foreground shrink-0" />
             )}
@@ -289,8 +291,15 @@ function WhyThisScorePanel({ trace }: { trace: TraceStep[] }) {
               <div className="font-medium text-sm">{step.label}</div>
               {step.detail && <div className="text-xs text-muted-foreground">{step.detail}</div>}
             </div>
-            <div className="text-sm tabular-nums text-muted-foreground">
-              {step.count} match{step.count === 1 ? '' : 'es'}
+            <div className="text-right tabular-nums text-muted-foreground">
+              {step.pillarsRequired !== undefined && (
+                <div className="text-sm font-medium text-foreground">
+                  {step.pillarsHit} / {step.pillarsRequired} pillars
+                </div>
+              )}
+              <div className="text-xs">
+                {step.count} match{step.count === 1 ? '' : 'es'}
+              </div>
             </div>
           </div>
         ))}
@@ -299,7 +308,9 @@ function WhyThisScorePanel({ trace }: { trace: TraceStep[] }) {
   )
 }
 
-function BigScore({ score, max, doc }: { score: number; max: number; doc: Document }) {
+function BigScore({ docScore, doc }: { docScore: DocScore; doc: Document }) {
+  const { score, max, pillarsCovered, pillarsPossible, overallRatio } = docScore
+  const showFine = pillarsPossible !== undefined && pillarsPossible > 0 && pillarsCovered !== undefined
   return (
     <div className="border border-border rounded-md p-6 flex items-center gap-6">
       <div className="font-display text-5xl font-semibold tabular-nums leading-none">
@@ -311,8 +322,20 @@ function BigScore({ score, max, doc }: { score: number; max: number; doc: Docume
           {score === max ? `Level ${score} — full score` : `Level ${score}`}
         </div>
         <div className="text-sm text-muted-foreground mt-1">
-          {score} of {max} criteria met.
+          {score} of {max} functions deliver every required pillar.
         </div>
+        {showFine && (
+          <div className="text-sm text-muted-foreground mt-1">
+            Pillar coverage:{' '}
+            <span className="font-medium tabular-nums text-foreground">{pillarsCovered} / {pillarsPossible}</span>
+            {overallRatio !== undefined && (
+              <span className="text-muted-foreground"> ({Math.round(overallRatio * 100)}%)</span>
+            )}
+            <span className="block text-xs italic">
+              Partial credit summed across functions — separates broad-but-shallow from empty.
+            </span>
+          </div>
+        )}
         <div className="text-xs text-muted-foreground mt-1 italic">
           {doc.title ?? doc.filename}
           {doc.year ? ` (${doc.year})` : ''}

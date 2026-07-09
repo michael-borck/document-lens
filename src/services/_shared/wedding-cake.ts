@@ -24,12 +24,30 @@ export interface TraceStep {
   detail: string
   /** Match count contributing to this step (for bar breakdowns / context). */
   count: number
+  /**
+   * Partial-credit ratio for this step, 0–1 (full mode: pillars-hit ÷
+   * required for this function). Undefined for steps without a sub-ratio.
+   */
+  ratio?: number
+  /** Pillars hit / required for this function (full mode) — for "2 / 3" display. */
+  pillarsHit?: number
+  pillarsRequired?: number
 }
 
 export interface DocScore {
+  /** Coarse tier: functions delivering ALL required pillars (the X in X/4). */
   score: number
   max: number
   trace: TraceStep[]
+  /**
+   * Fine-grained pillar coverage summed across functions — the X in X/12.
+   * Distinguishes "broad but shallow" (0/4 but 6/12) from "empty" (0/4, 0/12).
+   * `overallRatio` = pillarsCovered / pillarsPossible (0–1). Present for both
+   * full and v1 modes so they stay comparable on one 0–1 scale.
+   */
+  pillarsCovered?: number
+  pillarsPossible?: number
+  overallRatio?: number
 }
 
 /**
@@ -44,23 +62,36 @@ export function weddingCakeFull(
   requiredPillars: AxisValue[],
   functionValues: AxisValue[]
 ): DocScore {
+  const required = requiredPillars.length
   const trace: TraceStep[] = functionValues.map((fn) => {
     const hits = requiredPillars.map((p) => cells[p.id]?.[fn.id] ?? 0)
-    const satisfies = hits.every((n) => n > 0)
-    const missing = hits.filter((n) => n === 0).length
+    const pillarsHit = hits.filter((n) => n > 0).length
+    const satisfies = required > 0 && pillarsHit === required
+    // 'partial' credits a function that delivers some — but not all — required
+    // pillars, so a broad-but-shallow document reads differently from an empty
+    // one even when neither fully satisfies any function.
+    const status: TraceStatus = satisfies ? 'met' : pillarsHit > 0 ? 'partial' : 'unmet'
     return {
       label: fn.displayName ?? fn.value,
-      status: satisfies ? 'met' : 'unmet',
+      status,
       detail: satisfies
         ? 'Delivers all required pillars'
-        : `Missing ${missing} of ${requiredPillars.length} required pillars`,
+        : `${pillarsHit} of ${required} required pillars`,
       count: hits.reduce((a, n) => a + n, 0),
+      ratio: required > 0 ? pillarsHit / required : 0,
+      pillarsHit,
+      pillarsRequired: required,
     }
   })
+  const pillarsCovered = trace.reduce((a, s) => a + (s.pillarsHit ?? 0), 0)
+  const pillarsPossible = functionValues.length * required
   return {
     score: trace.filter((s) => s.status === 'met').length,
     max: functionValues.length,
     trace,
+    pillarsCovered,
+    pillarsPossible,
+    overallRatio: pillarsPossible > 0 ? pillarsCovered / pillarsPossible : 0,
   }
 }
 
@@ -83,9 +114,16 @@ export function weddingCakeV1(
       count,
     }
   })
+  const score = trace.filter((s) => s.status === 'met').length
+  const max = requiredPillars.length
   return {
-    score: trace.filter((s) => s.status === 'met').length,
-    max: requiredPillars.length,
+    score,
+    max,
     trace,
+    // v1 has no Function dimension; its "coverage" is simply pillars-hit /
+    // required, so it stays on the same 0–1 scale as the full mode's X/12.
+    pillarsCovered: score,
+    pillarsPossible: max,
+    overallRatio: max > 0 ? score / max : 0,
   }
 }
