@@ -105,6 +105,12 @@ export const WORKFLOW_GROUPS: WorkflowGroup[] = [
         question: 'Where does the tone run ahead of the substance?',
         requiresSetup: true,
       },
+      {
+        to: 'focus',
+        label: 'Focus',
+        question: 'Which documents should you look at first?',
+        requiresSetup: true,
+      },
     ],
   },
 ]

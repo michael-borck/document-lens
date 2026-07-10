@@ -32,6 +32,7 @@ const Audit = lazy(() => import('./pages/workflow/Audit').then(m => ({ default: 
 const Gap = lazy(() => import('./pages/workflow/Gap').then(m => ({ default: m.Gap })))
 const Discover = lazy(() => import('./pages/workflow/Discover').then(m => ({ default: m.Discover })))
 const Read = lazy(() => import('./pages/workflow/Read').then(m => ({ default: m.Read })))
+const Focus = lazy(() => import('./pages/workflow/Focus').then(m => ({ default: m.Focus })))
 
 function PageLoader() {
   return (
@@ -91,6 +92,7 @@ function App() {
             <Route path="gap" element={<Gap />} />
             <Route path="discover" element={<Discover />} />
             <Route path="read" element={<Read />} />
+            <Route path="focus" element={<Focus />} />
           </Route>
         </Route>
       </Routes>
