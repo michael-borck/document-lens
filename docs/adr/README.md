@@ -40,7 +40,7 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0009](0009-two-axis-matrix.md) | The 2D coverage matrix as the Map's advanced view | Accepted |
 | [0010](0010-tone-substance-gap.md) | Tone–Substance Gap: keyword polarity is not text sentiment | Accepted |
 | [0011](0011-substance-signals.md) | Deterministic "substance" signals as reusable notability metrics | Accepted |
-| [0012](0012-focus-auto-research-mode.md) | Focus / auto-research mode: bounded, ranked, deterministic + flagged AI | Proposed |
+| [0012](0012-focus-auto-research-mode.md) | Focus / auto-research mode: bounded, ranked, deterministic + flagged AI | Accepted (v1) |
 | [0013](0013-docx-report-format-not-mode.md) | The DOCX report is a format with three scopes, not a mode | Accepted |
 | [0014](0014-byok-ai-architecture.md) | BYOK AI: main-process-only, encrypted keys, always flagged | Accepted |
 | [0015](0015-ipc-security-boundary.md) | IPC security boundary: keyed query registry + fs-guard | Accepted |

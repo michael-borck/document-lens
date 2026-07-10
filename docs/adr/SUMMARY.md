@@ -18,7 +18,7 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0009 | 2D coverage matrix as the Map's advanced view | 2026-05 | Accepted | Cross-tabulate a keyword-attached axis against a document-context axis |
 | 0010 | Tone–Substance Gap (keyword polarity ≠ text sentiment) | 2026-05 | Accepted | Uniformly positive tone hides performative disclosure; the gap is the signal |
 | 0011 | Deterministic "substance" signals as notability metrics | 2026-07 | Accepted | Give the researcher repeatable direction instead of stumbling onto the interesting document |
-| 0012 | Focus / auto-research mode (bounded, ranked) | 2026-07 | **Proposed** | Unbounded permutation space; "interesting" can't be defined absolutely; must be reproducible |
+| 0012 | Focus / auto-research mode (bounded, ranked) | 2026-07 | Accepted (v1) | Unbounded permutation space; "interesting" can't be defined absolutely; must be reproducible |
 | 0013 | DOCX report is a format with three scopes, not a mode | 2026-07 | Accepted | Resolve confusion between "the report" and "Focus mode" |
 | 0014 | BYOK AI: main-process-only, encrypted keys, always flagged | 2026-07 | Accepted | Optional AI must not leak keys or hit CORS, and must stay transparent + reproducible |
 | 0015 | IPC security boundary: keyed query registry + fs-guard | 2026-05 | Accepted | Untrusted document content could escalate (XSS) to arbitrary SQL/DDL and file access |

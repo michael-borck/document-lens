@@ -1,8 +1,8 @@
 # ADR-0012: Focus / auto-research mode — bounded, ranked, deterministic + flagged AI
 
-**Status:** Proposed (design recorded; not yet implemented)
-**Date:** 2026-07-09
-**Evidence:** `docs/design/focus-auto-research-mode.md`; `b6f3496` (decision record)
+**Status:** Accepted — v1 implemented (notable-documents ranking); broader permutation sweep + precompute deferred
+**Date:** 2026-07-09 (decision), 2026-07-10 (v1)
+**Evidence:** `docs/design/focus-auto-research-mode.md`; `b6f3496` (decision record); `6eb3c2f` (Focus mode v1 — `src/services/focus.ts`, `src/pages/workflow/Focus.tsx`)
 
 ## Context
 
@@ -36,5 +36,9 @@ keyword/axis edit touches.
   the building blocks this mode assembles.
 - Requires a background precompute + cache-invalidation strategy to scale to
   hundreds of documents.
-- **Status:** decided in principle; a design record exists, implementation is
-  future work.
+- **v1 shipped** (2026-07-10): a Focus tab ranks *documents* by
+  deviation-from-corpus across the deterministic signals (confidence-weighted
+  z-scores), explains why each is notable, shows per-signal extremes, and offers
+  the flagged AI-narration sub-mode. **Deferred:** per-keyword / per-matrix-cell
+  notability (the fuller sweep) and the background precompute + `analysis_cache`
+  invalidation for 400-document scale (v1 computes on demand).
