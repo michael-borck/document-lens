@@ -16,6 +16,9 @@ These were backfilled 2026-07-10 from the git history of both repositories.
 Dates are the decision's commit date; a decision may have matured over several
 commits.
 
+A paper-ready one-page overview (decision · date · status · driving force) is in
+[`SUMMARY.md`](SUMMARY.md).
+
 ## Status legend
 
 - **Accepted** — in effect.
