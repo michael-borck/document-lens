@@ -67,6 +67,15 @@ the change needs a written justification — not the principle.
    and the 5-level Wedding Cake Score so that sustainability researchers
    are productive immediately, with zero configuration.
 
+10. **Deterministic and repeatable by default; GenAI is opt-in and flagged.**
+    Every analytical signal the app computes is deterministic and reproducible
+    from the same inputs — the same corpus + keywords + configuration yields
+    the same numbers. Generative AI (an LLM) is never used to *compute* a
+    signal; it is an optional, bring-your-own-key *interpretation* layer whose
+    output is always labelled "AI-generated" and "not a repeatable signal".
+    This keeps the method reproducible for research, and transparent about what
+    is measured versus what is interpreted. (See ADR-0011, ADR-0014.)
+
 ---
 
 ## Personas
@@ -107,6 +116,13 @@ talks about.
     organisation the document belongs to, used for grouping.
   - `sector` / `category` (string, optional, user-editable) — broad
     category for cross-cohort analysis.
+  - `type` (string, optional) — document type (e.g. "Annual Report",
+    "Sustainability Report"). Auto-detected from content on import (backend
+    inference), free-text and user-editable. A faceting dimension.
+  - `company_size` (Small | Medium | Large, optional, user-editable) — a
+    coarse, manual size band. No external size data exists, so it is a
+    faceting/comparison dimension, not a computed value (see substance
+    signals, US-B-06+).
   - `page_count`, `word_count`, `import_date`, etc. (system-managed).
 - **Tag Axis** (global, named). A dimension along which keywords or
   keyword-mentions can be classified. Two source types:
@@ -241,6 +257,11 @@ polarity toggle; per-axis filters.
 | US-B-03 | As a compliance reviewer, I want a "framework completeness score" per document, so that I can rank submissions by disclosure quality. | DRAFT |
 | US-B-04 | As a researcher, I want to filter the comparison by document attributes (year ≥ 2018, sector = "Banking", company in [...]), so that I can scope the comparison to a meaningful cohort. | CONFIRMED |
 | US-B-05 | As a researcher, I want to rank documents by a custom **Scoring Rule** (e.g., the 5-level Wedding Cake Score for sustainability work), so that the comparison reflects the rubric I actually care about — not just raw match counts. | CONFIRMED |
+| US-B-06 | As a researcher, I want a **repetition** measure (matches ÷ unique keyword), so that I can spot documents that say a lot using the same few terms — loud but thin — which raw counts hide. | IMPLEMENTED (Compare metric, v0.26.0) |
+| US-B-07 | As a researcher, I want an **evidence-reuse** measure (share of matches on keywords tagged to more than one pillar), so that I can detect a document that "ticks every box" by counting the same evidence toward many pillars. | IMPLEMENTED (v0.26.0) |
+| US-B-08 | As a researcher, I want **diversity** (keyword breadth), **intensity** (matches per 1k words, size-normalised), and **coverage-spread** (fraction of the pillar×function matrix filled) measures, so that I can characterise breadth vs. depth of commitment beyond volume. | IMPLEMENTED (v0.26.0) |
+| US-B-09 | As a researcher, I want every substance measure to carry a **confidence** indicator (from evidence volume), so that I discount an extreme ratio built on a short document with few matches. | IMPLEMENTED (v0.26.0) |
+| US-B-10 | As a researcher, I want to **group/filter** any Compare metric by document `type`, `company_size`, company, sector, or year, so that patterns emerge as comparisons (e.g. "do large organisations show higher evidence-reuse than small ones?"). | IMPLEMENTED (v0.26.0) |
 
 **Wires to:** existing local data; new comparison view (replaces parts of
 the current Visualisations page); filter UI driven by Document attributes;
@@ -358,6 +379,7 @@ don't have to re-import their corpus when the viewer ships.
 | US-H-03 | As a researcher, I want to define my own Scoring Rules with a clear, simple syntax (without writing code), so that I can apply this app to non-sustainability domains. | CONFIRMED |
 | US-H-04 | As a researcher, I want to see a project-level distribution of scores (e.g., how many documents are at Level 0 vs Level 4), so that I can characterise the corpus as a whole. | CONFIRMED |
 | US-H-05 | As a sustainability researcher opening a fresh project, I want the 5-level Wedding Cake Score pre-applied so that I see a meaningful score on day one without configuring anything. | CONFIRMED (per principle #9) |
+| US-H-06 | As a researcher, I want a **fine-grained pillar-coverage ratio (X/12)** alongside the X/4 tier — partial credit summed across functions — so that a broad-but-shallow document (every function covers 2 of 3 pillars → 0/4 but 6/12) is distinguishable from an empty one (0/4, 0/12). The tier is unchanged. | IMPLEMENTED (v0.26.0; see ADR-0008) |
 
 **Wires to:** new Scoring Rule entity (data model); rule-evaluation
 engine; per-document score breakdown view; project-level distribution
@@ -384,14 +406,39 @@ These don't belong to a single workflow — they shape multiple.
 | US-X-11 | As a researcher, I want positive keywords and counter-keywords to live in the same Keyword List, distinguished by a polarity flag rather than maintained as two separate lists, so that the relationship between them is visible (the counter-keyword *for SDG 13* sits next to the positive keywords *for SDG 13*). | CONFIRMED |
 | US-X-12 | As a researcher, I want Tag Axes to be first-class entities I can mix and match per project (some come with the Keyword List I picked, others I activate independently), so that the same SDG keyword list can be combined with different lenses (Function, Pillar, Sector) without me forking the keyword list. | CONFIRMED |
 | US-X-13 | As a sustainability researcher, I want the SDG keyword list, the Wedding Cake Pillar axis, the Function axis, and the 5-level Wedding Cake Score to be pre-loaded out of the box, so that I can open the app and run a meaningful first analysis without learning the configuration model. | CONFIRMED (per principle #9) |
+| US-X-14 | As a researcher with a folder of hundreds of reports, I want to **import a whole folder recursively** (all supported files in it and its subfolders), so that I don't select files one at a time. | IMPLEMENTED (v0.26.0) |
+| US-X-15 | As a researcher, I want to **select several documents in the Library and bulk-edit** their type / sector / company / company-size / year (or delete them) in one action, so that I can curate a large Library quickly. | IMPLEMENTED (v0.26.0) |
+| US-X-16 | As a researcher, I want to **sort the Library by any column and search** across title / filename / company / sector / type, so that I can find and organise documents in a large Library. | IMPLEMENTED (v0.26.0) |
+| US-X-17 | As a researcher, I want the document **type auto-detected on import** (Annual / Sustainability / Integrated / CSR / Climate Report, else "Unknown"), editable afterwards, so that I get a useful facet without manual tagging. | IMPLEMENTED (v0.26.0) |
+| US-X-18 | As a researcher, I want to **export a full-project report as a Word (.docx)** document — configuration, document inventory, scores (X/4 + X/12), substance signals, and ranked charts — so that I can drop it into a paper. (One assembler; see ADR-0013 for the three report scopes.) | IMPLEMENTED (v0.26.0) |
+| US-X-19 | As a researcher, I want an **optional "AI observations"** action for a single document and for the whole project, which feeds the *deterministic* signals (and, for a document, its text) to my configured AI provider and returns an initial interpretation of what stands out and where to focus — **always flagged AI-generated and not a repeatable signal** (design principle #10). | IMPLEMENTED (v0.26.0) |
+| US-X-20 | As a researcher, I want to **configure my own AI provider (BYOK)** — Anthropic / OpenAI / Gemini / Grok / OpenAI-compatible / Ollama — with my key **encrypted** and hidden by default, a connection test, and a model list, so that the optional AI features use a provider I control (including fully-local Ollama). Keys never leave the app's background process (see ADR-0014). | IMPLEMENTED (v0.26.0) |
 
 ---
 
 ## Implementation status
 
-*As of v0.16.0 (2026-05-21). This section is the authoritative record of
-what is built; the per-table Status column reflects design confirmation
-only.*
+*Updated for v0.26.0 (2026-07-10). This section is the authoritative record of
+what is built; the per-table Status column reflects design confirmation only.*
+
+**New since v0.16.0 (v0.17 → v0.26):**
+- **Library management:** recursive folder import (US-X-14), multi-select bulk
+  edit (US-X-15), column sort + cross-field search (US-X-16), auto-detected
+  document `type` (US-X-17), and the manual `company_size` facet.
+- **Substance signals** (deterministic, with confidence): repetition,
+  diversity, intensity, evidence-reuse-across-pillars, coverage-spread —
+  surfaced as Compare metrics and groupable by type/size (US-B-06…US-B-10).
+- **Scoring:** fine-grained X/12 pillar-coverage ratio alongside the X/4 tier
+  (US-H-06); scoring generalised to cross-coverage + coverage-count patterns.
+- **Map:** radar profile-compare view and a Counts / % toggle on the 2D matrix.
+- **Reporting:** full-project DOCX report with tables + charts (US-X-18).
+- **AI (opt-in, BYOK):** encrypted provider settings (US-X-20) and AI
+  observations for a document and a project, always flagged (US-X-19).
+- **Fixes/hardening:** clean-machine resource bundling; Electron security
+  boundary (ADR-0015); the lens family now builds against the latest backend
+  (ADR-0003).
+
+**Original v0.16.0 record (still accurate):**
 
 **Shipped:** all eight workflows (A Coverage, B Compare, C Track, D
 Discover, E Map, F Audit, G Read, H Score) and the cross-cutting stories
