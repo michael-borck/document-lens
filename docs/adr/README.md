@@ -42,3 +42,17 @@ commits.
 | [0014](0014-byok-ai-architecture.md) | BYOK AI: main-process-only, encrypted keys, always flagged | Accepted |
 | [0015](0015-ipc-security-boundary.md) | IPC security boundary: keyed query registry + fs-guard | Accepted |
 | [0016](0016-first-run-seeding.md) | First-run seeding: generalise the structure, ship sustainability defaults | Accepted |
+| [0017](0017-v2-greenfield-renderer.md) | v2 greenfield rewrite of the renderer around a new IA | Accepted |
+| [0018](0018-terminology-as-decision.md) | Terminology is a durable decision (Lens → Axis, Focus → Lens) | Accepted |
+| [0019](0019-architecture-deepening-seam.md) | Architecture deepening: data seam, Project Corpus, Score Evaluator | Accepted |
+| [0020](0020-extraction-markitdown-per-page.md) | Extraction: markitdown for DOCX/text, pdfplumber for PDF, per-page storage | Accepted |
+| [0021](0021-pdf-viewer-iframe-pdfium.md) | Embedded PDF viewer: iframe + Chromium PDFium (drop pdfjs) | Accepted |
+| [0022](0022-cpu-only-torch-linux.md) | CPU-only Torch on Linux (release-size constraint) | Accepted |
+| [0023](0023-release-pipeline.md) | Release pipeline: tag-only, macOS signed+notarized on tags | Accepted |
+| [0024](0024-backend-family-contract.md) | *(backend)* Backend as a family member: `api` package + lens-contract | Accepted |
+| [0025](0025-optional-ml-extras.md) | *(backend)* Optional ML via extras, with graceful degradation | Accepted |
+| [0026](0026-fail-loudly-not-silently.md) | *(backend)* Fail loudly on ML unavailability, not silently | Accepted |
+
+ADRs marked *(backend)* record decisions whose code lives in the co-developed
+`document-analyser` repository; they are kept here so the system's decision
+trail is in one place.
