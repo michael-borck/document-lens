@@ -133,11 +133,12 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
 | US-X-19 AI observations (document + project) | U(inputs) + M | `focus.test.ts`/`substance.test.ts`/`scoring.test.ts` (deterministic inputs); **LLM output is non-deterministic → manual + always flagged** | shipped |
 | US-X-20 configure a BYOK AI provider | M | — (needs a live provider) | shipped |
 
-## Focus mode (not yet a US story)
+## Focus mode
 
 | Story | Verified by | Backing test | Status |
 |---|---|---|---|
-| *(gap)* Focus — rank documents by notability | U | `focus.test.ts` (`meanStd`/`zScore`/`aggregateNotability`) | shipped; **needs a US-X-21 story** |
+| US-X-21 rank documents by notability (deviation from corpus) | U | `focus.test.ts` (`meanStd`/`zScore`/`aggregateNotability`) | shipped |
+| US-X-22 explain "why", show per-signal extremes | U + M | `focus.test.ts`; presentation manual | shipped |
 
 ## Coverage summary
 
@@ -150,8 +151,8 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
   axis mix-and-match), full-flow (`.lens` export/import), file output (DOCX,
   chart PNGs), and the **AI** stories (inherently non-repeatable, always flagged).
 - **Known test gaps** (candidates for automated tests): `ngrams.ts` (US-D-01),
-  `.lens` bundle export/import (US-X-02/03), Library bulk-edit/sort/search
-  (US-X-15/16), and a US story + acceptance criterion for **Focus mode**.
+  `.lens` bundle export/import (US-X-02/03), and Library bulk-edit/sort/search
+  (US-X-15/16). (Focus mode now has stories US-X-21/22, backed by `focus.test.ts`.)
 - **No e2e harness yet** — the highest-value happy-path flows (import → classify
   → score → report) would be worth a small Playwright/Electron acceptance suite
   (P) before or alongside the paper's naturalistic evaluation (§7.1).

@@ -43,6 +43,11 @@ ehthumbs.db
 desktop.ini
 .idea/
 .vscode/
+
+# Stray local PDF exports at the repo root (the shipped user manual is tracked
+# explicitly; ad-hoc exports should not be committed).
+/Untitled.pdf
+/document-lens.pdf
 *.iml
 *~
 \#*\#

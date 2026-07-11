@@ -1,0 +1,39 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "Document Lens"
+abstract: >-
+  A local-first desktop tool for keyword-driven analysis of document corpora.
+  It maps documents to configurable frameworks (e.g. the UN SDGs), classifies
+  where topics appear via sentence embeddings, and computes deterministic,
+  reproducible measures of disclosure — including a Wedding Cake completeness
+  score and a set of "substance" signals — with an optional, clearly-flagged
+  AI interpretation layer. Built for researchers studying corporate disclosure
+  (its first use case was sustainability reporting in Australian university
+  annual reports).
+type: software
+authors:
+  - family-names: Borck
+    given-names: Michael
+    orcid: "https://orcid.org/0000-0002-0950-6396"
+    affiliation: "Curtin University"
+    email: "michael.borck@curtin.edu.au"
+version: "0.27.0"
+date-released: "2026-07-11"
+license: MIT
+repository-code: "https://github.com/michael-borck/document-lens"
+url: "https://github.com/michael-borck/document-lens"
+keywords:
+  - document analysis
+  - text analysis
+  - sustainability disclosure
+  - SDGs
+  - greenwashing
+  - design science research
+  - electron
+# When the accompanying paper is published, add it as a preferred-citation:
+# preferred-citation:
+#   type: article
+#   title: "..."
+#   authors: [...]
+#   year: 2026
+#   doi: "..."

@@ -10,6 +10,53 @@ keyword-driven study of unstructured text.
 Cross-platform (macOS / Windows / Linux), local-first (SQLite + your
 own files on disk), greenfield rebuild on Electron 33 + React 18.
 
+## Statement of need
+
+Researchers studying corporate disclosure (sustainability reporting, regulatory
+compliance, financial narratives) routinely ask: *does a document address a
+framework's topics, and does it address them substantively or performatively?*
+Answering this across a corpus of hundreds of long, varied-format reports is
+usually a manual slog — read each document, tag keywords, score by hand, paste
+into a spreadsheet — which is slow, hard to reproduce, and difficult to audit.
+General text-analysis tools (concordancers, topic models, sentiment APIs) don't
+encode the *framework* (e.g. the UN SDGs) or the *methodology* (e.g. a
+completeness rubric), and cloud services raise privacy concerns for unpublished
+corpora.
+
+Document Lens fills that gap with a **local-first, offline** desktop tool whose
+signals are **deterministic and reproducible**: it maps documents to a
+user-configurable framework, classifies *where* topics appear via sentence
+embeddings, and computes transparent measures — coverage, a Wedding Cake
+completeness score, and "substance" signals (repetition, evidence reuse,
+coverage spread, …) — every one of which is recomputable from the same inputs.
+An optional, clearly-flagged AI layer interprets those deterministic signals but
+never replaces them. It is domain-general (ships with sustainability/SDG
+defaults, but the framework, axes, and scoring rule are all user-definable).
+
+## Installation
+
+**End users** — download the installer for your platform from the
+[latest release](https://github.com/michael-borck/document-lens/releases/latest):
+`.dmg` (macOS), `Setup.exe` (Windows), or `.AppImage` (Linux). The Python
+analysis backend is bundled — there is nothing else to install, and no network
+connection is required for analysis. macOS builds are signed and notarised.
+
+**From source** — see [Development](#development) and
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## Quickstart
+
+1. Launch the app. A first run seeds a working sustainability setup (the SDG
+   keyword list, the Pillar and Function axes, and the Wedding Cake scoring
+   rule) so you can be productive immediately.
+2. **Library** → *Import* (or *Import folder*) to add your PDFs / DOCX / etc.
+3. Create a **Project**, add documents to it, and pick your keyword list, axes,
+   and scoring rule in **Setup**. Click **Classify documents** to tag sections.
+4. Explore: **Coverage**, **Map**, **Score**, **Compare**, **Track**, **Gap**,
+   **Audit**, and **Focus** (ranks the documents worth looking at first).
+5. **Setup → Export report** for a Word document, or use a BYOK provider under
+   **Settings → AI provider** for optional, flagged AI observations.
+
 ## What it does
 
 You assemble a **project** — a set of documents, a keyword list, a
