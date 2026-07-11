@@ -175,7 +175,9 @@ async function buildCrossCoverageBreakdown(
   projectId: string,
   keywordListId: string,
   def: Record<string, unknown>,
-  docs: Document[]
+  // Kept for signature parity with the sibling breakdown builders; this one
+  // resolves its documents by project, not from the passed list.
+  _docs: Document[]
 ): Promise<ExportFile | null> {
   const layerLensId = (def.layerLensId ?? def.pillarLensId) as string | undefined
   const subjectLensId = (def.subjectLensId ?? def.functionLensId) as string | undefined
