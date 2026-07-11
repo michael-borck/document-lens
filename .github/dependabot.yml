@@ -1,0 +1,26 @@
+# Dependabot version-update PRs. (Security *alerts* are a repo Settings toggle,
+# on by default for public repos — this file adds automated dependency-bump PRs.)
+version: 2
+updates:
+  # npm dependencies (the Electron/React app).
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Batch low-risk dev-tooling bumps into one PR to cut noise.
+      dev-dependencies:
+        dependency-type: development
+    ignore:
+      # Electron major bumps are a coordinated, manual effort (native modules,
+      # notarisation, packaging) — don't let Dependabot open churn PRs for them.
+      - dependency-name: electron
+        update-types: [version-update:semver-major]
+
+  # Keep the GitHub Actions used by the workflows current.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5

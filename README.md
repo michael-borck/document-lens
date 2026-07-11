@@ -1,5 +1,9 @@
 # Document Lens
 
+[![CI](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml)
+[![Build and Release](https://github.com/michael-borck/document-lens/actions/workflows/build.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/build.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 Desktop app for keyword analysis of document corpora — built for
 researchers studying corporate disclosure. The original use case was
 sustainability reporting in Australian university annual reports
@@ -185,6 +189,22 @@ npm run dev    # spawns Electron + Vite + the dev backend
 The first run wipes any pre-existing schema (greenfield — no
 migration scripts; bump `SCHEMA_VERSION` in `electron/database.ts`
 when changing tables).
+
+### Testing
+
+```bash
+npm run lint           # eslint (src + electron)
+npm run typecheck      # tsc --noEmit
+npm test               # vitest — unit + invariant suite
+npm run test:coverage  # vitest with a v8 coverage report (coverage/)
+npm run test:e2e       # Playwright/Electron: builds, then runs e2e/
+npm run test:e2e:smoke # just the backend-free smoke spec
+```
+
+CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests + coverage and the
+backend-free e2e smoke on every push/PR. The full happy-path e2e (needs the
+`document-analyser` backend) runs on demand via the workflow's *Run workflow*
+button. See [e2e/README.md](e2e/README.md).
 
 ### Releasing
 

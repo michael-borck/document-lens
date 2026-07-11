@@ -28,7 +28,8 @@
     "capture:help": "node scripts/capture-help-screenshots.mjs",
     "test:e2e": "npm run build:vite && playwright test",
     "test:e2e:only": "playwright test",
-    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts"
+    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
@@ -79,6 +80,7 @@
     "@types/react-dom": "^18.3.5",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^2.1.9",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.1",
     "electron": "^38.8.6",
