@@ -8,6 +8,7 @@ import { importDocuments, retryExtraction, type ImportProgress } from '@/service
 import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
+import { filterAndSortDocuments, type SortKey, type SortDir } from '@/services/library-sort'
 import { cn } from '@/lib/utils'
 import { InlineEditableCell } from '@/components/InlineEditableCell'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
@@ -29,38 +30,9 @@ const KNOWN_DOCUMENT_TYPES = [
 // values stay consistent enough to group/compare on.
 const COMPANY_SIZES = ['Small', 'Medium', 'Large']
 
-// Sortable columns and the fields the bulk editor can set.
-type SortKey = 'title' | 'type' | 'year' | 'company' | 'sector' | 'companySize' | 'status' | 'pageCount' | 'wordCount'
-type SortDir = 'asc' | 'desc'
+// The bulk editor can set these document fields. Sort keys + the comparator
+// live in `@/services/library-sort` so they can be unit-tested (US-X-16).
 type BulkField = 'type' | 'sector' | 'company' | 'companySize' | 'year'
-
-/** Comparable value for a document on a given sort key. */
-function sortValue(doc: Document, key: SortKey): string | number | null {
-  switch (key) {
-    case 'title': return (doc.title ?? doc.filename).toLowerCase()
-    case 'type': return doc.type?.toLowerCase() ?? null
-    case 'company': return doc.company?.toLowerCase() ?? null
-    case 'sector': return doc.sector?.toLowerCase() ?? null
-    case 'companySize': return doc.companySize?.toLowerCase() ?? null
-    case 'status': return doc.status
-    case 'year': return doc.year
-    case 'pageCount': return doc.pageCount
-    case 'wordCount': return doc.wordCount
-  }
-}
-
-/** Sort comparator with nulls always last, regardless of direction. */
-function compareDocs(a: Document, b: Document, key: SortKey, dir: SortDir): number {
-  const av = sortValue(a, key)
-  const bv = sortValue(b, key)
-  if (av === null && bv === null) return 0
-  if (av === null) return 1
-  if (bv === null) return -1
-  const cmp = typeof av === 'number' && typeof bv === 'number'
-    ? av - bv
-    : String(av).localeCompare(String(bv))
-  return dir === 'asc' ? cmp : -cmp
-}
 
 /** A clickable, sort-aware table header cell. */
 function SortableTh({
@@ -331,19 +303,10 @@ function DocumentTable({
 
   // Search filters, then sort orders. Default (sort === null) keeps the
   // incoming order (imported_at DESC) so the newest imports stay on top.
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    let rows = documents
-    if (q) {
-      rows = rows.filter((d) =>
-        [d.title, d.filename, d.company, d.sector, d.type].some(
-          (v) => v != null && v.toLowerCase().includes(q)
-        )
-      )
-    }
-    if (sort) rows = [...rows].sort((a, b) => compareDocs(a, b, sort.key, sort.dir))
-    return rows
-  }, [documents, search, sort])
+  const visible = useMemo(
+    () => filterAndSortDocuments(documents, search, sort),
+    [documents, search, sort]
+  )
 
   // Keep the selection from referencing rows that are no longer visible or
   // no longer exist (after a filter change, delete, or refresh).
