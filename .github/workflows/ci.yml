@@ -21,9 +21,9 @@ jobs:
     name: Lint · Typecheck · Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22' # tests use node:sqlite (needs Node 22+)
           cache: npm
@@ -44,7 +44,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: coverage/
@@ -55,9 +55,9 @@ jobs:
     name: E2E smoke (no backend)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
@@ -81,7 +81,7 @@ jobs:
 
       - name: Upload Playwright report on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-smoke
           path: |
@@ -99,24 +99,24 @@ jobs:
     if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout app
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: document-lens
 
       - name: Checkout backend (sibling)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: michael-borck/document-analyser
           ref: main
           path: document-analyser
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: npm
           cache-dependency-path: document-lens/package-lock.json
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -147,7 +147,7 @@ jobs:
 
       - name: Upload Playwright report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report-happy-path
           path: |
