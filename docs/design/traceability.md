@@ -21,9 +21,13 @@ acceptance* for UI/flow/AI behaviour.
   `project-corpus.test.ts` (the shared load-and-count primitive).
 - **M — Manual acceptance:** verified by driving the app (UI/UX, full flow,
   file output, or an external dependency). No automated coverage yet.
-- **P — Planned e2e:** worth an automated end-to-end test later.
+- **E — End-to-end (automated):** a Playwright/Electron acceptance test in
+  `e2e/` that drives the *built* app. `smoke.spec.ts` runs everywhere;
+  `happy-path.spec.ts` is backend-gated (skips when `document-analyser` is
+  unreachable, so CI without the ML stack stays green).
 
-All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
+All 28 unit/invariant test files run under `npm test` (`vitest run`); 158 tests.
+The e2e suite runs under `npm run test:e2e` (Playwright).
 
 ## A. Coverage
 
@@ -67,7 +71,7 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
 
 | Story | Verified by | Backing test | Status |
 |---|---|---|---|
-| US-D-01 frequent n-grams | **M** | — (no unit test on `ngrams.ts`) | shipped; **test gap** |
+| US-D-01 frequent n-grams | U | `ngrams.test.ts` | shipped |
 | US-D-02…D-09 synonym discovery / accept-reject | U | `synonym-discovery.test.ts` | shipped |
 
 ## E. Map
@@ -113,11 +117,11 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
 | Story | Verified by | Backing test | Status |
 |---|---|---|---|
 | US-X-01 customise a framework non-destructively | M | — | shipped |
-| US-X-02 export `.lens` bundle | M | — (bundle-export untested) | shipped; **test gap** |
-| US-X-03 import a `.lens` bundle | M | — | shipped; **test gap** |
+| US-X-02 export `.lens` bundle | U | `bundle-roundtrip.test.ts` (export→import) | shipped |
+| US-X-03 import a `.lens` bundle | U | `bundle-roundtrip.test.ts` (fresh-DB + preview + no-clobber) | shipped |
 | US-X-04 backend-down feedback / offline features | U + M | `MLCaveatBanner.test.tsx`; status strip manual | shipped |
-| US-X-05 works first run, sensible defaults | M | — (seed) | shipped |
-| US-X-06 edit a document's attributes | M | — (`documents.ts` update) | shipped |
+| US-X-05 works first run, sensible defaults | E | `smoke.spec.ts` (boots + first-run wizard end-to-end) | shipped |
+| US-X-06 edit a document's attributes | U | `documents-bulk-edit.test.ts` (`updateDocumentAttributes`) | shipped |
 | US-X-07 bulk-CSV attribute correction | U | `csv.test.ts`, `keyword-csv.test.ts` | shipped |
 | US-X-08 global Library across projects | M | — | shipped |
 | US-X-09 clone a project | M | — | shipped |
@@ -126,8 +130,8 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
 | US-X-12 mix-and-match Tag Axes per project | M | — | shipped |
 | US-X-13 sustainability preload out of the box | M | — (seed) | shipped |
 | US-X-14 recursive folder import | U + M | `import.test.ts`; folder walk validated manually | shipped |
-| US-X-15 multi-select bulk edit | M | — | shipped; **test gap** |
-| US-X-16 sort + search the Library | M | — | shipped; **test gap** |
+| US-X-15 multi-select bulk edit | U | `documents-bulk-edit.test.ts` | shipped |
+| US-X-16 sort + search the Library | U | `library-sort.test.ts` | shipped |
 | US-X-17 auto-detect document type on import | U + M | `import.test.ts` (`normalizeDocumentType`); detection manual | shipped |
 | US-X-18 full-project DOCX report | U + M | `svg-chart.test.ts` (charts); DOCX render manual | shipped |
 | US-X-19 AI observations (document + project) | U(inputs) + M | `focus.test.ts`/`substance.test.ts`/`scoring.test.ts` (deterministic inputs); **LLM output is non-deterministic → manual + always flagged** | shipped |
@@ -144,15 +148,21 @@ All 24 test files run under `npm test` (`vitest run`); 126 tests as of v0.27.0.
 
 - **Automated (U/I):** the deterministic analysis engine — coverage, 2D matrix,
   scoring (incl. X/12), substance signals, focus notability, track, gap,
-  audit, classification, synonyms, import, CSV, and the cross-view
+  audit, classification, synonyms, n-grams, import, CSV, `.lens` bundle
+  round-trip, Library sort/search + bulk edit, and the cross-view
   **reconciliation** invariant. This is the correctness core the DSR §7.2 claim
   (reproducibility/determinism) rests on.
-- **Manual acceptance (M):** UI/UX (bulk edit, sort/search, project clone,
-  axis mix-and-match), full-flow (`.lens` export/import), file output (DOCX,
-  chart PNGs), and the **AI** stories (inherently non-repeatable, always flagged).
-- **Known test gaps** (candidates for automated tests): `ngrams.ts` (US-D-01),
-  `.lens` bundle export/import (US-X-02/03), and Library bulk-edit/sort/search
-  (US-X-15/16). (Focus mode now has stories US-X-21/22, backed by `focus.test.ts`.)
-- **No e2e harness yet** — the highest-value happy-path flows (import → classify
-  → score → report) would be worth a small Playwright/Electron acceptance suite
-  (P) before or alongside the paper's naturalistic evaluation (§7.1).
+- **End-to-end (E):** a Playwright/Electron acceptance suite (`e2e/`) drives the
+  built app. `smoke.spec.ts` (backend-free) proves the app boots and a project
+  can be created through the first-run wizard; `happy-path.spec.ts` (backend-
+  gated) imports the bundled sample PDFs through the real backend and reaches the
+  workspace — the §7.1 naturalistic flow. Classification/scoring are embedding-
+  heavy (minutes) so they are exercised best-effort, not gated on.
+- **Manual acceptance (M):** remaining UI/UX (project clone, axis
+  mix-and-match), file output (DOCX, chart PNGs), and the **AI** stories
+  (inherently non-repeatable, always flagged).
+- **Test gaps closed:** the four previously-flagged gaps — `ngrams.ts` (US-D-01),
+  `.lens` bundle export/import (US-X-02/03), Library bulk-edit (US-X-15) and
+  sort/search (US-X-16) — now have automated coverage. Closing US-X-15 also
+  surfaced and fixed a real bug: the `documents` update allowlist omitted `type`
+  and `company_size`, so editing either threw in production.

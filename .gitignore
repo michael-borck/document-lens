@@ -54,6 +54,11 @@ desktop.ini
 .\#*
 .history/
 
+# Playwright e2e artefacts
+/test-results/
+/playwright-report/
+/playwright/.cache/
+
 # Testing / coverage
 # NOTE: leading slash on /coverage/ anchors the rule to repo root.
 # Without it, ANY nested coverage/ folder is ignored — which silently

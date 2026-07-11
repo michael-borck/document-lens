@@ -25,7 +25,10 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src electron",
     "postinstall": "electron-builder install-app-deps",
-    "capture:help": "node scripts/capture-help-screenshots.mjs"
+    "capture:help": "node scripts/capture-help-screenshots.mjs",
+    "test:e2e": "npm run build:vite && playwright test",
+    "test:e2e:only": "playwright test",
+    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
@@ -66,6 +69,7 @@
   "devDependencies": {
     "@electron/notarize": "^3.1.1",
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.61.1",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/better-sqlite3": "^7.6.12",
