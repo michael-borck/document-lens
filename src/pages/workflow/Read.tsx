@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import { Check, Copy, ExternalLink, Eye, EyeOff, RotateCcw } from 'lucide-react'
 import {
   Select,
@@ -33,13 +33,16 @@ type ContextWindow = 50 | 100 | 250
 
 export function Read() {
   const vm = useOutletContext<ProjectViewModel>()
+  // Deep links (Focus findings, ADR-0029) arrive as ?doc=<documentId> so the
+  // reader opens on the document that stood out.
+  const [searchParams] = useSearchParams()
 
   const [docs, setDocs] = useState<Document[]>([])
   const [keywords, setKeywords] = useState<Keyword[]>([])
   // Accepted (enabled) synonyms per keyword id — folded into match counts
   // and concordance so a synonym hit counts toward its parent keyword (US-A-04).
   const [synonymsByKeyword, setSynonymsByKeyword] = useState<Map<string, string[]>>(new Map())
-  const [docId, setDocId] = useState<string>('')
+  const [docId, setDocId] = useState<string>(() => searchParams.get('doc') ?? '')
   const [keywordId, setKeywordId] = useState<string>('')
   const [contextWords, setContextWords] = useState<ContextWindow>(50)
   const [polarityFilter, setPolarityFilter] = useState<Polarity>('both')

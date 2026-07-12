@@ -17,18 +17,13 @@ export function WorkflowTabs({ setupComplete = false }: WorkflowTabsProps) {
       className="flex items-stretch border-b border-border bg-background overflow-x-auto"
     >
       {WORKFLOW_GROUPS.map((group, i) => (
-        <div key={group.label ?? 'core'} className="flex items-stretch">
-          {group.label ? (
-            <span
-              aria-hidden="true"
-              className={cn(
-                'self-center pl-4 pr-1.5 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/60 select-none whitespace-nowrap',
-                i > 0 && 'border-l border-border ml-2'
-              )}
-            >
-              {group.label}
-            </span>
-          ) : null}
+        <div
+          key={group.label ?? 'core'}
+          // Phase names live on the Overview cards; in the strip a quiet
+          // divider is enough — inline uppercase labels read as extra tabs.
+          title={group.label ? `${group.label} — ${group.description ?? ''}` : undefined}
+          className={cn('flex items-stretch', i > 0 && 'border-l border-border ml-1.5 pl-1.5')}
+        >
           {group.workflows.map(({ to, label, requiresSetup }) => {
             const disabled = requiresSetup && !setupComplete
             if (disabled) {

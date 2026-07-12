@@ -2,8 +2,11 @@
  * The workflow catalogue — single source of truth for the tab strip and the
  * Overview page, so labels, questions, and phase grouping never drift.
  *
- * Phases teach the research journey: explore what the corpus contains →
- * measure it → verify the evidence holds up. Tab order follows phase order.
+ * Focus leads (ADR-0029): it answers "where should I look first?" and its
+ * findings deep-link into the other tools, so the strip reads hub → drill-
+ * down rather than a pipeline you must complete in order. The remaining
+ * phases still teach the journey: explore what the corpus contains →
+ * measure it → verify the evidence holds up.
  */
 
 export interface WorkflowDef {
@@ -32,6 +35,18 @@ export const WORKFLOW_GROUPS: WorkflowGroup[] = [
         to: 'setup',
         label: 'Setup',
         question: 'Assemble this project: documents, keywords, axes, scoring rule.',
+      },
+    ],
+  },
+  {
+    label: 'Start',
+    description: 'Rank documents by notability — each finding links into the tools below.',
+    workflows: [
+      {
+        to: 'focus',
+        label: 'Focus',
+        question: 'Which documents should you look at first?',
+        requiresSetup: true,
       },
     ],
   },
@@ -105,12 +120,6 @@ export const WORKFLOW_GROUPS: WorkflowGroup[] = [
         question: 'Where does the tone run ahead of the substance?',
         requiresSetup: true,
       },
-      {
-        to: 'focus',
-        label: 'Focus',
-        question: 'Which documents should you look at first?',
-        requiresSetup: true,
-      },
     ],
   },
 ]
@@ -122,7 +131,11 @@ export function lastWorkflowKey(projectId: string): string {
   return `document-lens:last-workflow:${projectId}`
 }
 
-/** The workflow a project should open on: last visited, falling back to Overview. */
+/**
+ * The workflow a project should open on: last visited, falling back to
+ * Focus — the hub (ADR-0029). Focus renders its own "finish Setup" guidance
+ * when the project isn't ready yet.
+ */
 export function landingWorkflow(projectId: string): string {
   try {
     const stored = window.localStorage.getItem(lastWorkflowKey(projectId))
@@ -130,7 +143,7 @@ export function landingWorkflow(projectId: string): string {
   } catch {
     // localStorage unavailable (tests, locked-down env) — fall through
   }
-  return 'overview'
+  return 'focus'
 }
 
 export function rememberWorkflow(projectId: string, workflow: string): void {

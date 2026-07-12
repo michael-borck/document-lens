@@ -1,5 +1,5 @@
-import { useOutletContext } from 'react-router-dom'
-import { Play, Loader2, Target, ArrowUp, ArrowDown } from 'lucide-react'
+import { Link, useNavigate, useOutletContext, useParams } from 'react-router-dom'
+import { Play, Loader2, Target, ArrowUp, ArrowDown, ArrowRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useAnalysis } from '@/hooks/useAnalysis'
 import { computeFocus, type FocusResult } from '@/services/focus'
@@ -9,13 +9,32 @@ import { observeProject } from '@/services/ai-observations'
 import type { ProjectViewModel } from '@/pages/ProjectWorkspace'
 
 /**
- * Focus — the deterministic "where should I look first?" view. Ranks documents
- * by how far they deviate from the corpus across the substance signals + score,
- * explains why each stands out, and shows per-signal extremes. An optional,
- * clearly-flagged AI narration reads the same numbers.
+ * Focus — the deterministic "where should I look first?" view, and the
+ * project's hub (ADR-0029). Ranks documents by how far they deviate from the
+ * corpus across the substance signals + score, explains why each stands out,
+ * and DEEP-LINKS every finding into the tool that explains it: signal chips
+ * open Compare preset to that metric (or Score), document titles open Read on
+ * that document. An optional, clearly-flagged AI narration reads the same
+ * numbers.
  */
+
+/** Where a signal finding drills down to. */
+function signalPath(projectId: string, signal: string): string | null {
+  if (signal === 'score') return `/projects/${projectId}/score`
+  if (['repetition', 'diversity', 'intensity', 'evidence-reuse', 'coverage-spread'].includes(signal)) {
+    return `/projects/${projectId}/compare?metric=${signal}`
+  }
+  return null
+}
+
+function readPath(projectId: string, documentId: string): string {
+  return `/projects/${projectId}/read?doc=${documentId}`
+}
+
 export function Focus() {
   const vm = useOutletContext<ProjectViewModel>()
+  const { projectId } = useParams<{ projectId: string }>()
+  const navigate = useNavigate()
 
   const { run, running, result, error } = useAnalysis<FocusResult>(async () =>
     computeFocus({
@@ -29,9 +48,15 @@ export function Focus() {
     return (
       <div className="px-8 py-10 max-w-3xl">
         <Header />
-        <p className="text-sm text-muted-foreground border border-dashed border-border rounded-md p-6">
-          Finish Setup (a keyword list, ideally a scoring rule, and some documents) to rank documents by notability.
-        </p>
+        <div className="text-sm text-muted-foreground border border-dashed border-border rounded-md p-6 flex items-center justify-between gap-4">
+          <span>
+            Finish Setup (a keyword list, ideally a scoring rule, and some documents) to rank documents by notability.
+          </span>
+          <Button variant="outline" onClick={() => navigate(`/projects/${projectId}/setup`)} className="gap-1.5 shrink-0">
+            Go to Setup
+            <ArrowRight className="h-3.5 w-3.5" />
+          </Button>
+        </div>
       </div>
     )
   }
@@ -55,10 +80,10 @@ export function Focus() {
 
       {error && <p className="text-sm text-destructive mb-4">{error}</p>}
 
-      {result && (
+      {result && projectId && (
         <div className="space-y-8">
-          <NotableDocuments result={result} />
-          <SignalExtremes result={result} />
+          <NotableDocuments result={result} projectId={projectId} />
+          <SignalExtremes result={result} projectId={projectId} />
         </div>
       )}
 
@@ -92,14 +117,15 @@ function Header() {
   )
 }
 
-function NotableDocuments({ result }: { result: FocusResult }) {
+function NotableDocuments({ result, projectId }: { result: FocusResult; projectId: string }) {
   const notable = result.documents.filter((d) => d.hits.length > 0).slice(0, 20)
   return (
     <section>
       <h2 className="font-medium text-sm mb-1">Most notable documents</h2>
       <p className="text-xs text-muted-foreground mb-3">
         Documents that deviate most from the corpus, and why. Discount low-confidence rows
-        (thin evidence). {result.documents.length - notable.length > 0 && `${result.documents.length - notable.length} unremarkable document(s) hidden.`}
+        (thin evidence). Click a document to read it, or a signal to see the corpus ranked on
+        it. {result.documents.length - notable.length > 0 && `${result.documents.length - notable.length} unremarkable document(s) hidden.`}
       </p>
       {notable.length === 0 ? (
         <p className="text-sm text-muted-foreground border border-border rounded-md p-4">
@@ -112,20 +138,43 @@ function NotableDocuments({ result }: { result: FocusResult }) {
               <span className="text-sm tabular-nums text-muted-foreground w-6 shrink-0">{i + 1}</span>
               <div className="flex-1 min-w-0">
                 <div className="font-medium text-sm truncate">
-                  {doc.title}
+                  <Link
+                    to={readPath(projectId, doc.documentId)}
+                    className="hover:underline underline-offset-2"
+                    title="Read this document"
+                  >
+                    {doc.title}
+                  </Link>
                   {doc.year ? <span className="text-muted-foreground font-normal"> ({doc.year})</span> : null}
                   {doc.company ? <span className="text-muted-foreground font-normal"> · {doc.company}</span> : null}
                 </div>
                 <div className="flex flex-wrap gap-1.5 mt-1.5">
-                  {doc.hits.map((h) => (
-                    <span
-                      key={h.signal}
-                      className="inline-flex items-center gap-1 text-[11px] rounded px-1.5 py-0.5 bg-muted text-foreground/80"
-                    >
-                      {h.direction === 'high' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
-                      {h.reason} ({h.z > 0 ? '+' : ''}{h.z.toFixed(1)}σ)
-                    </span>
-                  ))}
+                  {doc.hits.map((h) => {
+                    const chip = (
+                      <>
+                        {h.direction === 'high' ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                        {h.reason} ({h.z > 0 ? '+' : ''}{h.z.toFixed(1)}σ)
+                      </>
+                    )
+                    const path = signalPath(projectId, h.signal)
+                    return path ? (
+                      <Link
+                        key={h.signal}
+                        to={path}
+                        title={`See the whole corpus ranked on ${h.label.toLowerCase()}`}
+                        className="inline-flex items-center gap-1 text-[11px] rounded px-1.5 py-0.5 bg-muted text-foreground/80 hover:bg-muted/70 hover:text-foreground transition-colors"
+                      >
+                        {chip}
+                      </Link>
+                    ) : (
+                      <span
+                        key={h.signal}
+                        className="inline-flex items-center gap-1 text-[11px] rounded px-1.5 py-0.5 bg-muted text-foreground/80"
+                      >
+                        {chip}
+                      </span>
+                    )
+                  })}
                 </div>
               </div>
               <span className="text-xs text-muted-foreground shrink-0 text-right">
@@ -140,31 +189,50 @@ function NotableDocuments({ result }: { result: FocusResult }) {
   )
 }
 
-function SignalExtremes({ result }: { result: FocusResult }) {
+function SignalExtremes({ result, projectId }: { result: FocusResult; projectId: string }) {
   const fmt = (v: number | null) => (v === null ? '—' : Number.isInteger(v) ? String(v) : v.toFixed(2))
+  const extremeTitle = (docId: string | null, title: string | null) => {
+    if (!docId || !title) return <span className="truncate block">—</span>
+    return (
+      <Link to={readPath(projectId, docId)} className="truncate block hover:underline underline-offset-2" title="Read this document">
+        {title}
+      </Link>
+    )
+  }
   return (
     <section>
       <h2 className="font-medium text-sm mb-3">Per-signal extremes</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {result.extremes.map((ex) => (
-          <div key={ex.signal} className="border border-border rounded-md p-3">
-            <div className="text-sm font-medium mb-1.5">{ex.label}</div>
-            <div className="text-xs flex items-start gap-1.5">
-              <ArrowUp className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-              <span className="min-w-0">
-                <span className="truncate block">{ex.highTitle ?? '—'}</span>
-                <span className="text-muted-foreground tabular-nums">{fmt(ex.highValue)}</span>
-              </span>
+        {result.extremes.map((ex) => {
+          const path = signalPath(projectId, ex.signal)
+          return (
+            <div key={ex.signal} className="border border-border rounded-md p-3">
+              <div className="text-sm font-medium mb-1.5">
+                {path ? (
+                  <Link to={path} className="hover:underline underline-offset-2" title="See the whole corpus ranked on this signal">
+                    {ex.label}
+                  </Link>
+                ) : (
+                  ex.label
+                )}
+              </div>
+              <div className="text-xs flex items-start gap-1.5">
+                <ArrowUp className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                <span className="min-w-0">
+                  {extremeTitle(ex.highDocId, ex.highTitle)}
+                  <span className="text-muted-foreground tabular-nums">{fmt(ex.highValue)}</span>
+                </span>
+              </div>
+              <div className="text-xs flex items-start gap-1.5 mt-1.5">
+                <ArrowDown className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
+                <span className="min-w-0">
+                  {extremeTitle(ex.lowDocId, ex.lowTitle)}
+                  <span className="text-muted-foreground tabular-nums">{fmt(ex.lowValue)}</span>
+                </span>
+              </div>
             </div>
-            <div className="text-xs flex items-start gap-1.5 mt-1.5">
-              <ArrowDown className="h-3.5 w-3.5 shrink-0 mt-0.5 text-muted-foreground" />
-              <span className="min-w-0">
-                <span className="truncate block">{ex.lowTitle ?? '—'}</span>
-                <span className="text-muted-foreground tabular-nums">{fmt(ex.lowValue)}</span>
-              </span>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
     </section>
   )

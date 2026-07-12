@@ -35,6 +35,7 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0026 | *(backend)* Fail loudly on included-but-broken ML, not silently | 2026-05→07 | Accepted | A silent model-load failure hid a recurring, near-undiagnosable clean-machine bug |
 | 0027 | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | 2026-07 | Proposed | Reports carry load-bearing content in figures the text-only pipeline never counts |
 | 0028 | Synthetic test corpus: Markdown in-repo, PDFs built, manifest expectations | 2026-07 | Proposed | Real reports can't exercise signal extremes on demand or ship with the repo |
+| 0029 | Focus-first hub: findings deep-link into the tools | 2026-07 | Accepted | Twelve pipeline-ordered tabs buried the "start here" view; research is hub-and-spoke, not a pipeline |
 
 **Cross-cutting principle** running through 0007 / 0010 / 0011 / 0012 / 0014:
 every computed signal is **deterministic and reproducible**; generative AI is an

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useOutletContext, useSearchParams } from 'react-router-dom'
 import {
   BarChart,
   Bar,
@@ -47,9 +47,19 @@ import type { Keyword, KeywordPolarity } from '@/types/data'
  * single-number ranking; raw match counts and pos-minus-counter are
  * the auxiliary metrics for sanity-checking the score.
  */
+const COMPARE_METRICS: CompareMetric[] = [
+  'score', 'match-count', 'distinct-keywords', 'pos-minus-counter',
+  'repetition', 'diversity', 'intensity', 'evidence-reuse', 'coverage-spread',
+]
+
 export function Compare() {
   const vm = useOutletContext<ProjectViewModel>()
-  const [metric, setMetric] = useState<CompareMetric>('score')
+  // Deep links (Focus findings, ADR-0029) arrive as ?metric=<CompareMetric>
+  // and should land on a chart, not a form — preselect and auto-run once.
+  const [searchParams] = useSearchParams()
+  const metricParam = searchParams.get('metric') as CompareMetric | null
+  const deepLinkMetric = metricParam && COMPARE_METRICS.includes(metricParam) ? metricParam : null
+  const [metric, setMetric] = useState<CompareMetric>(deepLinkMetric ?? 'score')
   const [polarity, setPolarity] = useState<KeywordPolarity>('positive')
   const [keywordId, setKeywordId] = useState<string>('')  // '' = all keywords
   const [keywords, setKeywords] = useState<Keyword[]>([])
@@ -148,6 +158,14 @@ export function Compare() {
       scoringRule: metric === 'score' ? vm.scoringRule?.definition : undefined,
     })
   })
+
+  // A deep link should land on the chart, not on an idle form.
+  const autoRan = useRef(false)
+  useEffect(() => {
+    if (!deepLinkMetric || autoRan.current || !vm.setupComplete || !vm.keywordList) return
+    autoRan.current = true
+    void run()
+  }, [deepLinkMetric, vm.setupComplete, vm.keywordList, run])
 
   const toggleCompany = (c: string) => {
     const next = new Set(companies)
