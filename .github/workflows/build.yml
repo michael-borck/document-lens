@@ -409,7 +409,6 @@ jobs:
             --exclude-module tensorflow \
             --exclude-module keras \
             --exclude-module matplotlib \
-            --exclude-module PIL \
             --exclude-module cv2 \
             run_server.py
         shell: bash
