@@ -77,11 +77,20 @@ coverage.xml
 # Claude Code tooling
 .claude/
 
-# User-local samples / manual artefacts
-samples/
+# User-local samples / manual artefacts (samples/* rather than samples/ so
+# the test-corpus negations below can reach inside the directory)
+samples/*
 *.pdf
 # …except the generated manual: committed so packaged builds (CI has no
 # pandoc/typst) can bundle it via extraResources. Rebuild: npm run build:manual
 !Document-Lens-User-Manual.pdf
+# …and except the synthetic test-corpus SOURCES (ADR-0028): markdown docs +
+# manifest + README are committed; generated PDFs stay ignored and are
+# rebuilt with `npm run build:corpus`.
+!samples/test-corpus/
+samples/test-corpus/*
+!samples/test-corpus/README.md
+!samples/test-corpus/corpus-manifest.json
+!samples/test-corpus/docs/
 
 .superpowers/

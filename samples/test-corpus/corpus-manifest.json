@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "description": "Expectations for the synthetic test corpus (ADR-0028). Signal expectations are RELATIVE (orderings, trends) or generous bands — never exact values — so signal formulas can be tuned without rewriting the corpus. Enforced by src/services/test-corpus.test.ts against the shipped seed keywords.",
+  "keyword_list_source": "SDGs (Universities)",
+  "extra_sdg_tags": {
+    "_comment": "Evidence reuse needs keywords tagged to more than one SDG; the seed ships every keyword single-tagged. These additions represent the researcher tagging genuinely cross-cutting buzzwords with a second SDG. Apply them (Keywords page > tags) before exercising evidence reuse in the app; the unit test applies them automatically.",
+    "Sustainability strategy": [13],
+    "Environmental sustainability": [15],
+    "Diversity and inclusion": [10],
+    "Strategic partnerships": [8],
+    "Community partnerships": [17]
+  },
+  "documents": [
+    { "id": "helios-energy-2020-annual-report", "company": "Helios Energy Group", "year": 2020, "sector": "Energy", "company_size": "Large", "type": "Annual Report" },
+    { "id": "helios-energy-2021-annual-report", "company": "Helios Energy Group", "year": 2021, "sector": "Energy", "company_size": "Large", "type": "Annual Report" },
+    { "id": "helios-energy-2022-annual-report", "company": "Helios Energy Group", "year": 2022, "sector": "Energy", "company_size": "Large", "type": "Annual Report" },
+    { "id": "helios-energy-2023-annual-report", "company": "Helios Energy Group", "year": 2023, "sector": "Energy", "company_size": "Large", "type": "Annual Report" },
+    { "id": "helios-energy-2024-annual-report", "company": "Helios Energy Group", "year": 2024, "sector": "Energy", "company_size": "Large", "type": "Annual Report" },
+    { "id": "meridian-bank-2021-annual-report", "company": "Meridian Regional Bank", "year": 2021, "sector": "Financial Services", "company_size": "Medium", "type": "Annual Report" },
+    { "id": "meridian-bank-2022-annual-report", "company": "Meridian Regional Bank", "year": 2022, "sector": "Financial Services", "company_size": "Medium", "type": "Annual Report" },
+    { "id": "meridian-bank-2023-annual-report", "company": "Meridian Regional Bank", "year": 2023, "sector": "Financial Services", "company_size": "Medium", "type": "Annual Report" },
+    { "id": "bluegum-grocers-2024-sustainability-report", "company": "Bluegum Grocers", "year": 2024, "sector": "Retail", "company_size": "Small", "type": "Sustainability Report" },
+    { "id": "veridia-metals-2023-sustainability-report", "company": "Veridia Metals", "year": 2023, "sector": "Manufacturing", "company_size": "Large", "type": "Sustainability Report" },
+    { "id": "southern-forge-2023-sustainability-report", "company": "Southern Forge Industries", "year": 2023, "sector": "Manufacturing", "company_size": "Large", "type": "Sustainability Report" },
+    { "id": "atlas-university-2024-annual-report", "company": "Atlas University", "year": 2024, "sector": "Higher Education", "company_size": "Large", "type": "Annual Report" },
+    { "id": "narrow-institute-2024-annual-report", "company": "Narrow Waters Institute", "year": 2024, "sector": "Environmental Research", "company_size": "Small", "type": "Annual Report" }
+  ],
+  "expectations": {
+    "orderings": [
+      { "signal": "repetition", "higher": "veridia-metals-2023-sustainability-report", "lower": "southern-forge-2023-sustainability-report", "why": "greenwash pair: Veridia repeats a few slogans; Southern Forge varies its language" },
+      { "signal": "diversity", "higher": "southern-forge-2023-sustainability-report", "lower": "veridia-metals-2023-sustainability-report", "why": "greenwash pair: Southern Forge touches many distinct concepts" },
+      { "signal": "intensity", "higher": "veridia-metals-2023-sustainability-report", "lower": "southern-forge-2023-sustainability-report", "why": "greenwash pair: Veridia is louder per 1k words despite thinner substance" },
+      { "signal": "evidence_reuse", "higher": "veridia-metals-2023-sustainability-report", "lower": "southern-forge-2023-sustainability-report", "why": "greenwash pair: Veridia's matches concentrate on multi-SDG buzzwords" },
+      { "signal": "diversity", "higher": "atlas-university-2024-annual-report", "lower": "narrow-institute-2024-annual-report", "why": "coverage pair: broad vs deliberately concentrated" },
+      { "signal": "repetition", "higher": "bluegum-grocers-2024-sustainability-report", "lower": "southern-forge-2023-sustainability-report", "why": "Bluegum reuses the same few terms; not a criticism — it is a narrow honest report" }
+    ],
+    "bands": [
+      { "signal": "repetition", "doc": "bluegum-grocers-2024-sustainability-report", "min": 3 },
+      { "signal": "diversity", "doc": "bluegum-grocers-2024-sustainability-report", "max": 0.05 },
+      { "signal": "counter_matches", "doc": "veridia-metals-2023-sustainability-report", "min": 3 },
+      { "signal": "counter_matches", "doc": "southern-forge-2023-sustainability-report", "max": 0 },
+      { "signal": "pillars_covered", "doc": "narrow-institute-2024-annual-report", "min": 1, "max": 1 },
+      { "signal": "pillars_covered", "doc": "atlas-university-2024-annual-report", "min": 4, "max": 4 },
+      { "signal": "intensity", "doc": "helios-energy-2020-annual-report", "max": 12 },
+      { "signal": "intensity", "doc": "helios-energy-2024-annual-report", "min": 25 }
+    ],
+    "trends": [
+      { "signal": "intensity", "company": "Helios Energy Group", "direction": "rising", "strict": true, "why": "sustainability language ramps up year on year" },
+      { "signal": "diversity", "company": "Helios Energy Group", "direction": "rising", "strict": false, "why": "breadth grows over the series (endpoints compared)" },
+      { "signal": "intensity", "company": "Meridian Regional Bank", "direction": "falling", "strict": false, "why": "2023 pivots to cost language (endpoints compared)" }
+    ]
+  }
+}

@@ -21,6 +21,7 @@
     "build:linux": "npm run build:vite && electron-builder --linux",
     "build:all": "npm run build:vite && electron-builder --mac --win --linux",
     "build:manual": "./manual/build-manual.sh",
+    "build:corpus": "node scripts/build-test-corpus.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src electron",
