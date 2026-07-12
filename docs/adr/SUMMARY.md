@@ -33,6 +33,8 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0024 | *(backend)* `api` package + lens-contract family contract | 2026-05 | Accepted | Consistent health/manifest/CORS/auth and a canonical public surface across the family |
 | 0025 | *(backend)* Optional ML via extras, graceful degradation | 2026-05→06 | Accepted | Full ML is brittle in one process; not every deployment needs every capability |
 | 0026 | *(backend)* Fail loudly on included-but-broken ML, not silently | 2026-05→07 | Accepted | A silent model-load failure hid a recurring, near-undiagnosable clean-machine bug |
+| 0027 | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | 2026-07 | Proposed | Reports carry load-bearing content in figures the text-only pipeline never counts |
+| 0028 | Synthetic test corpus: Markdown in-repo, PDFs built, manifest expectations | 2026-07 | Proposed | Real reports can't exercise signal extremes on demand or ship with the repo |
 
 **Cross-cutting principle** running through 0007 / 0010 / 0011 / 0012 / 0014:
 every computed signal is **deterministic and reproducible**; generative AI is an

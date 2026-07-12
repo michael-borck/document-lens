@@ -55,6 +55,8 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0024](0024-backend-family-contract.md) | *(backend)* Backend as a family member: `api` package + lens-contract | Accepted |
 | [0025](0025-optional-ml-extras.md) | *(backend)* Optional ML via extras, with graceful degradation | Accepted |
 | [0026](0026-fail-loudly-not-silently.md) | *(backend)* Fail loudly on ML unavailability, not silently | Accepted |
+| [0027](0027-image-text-extraction-boundary.md) | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | Proposed |
+| [0028](0028-synthetic-test-corpus.md) | Synthetic test corpus: Markdown sources in-repo, PDFs built on demand | Proposed |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision
