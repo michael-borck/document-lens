@@ -7,6 +7,7 @@ import { listDocuments, updateDocumentAttributes, deleteDocument, type UpdateDoc
 import { countImagesByDocuments } from '@/services/document-images'
 import { ImageGalleryModal } from '@/components/images/ImageGalleryModal'
 import { importDocuments, retryExtraction, type ImportProgress } from '@/services/import'
+import { useBackendStatus } from '@/hooks/useBackendStatus'
 import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
 import type { Document } from '@/types/data'
@@ -82,6 +83,9 @@ export function Library() {
   const [typeSuggestions, setTypeSuggestions] = useState<string[]>([])
   const [imageCounts, setImageCounts] = useState<Map<string, number>>(new Map())
   const [bulkOpen, setBulkOpen] = useState(false)
+  // Import needs the analysis engine for extraction — gate it until ready.
+  // Push-driven: the button enables itself the moment the engine reports in.
+  const backend = useBackendStatus()
 
   useEffect(() => {
     refresh()
@@ -192,16 +196,21 @@ export function Library() {
             <Button
               variant="outline"
               onClick={handleImportFolder}
-              disabled={importing}
+              disabled={importing || !backend.ready}
               className="gap-2"
-              title="Recursively import every supported document in a folder"
+              title={backend.disabledReason ?? 'Recursively import every supported document in a folder'}
             >
               <FolderOpen className="h-4 w-4" />
               Import folder
             </Button>
-            <Button onClick={handleImport} disabled={importing} className="gap-2">
+            <Button
+              onClick={handleImport}
+              disabled={importing || !backend.ready}
+              className="gap-2"
+              title={backend.disabledReason}
+            >
               <Upload className="h-4 w-4" />
-              {importing ? 'Importing…' : 'Import documents'}
+              {importing ? 'Importing…' : backend.ready ? 'Import documents' : 'Import (engine starting…)'}
             </Button>
           </div>
         )}
@@ -216,16 +225,21 @@ export function Library() {
           description="Import PDFs, Word docs, PowerPoints, plain text, or Markdown files. Documents live globally — once imported, you can use them in any project."
           action={
             <div className="flex items-center gap-2">
-              <Button onClick={handleImport} disabled={importing} className="gap-2">
+              <Button
+                onClick={handleImport}
+                disabled={importing || !backend.ready}
+                className="gap-2"
+                title={backend.disabledReason}
+              >
                 <Upload className="h-4 w-4" />
-                {importing ? 'Importing…' : 'Import documents'}
+                {importing ? 'Importing…' : backend.ready ? 'Import documents' : 'Import (engine starting…)'}
               </Button>
               <Button
                 variant="outline"
                 onClick={handleImportFolder}
-                disabled={importing}
+                disabled={importing || !backend.ready}
                 className="gap-2"
-                title="Recursively import every supported document in a folder"
+                title={backend.disabledReason ?? 'Recursively import every supported document in a folder'}
               >
                 <FolderOpen className="h-4 w-4" />
                 Import folder
@@ -296,6 +310,7 @@ function DocumentTable({
   imageCounts: Map<string, number>
 }) {
   const [galleryDoc, setGalleryDoc] = useState<Document | null>(null)
+  const backend = useBackendStatus()
   const [pendingDelete, setPendingDelete] = useState<{
     doc: Document
     projectCount: number
@@ -662,9 +677,9 @@ function DocumentTable({
                     <button
                       type="button"
                       onClick={() => handleRetry(doc)}
-                      disabled={retryingId === doc.id}
+                      disabled={retryingId === doc.id || !backend.ready}
                       className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors disabled:opacity-50"
-                      title={`Retry extraction${doc.statusError ? ` (${doc.statusError})` : ''}`}
+                      title={backend.disabledReason ?? `Retry extraction${doc.statusError ? ` (${doc.statusError})` : ''}`}
                       aria-label={`Retry extraction for ${doc.title ?? doc.filename}`}
                     >
                       <RotateCcw className={`h-4 w-4 ${retryingId === doc.id ? 'animate-spin' : ''}`} />

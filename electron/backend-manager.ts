@@ -1,9 +1,12 @@
-import { spawn, ChildProcess } from 'child_process'
+import { spawn, execFile, ChildProcess } from 'child_process'
 import { app } from 'electron'
 import { EventEmitter } from 'events'
 import path from 'path'
 import fs from 'fs'
 import http from 'http'
+import { promisify } from 'util'
+
+const execFileAsync = promisify(execFile)
 
 // Backend configuration constants - single source of truth
 export const BACKEND_PORT = 8765
@@ -134,6 +137,20 @@ export class BackendManager extends EventEmitter {
   async start(): Promise<void> {
     this.startedAt = Date.now()
 
+    // A backend from a PREVIOUS session may still hold the port (the app
+    // crashed, was force-quit, or the PyInstaller bootloader stranded its
+    // child). It answers /health (unauthenticated) but rejects this
+    // session's token on every real request — the worst failure mode,
+    // because everything LOOKS ready while imports fail "Unauthorized".
+    // Per ADR-0002 we never adopt an external backend: identify it, kill
+    // it, and spawn our own.
+    try {
+      await this.reclaimStalePort()
+    } catch (error) {
+      this.setPhase('crashed', error instanceof Error ? error.message : String(error))
+      return
+    }
+
     if (app.isPackaged) {
       this.mode = 'embedded'
       return this.startEmbedded()
@@ -158,6 +175,79 @@ export class BackendManager extends EventEmitter {
     this.setPhase('crashed', 'Dev backend repo not found at ../document-analyser')
   }
 
+  /**
+   * If something already answers on our port, it can only be a stale
+   * backend from a previous session (we haven't spawned ours yet, and we
+   * never adopt): verify it's a document-analyser via the unauthenticated
+   * /manifest, then kill whatever owns the port and wait for it to fall
+   * silent. An unknown service on the port is a hard error — killing a
+   * stranger's process is worse than failing loudly.
+   */
+  private async reclaimStalePort(): Promise<void> {
+    const answering = await this.healthCheck().then(() => true, () => false)
+    if (!answering) return
+
+    const manifest = await this.fetchJson('/manifest').catch(() => null)
+    const name = String(
+      (manifest as { name?: string; service?: string } | null)?.name ??
+      (manifest as { service?: string } | null)?.service ?? ''
+    )
+    if (!/document|analyser|analyzer|lens/i.test(name)) {
+      throw new Error(
+        `Port ${this.port} is in use by an unknown service (${name || 'no manifest'}). ` +
+        `Close it and restart the app.`
+      )
+    }
+
+    console.warn(`[Backend] Stale backend "${name}" found on :${this.port} — reclaiming the port`)
+    await this.killPortListeners()
+
+    // Wait until the port actually stops answering (up to ~10s).
+    const deadline = Date.now() + 10_000
+    while (Date.now() < deadline) {
+      const still = await this.healthCheck().then(() => true, () => false)
+      if (!still) {
+        console.log('[Backend] Port reclaimed')
+        return
+      }
+      await new Promise((r) => setTimeout(r, 500))
+    }
+    throw new Error(
+      `A previous analysis backend on port ${this.port} would not shut down. ` +
+      `Kill the "document-lens-api" process manually and restart the app.`
+    )
+  }
+
+  /** Kill every process listening on our port (lsof on POSIX, netstat on Windows). */
+  private async killPortListeners(): Promise<void> {
+    if (process.platform === 'win32') {
+      const { stdout } = await execFileAsync('netstat', ['-ano']).catch(() => ({ stdout: '' }))
+      const pids = new Set<string>()
+      for (const line of stdout.split('\n')) {
+        if (line.includes(`:${this.port}`) && /LISTENING/i.test(line)) {
+          const pid = line.trim().split(/\s+/).pop()
+          if (pid && pid !== '0') pids.add(pid)
+        }
+      }
+      for (const pid of pids) {
+        await execFileAsync('taskkill', ['/pid', pid, '/T', '/F']).catch(() => {})
+      }
+      return
+    }
+    const { stdout } = await execFileAsync('lsof', ['-ti', `tcp:${this.port}`]).catch(() => ({ stdout: '' }))
+    const pids = stdout.split('\n').map((s) => s.trim()).filter(Boolean)
+    for (const pid of pids) {
+      try { process.kill(Number(pid), 'SIGTERM') } catch { /* already gone */ }
+    }
+    // Escalate stragglers after a grace period.
+    if (pids.length > 0) {
+      await new Promise((r) => setTimeout(r, 3000))
+      for (const pid of pids) {
+        try { process.kill(Number(pid), 'SIGKILL') } catch { /* already gone */ }
+      }
+    }
+  }
+
   private async startEmbedded(): Promise<void> {
     const backendPath = this.getBackendPath()
     console.log('[Backend] Starting embedded backend from:', backendPath)
@@ -167,9 +257,12 @@ export class BackendManager extends EventEmitter {
     }
 
     this.setPhase('starting')
+    // detached on POSIX: the child leads its own process group, so stop()
+    // can kill the WHOLE tree (PyInstaller bootloader + the server it
+    // re-execs) with one group signal instead of stranding the grandchild.
     this.process = spawn(backendPath, ['--port', String(this.port), '--host', this.host], {
       stdio: ['ignore', 'pipe', 'pipe'],
-      detached: false,
+      detached: process.platform !== 'win32',
       env: this.backendEnv()
     })
 
@@ -223,7 +316,7 @@ export class BackendManager extends EventEmitter {
       this.process = spawn(command, args, {
         cwd: repoPath,
         stdio: ['ignore', 'pipe', 'pipe'],
-        detached: false,
+        detached: process.platform !== 'win32',
         env: { ...this.backendEnv(), PYTHONUNBUFFERED: '1' }
       })
     } catch (error) {
@@ -298,20 +391,20 @@ export class BackendManager extends EventEmitter {
     })
   }
 
-  /** Probe /health until it responds 200 or timeout elapses */
+  /** Probe until the backend verifiably answers or timeout elapses */
   private probeUntilReady(): Promise<void> {
     return new Promise((resolve, reject) => {
       const startTime = Date.now()
       const check = () => {
-        this.healthCheck()
+        this.verifiedHealthCheck()
           .then(() => {
             console.log('[Backend] ready')
             this.setPhase('ready')
             resolve()
           })
-          .catch(() => {
+          .catch((error) => {
             if (Date.now() - startTime > this.startupTimeout) {
-              reject(new Error('Backend startup timeout'))
+              reject(new Error(`Backend startup timeout (${error instanceof Error ? error.message : error})`))
               return
             }
             setTimeout(check, 500)
@@ -325,35 +418,67 @@ export class BackendManager extends EventEmitter {
     return this.probeUntilReady()
   }
 
-  private healthCheck(): Promise<boolean> {
+  /** GET a path with an optional bearer token; resolve with the status code. */
+  private request(path: string, withToken: boolean): Promise<{ status: number; body: string }> {
     return new Promise((resolve, reject) => {
       const req = http.request({
         hostname: this.host,
         port: this.port,
-        path: '/health',
+        path,
         method: 'GET',
-        timeout: 5000
+        timeout: 5000,
+        headers: withToken && this.authToken ? { Authorization: `Bearer ${this.authToken}` } : {},
       }, (res) => {
-        if (res.statusCode === 200) {
-          resolve(true)
-        } else {
-          reject(new Error(`Health check failed with status ${res.statusCode}`))
-        }
+        let body = ''
+        res.on('data', (chunk) => { body += chunk })
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body }))
       })
       req.on('error', (error) => reject(error))
       req.on('timeout', () => {
         req.destroy()
-        reject(new Error('Health check timeout'))
+        reject(new Error('Request timeout'))
       })
       req.end()
     })
+  }
+
+  private async fetchJson(path: string): Promise<unknown> {
+    const { status, body } = await this.request(path, false)
+    if (status !== 200) throw new Error(`GET ${path} → ${status}`)
+    return JSON.parse(body)
+  }
+
+  private async healthCheck(): Promise<boolean> {
+    const { status } = await this.request('/health', false)
+    if (status !== 200) throw new Error(`Health check failed with status ${status}`)
+    return true
+  }
+
+  /**
+   * "Ready" must mean OUR backend, not just A backend: /health is
+   * unauthenticated, so a stale server from a previous session passes it
+   * while rejecting every real request. When a session token exists, also
+   * require an authenticated request (GET /) to succeed.
+   */
+  private async verifiedHealthCheck(): Promise<boolean> {
+    await this.healthCheck()
+    if (!this.authToken) return true
+    const { status } = await this.request('/', true)
+    if (status === 401 || status === 403) {
+      throw new Error(
+        'Backend rejected this session\'s token — a stale backend from a ' +
+        'previous session is holding the port. Restart the analysis engine.'
+      )
+    }
+    if (status !== 200) throw new Error(`Auth probe failed with status ${status}`)
+    return true
   }
 
   private startHealthCheck(): void {
     if (this.healthCheckInterval) clearInterval(this.healthCheckInterval)
     this.healthCheckInterval = setInterval(async () => {
       try {
-        await this.healthCheck()
+        await this.verifiedHealthCheck()
         if (this.phase !== 'ready') this.setPhase('ready')
       } catch (error) {
         // Only downgrade if we previously thought we were ready
@@ -389,19 +514,36 @@ export class BackendManager extends EventEmitter {
         resolve()
       })
 
-      if (process.platform === 'win32') {
-        this.process.kill()
-      } else {
-        this.process.kill('SIGTERM')
-      }
+      // Kill the whole process TREE, not just the direct child: the
+      // PyInstaller bootloader re-execs the real server as its own child,
+      // and signalling only the bootloader can strand that grandchild on
+      // the port (the "Unauthorized after relaunch" orphan).
+      this.killTree('SIGTERM')
 
       setTimeout(() => {
         if (this.process) {
           console.log('[Backend] force killing')
-          this.process.kill('SIGKILL')
+          this.killTree('SIGKILL')
         }
       }, 5000)
     })
+  }
+
+  /** Signal the child's whole process group (POSIX) / tree (Windows). */
+  private killTree(signal: 'SIGTERM' | 'SIGKILL'): void {
+    const pid = this.process?.pid
+    if (!pid) return
+    if (process.platform === 'win32') {
+      execFile('taskkill', ['/pid', String(pid), '/T', '/F'], () => {})
+      return
+    }
+    try {
+      // Negative pid = the process group (child was spawned detached, so
+      // it leads its own group containing bootloader + server).
+      process.kill(-pid, signal)
+    } catch {
+      try { this.process?.kill(signal) } catch { /* already gone */ }
+    }
   }
 
   /**

@@ -41,6 +41,7 @@ import { listAxes } from '@/services/axes'
 import { listScoringRules } from '@/services/scoring-rules'
 import { listDocuments } from '@/services/documents'
 import { importDocuments, type ImportProgress } from '@/services/import'
+import { useBackendStatus } from '@/hooks/useBackendStatus'
 import { toast } from '@/stores/toastStore'
 import type { Project, Document } from '@/types/data'
 
@@ -402,6 +403,9 @@ function Step2({
   importing: boolean
   importProgress: ImportProgress | null
 }) {
+  // Import needs the analysis engine; the button enables itself (push
+  // event, no refresh) the moment the engine reports ready.
+  const backend = useBackendStatus()
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2">
@@ -409,11 +413,12 @@ function Step2({
           type="button"
           variant="outline"
           onClick={onImportNew}
-          disabled={importing}
+          disabled={importing || !backend.ready}
+          title={backend.disabledReason}
           className="gap-1.5"
         >
           <Upload className="h-4 w-4" />
-          {importing ? 'Importing…' : 'Import new documents…'}
+          {importing ? 'Importing…' : backend.ready ? 'Import new documents…' : 'Import (engine starting…)'}
         </Button>
         <div className="text-xs text-muted-foreground">
           or pick from your existing Library below

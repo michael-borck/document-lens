@@ -32,6 +32,24 @@ if (!app.isPackaged && process.env.DOCLENS_USER_DATA) {
   app.setPath('userData', process.env.DOCLENS_USER_DATA)
 }
 
+// Single instance: two app instances would fight over the backend port
+// (8765) and the SQLite database. Without this lock, a second launch's
+// stale-port reclaim would kill the FIRST instance's healthy backend.
+// Dev/e2e runs with a custom profile opt out — each throwaway profile is
+// its own world and Playwright launches several across a suite.
+if (app.isPackaged || !process.env.DOCLENS_USER_DATA) {
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+  } else {
+    app.on('second-instance', () => {
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.focus()
+      }
+    })
+  }
+}
+
 /** True for the only URL schemes we'll hand to the OS browser/mail client. */
 function isWebUrl(url: string): boolean {
   try {
