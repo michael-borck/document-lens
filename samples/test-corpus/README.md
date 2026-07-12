@@ -43,8 +43,9 @@ Two notes for in-app use:
 - **Evidence reuse** requires keywords tagged to more than one SDG; the seed
   ships every keyword single-tagged. `corpus-manifest.json` →
   `extra_sdg_tags` lists the cross-cutting buzzwords to tag with a second SDG
-  (Keywords page) before exercising this signal in the app. The unit test
-  applies them automatically.
+  — and its corresponding Pillar — on the Keywords page before exercising
+  this signal in the app. The unit test and `e2e/corpus.spec.ts` apply them
+  automatically.
 - **Coverage spread / Wedding Cake scoring** additionally need section
   classification (embedding-based, in-app). The documents are structured with
   clear Teaching / Research / Engagement / Operations-flavoured sections so

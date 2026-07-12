@@ -17,12 +17,13 @@ npm run test:e2e:smoke   # just the backend-free smoke spec (fast)
 npm run test:e2e:only    # run against the already-built dist/ (skip the build)
 ```
 
-## The two specs
+## The specs
 
 | Spec | Needs backend? | What it proves |
 |---|---|---|
 | `smoke.spec.ts` | No | App boots (main + preload + IPC + SQLite + renderer + first-run seed) and a project can be created through the three-step wizard. Always runs. |
 | `happy-path.spec.ts` | **Yes** | Import → classify → score over the bundled sample PDFs. **Skips itself** when the `document-analyser` backend isn't reachable, so CI without the ML stack stays green. |
+| `corpus.spec.ts` | **Yes** | Imports the synthetic test corpus (ADR-0028) and checks Compare + Focus against `samples/test-corpus/corpus-manifest.json` — orderings, trends, per-signal extremes — through the full pipeline. Also skips itself when the corpus PDFs aren't built (`npm run build:corpus`). |
 
 The happy-path spec mocks the native file-open dialog (via `app.evaluate` on the
 main process) so import picks `samples/*.pdf` headlessly, and gates on
@@ -35,3 +36,7 @@ main process) so import picks `samples/*.pdf` headlessly, and gates on
 - Traces + screenshots are retained only on failure (`test-results/`, gitignored).
 - The backend auto-spawns from a sibling `../document-analyser` checkout in dev;
   see the repo README's *Backend architecture* section.
+- **Stale-backend gotcha:** if an orphaned backend from an earlier app session
+  still holds port 8765, `/health` (unauthenticated) reports ready but every
+  real request fails 401 "Unauthorized" — imports then fail with no extracted
+  text. Check with `lsof -nP -i :8765` and kill the orphan before running.

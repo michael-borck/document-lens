@@ -72,8 +72,10 @@ function markdownToHtml(md) {
 }
 
 function documentHtml(meta, body) {
+  // The <title> matters: Chromium stamps it into the PDF's Title metadata,
+  // which document-lens prefers over the filename at import.
   return `<!doctype html>
-<html><head><meta charset="utf-8"><style>
+<html><head><meta charset="utf-8"><title>${escapeHtml(meta.title ?? '')}</title><style>
   body { font-family: Georgia, 'Times New Roman', serif; font-size: 11.5pt;
          line-height: 1.55; color: #1a1a1a; margin: 0; }
   h1 { font-size: 20pt; line-height: 1.25; margin: 0 0 6pt; }
