@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw, Search, ArrowUp, ArrowDown, X } from 'lucide-react'
+import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw, Search, ArrowUp, ArrowDown, X, Images } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
 import { listDocuments, updateDocumentAttributes, deleteDocument, type UpdateDocumentAttributesInput } from '@/services/documents'
+import { countImagesByDocuments } from '@/services/document-images'
+import { ImageGalleryModal } from '@/components/images/ImageGalleryModal'
 import { importDocuments, retryExtraction, type ImportProgress } from '@/services/import'
 import { listIndustries } from '@/services/reference'
 import { toast } from '@/stores/toastStore'
@@ -78,6 +80,7 @@ export function Library() {
   const [sectorSuggestions, setSectorSuggestions] = useState<string[]>([])
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([])
   const [typeSuggestions, setTypeSuggestions] = useState<string[]>([])
+  const [imageCounts, setImageCounts] = useState<Map<string, number>>(new Map())
   const [bulkOpen, setBulkOpen] = useState(false)
 
   useEffect(() => {
@@ -88,6 +91,7 @@ export function Library() {
   const refresh = async () => {
     const fresh = await listDocuments()
     setDocs(fresh)
+    setImageCounts(await countImagesByDocuments(fresh.map((d) => d.id)))
     // Build company suggestions from the existing corpus so the user
     // gets consistency without a maintained reference list (companies
     // come from filenames + content inference; the right values are
@@ -236,6 +240,7 @@ export function Library() {
           sectorSuggestions={sectorSuggestions}
           companySuggestions={companySuggestions}
           typeSuggestions={typeSuggestions}
+          imageCounts={imageCounts}
         />
       )}
 
@@ -281,13 +286,16 @@ function DocumentTable({
   sectorSuggestions,
   companySuggestions,
   typeSuggestions,
+  imageCounts,
 }: {
   documents: Document[]
   onChange: () => void
   sectorSuggestions: string[]
   companySuggestions: string[]
   typeSuggestions: string[]
+  imageCounts: Map<string, number>
 }) {
+  const [galleryDoc, setGalleryDoc] = useState<Document | null>(null)
   const [pendingDelete, setPendingDelete] = useState<{
     doc: Document
     projectCount: number
@@ -639,6 +647,17 @@ function DocumentTable({
               </td>
               <td className="px-2 py-2.5">
                 <div className="flex items-center justify-end gap-0.5">
+                  {(imageCounts.get(doc.id) ?? 0) > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setGalleryDoc(doc)}
+                      className="text-muted-foreground hover:text-foreground p-1 rounded transition-colors"
+                      title={`View ${imageCounts.get(doc.id)} image${imageCounts.get(doc.id) === 1 ? '' : 's'}`}
+                      aria-label={`View images in ${doc.title ?? doc.filename}`}
+                    >
+                      <Images className="h-4 w-4" />
+                    </button>
+                  )}
                   {doc.status === 'failed' && (
                     <button
                       type="button"
@@ -690,6 +709,14 @@ function DocumentTable({
         destructive
         onConfirm={handleConfirmDelete}
       />
+
+      {galleryDoc && (
+        <ImageGalleryModal
+          open={galleryDoc !== null}
+          onOpenChange={(open) => { if (!open) setGalleryDoc(null) }}
+          document={galleryDoc}
+        />
+      )}
 
       <ConfirmDialog
         open={bulkDeleteOpen}

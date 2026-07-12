@@ -278,6 +278,20 @@ class ApiClient {
     }
   }
 
+  /**
+   * Extract embedded images from a document on disk (PDF or DOCX).
+   * Backend deduplicates repeated images (per-page logos) by content hash
+   * and skips tiny decorative ones; each image carries its page number
+   * (null for DOCX) plus thumbnail + display renditions as base64.
+   * Available on document-analyser >= 0.11.
+   */
+  async extractImages(filePath: string): Promise<ExtractImagesResponse> {
+    return this.request<ExtractImagesResponse>('/files/extract-images', {
+      method: 'POST',
+      body: JSON.stringify({ file_path: filePath }),
+    })
+  }
+
   // Analyze text - uses /text endpoint which returns all analysis in one call
   async analyzeText(text: string): Promise<TextAnalysisApiResponse> {
     return this.request<TextAnalysisApiResponse>('/text', {
@@ -552,6 +566,30 @@ export interface ProcessFileResponse {
     }
     extraction_notes?: string[]
   }
+}
+
+// One embedded image from /files/extract-images
+export interface ExtractedImage {
+  /** 1-based page in the source PDF; null for flow formats (DOCX). */
+  page_number: number | null
+  image_index: number
+  name: string
+  width: number
+  height: number
+  format: string
+  hash_sha256: string
+  thumbnail_base64: string
+  thumbnail_mime: string
+  image_base64: string
+  image_mime: string
+}
+
+export interface ExtractImagesResponse {
+  filename: string
+  content_type: string
+  total_images: number
+  images: ExtractedImage[]
+  skipped: Record<string, number>
 }
 
 // Response from /text endpoint - all analysis in one call

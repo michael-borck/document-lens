@@ -21,8 +21,12 @@
  *      classification — paragraph-grain text chunks plus their
  *      per-lens tag assignments, e.g. Teaching / Research /
  *      Engagement / Operations from the Function lens)
+ *   6: add document_images (embedded images extracted at import —
+ *      thumbnail + display renditions, page anchor for jump-to-page,
+ *      and nullable text columns for the ADR-0027 phase-2 image-text
+ *      classes: verbatim OCR/caption vs flagged AI description)
  */
-export const SCHEMA_VERSION = 5
+export const SCHEMA_VERSION = 6
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -73,6 +77,35 @@ CREATE TABLE IF NOT EXISTS document_pages (
   PRIMARY KEY (document_id, page_number)
 );
 CREATE INDEX IF NOT EXISTS idx_document_pages_doc ON document_pages(document_id);
+
+-- Embedded images extracted from a document at import time (ADR-0027).
+-- Extraction is deduplicated by content hash (page_number is the FIRST
+-- page the image appears on) and tiny decorative images are filtered by
+-- the backend. Renditions are stored as data: URLs — the display
+-- rendition is capped (~1600px); open the source document for full
+-- resolution. page_number is NULL for flow formats (DOCX has no pages).
+-- The text columns are phase-2 (image-derived text): ocr_text and
+-- caption_text hold verbatim text and may enter analysis; ai_description
+-- is generative, always flagged, and never counted in signals.
+CREATE TABLE IF NOT EXISTS document_images (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  page_number INTEGER,
+  image_index INTEGER NOT NULL,
+  width INTEGER,
+  height INTEGER,
+  format TEXT,
+  image_hash TEXT NOT NULL,
+  thumbnail_data TEXT NOT NULL,       -- data: URL, grid rendition (<=320px)
+  image_data TEXT NOT NULL,           -- data: URL, display rendition (<=1600px)
+  ocr_text TEXT,                      -- verbatim in-image text (phase 2)
+  caption_text TEXT,                  -- figure caption from the text layer (phase 2)
+  ai_description TEXT,                -- generative description, always flagged (phase 2)
+  ai_provider TEXT,                   -- provider/model that produced ai_description
+  extracted_at TEXT NOT NULL,
+  UNIQUE(document_id, image_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_document_images_doc ON document_images(document_id);
 
 -- Document sections (paragraph-grain chunks of extracted_text). Each
 -- section knows its character-offset range in the document's full text

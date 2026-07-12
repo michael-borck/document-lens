@@ -42,6 +42,37 @@ export interface Document {
   extractedAt: string | null
 }
 
+/**
+ * An embedded image extracted from a document at import time (ADR-0027).
+ * Deduplicated by content hash; `pageNumber` is the first page the image
+ * appears on (null for flow formats like DOCX). `imageData` (the display
+ * rendition) is only populated when fetched individually — list queries
+ * omit it to keep the gallery grid light.
+ */
+export interface DocumentImage {
+  id: string
+  documentId: string
+  /** 1-based page in the source PDF; null for flow formats (DOCX). */
+  pageNumber: number | null
+  imageIndex: number
+  width: number | null
+  height: number | null
+  format: string | null
+  imageHash: string
+  /** data: URL thumbnail rendition (<=320px). */
+  thumbnailData: string
+  /** data: URL display rendition (<=1600px). Null unless fetched by id. */
+  imageData: string | null
+  /** Verbatim in-image text (phase 2 — may enter analysis). */
+  ocrText: string | null
+  /** Figure caption harvested from the text layer (phase 2 — verbatim). */
+  captionText: string | null
+  /** Generative description — always flagged as AI-derived, never counted in signals. */
+  aiDescription: string | null
+  aiProvider: string | null
+  extractedAt: string
+}
+
 // ---------------------------------------------------------------------------
 // Axes (analysis dimensions — SDG, Pillar, Function, etc.)
 // DB tables: lenses, lens_values. "Axis/Axes" is the TypeScript/UI concept;

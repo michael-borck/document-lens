@@ -318,6 +318,26 @@ export const QUERIES = {
     'INSERT INTO document_pages (document_id, page_number, text) VALUES (?, ?, ?)',
   'documentPages.deleteByDocument': 'DELETE FROM document_pages WHERE document_id = ?',
 
+  // document images (embedded images extracted at import — ADR-0027)
+  // The grid select deliberately omits image_data (the display rendition can
+  // be hundreds of KB per image); the gallery fetches it per image on click.
+  'documentImages.listByDocument': `SELECT id, document_id, page_number, image_index, width, height,
+            format, image_hash, thumbnail_data, ocr_text, caption_text,
+            ai_description, ai_provider, extracted_at
+       FROM document_images
+      WHERE document_id = ?
+      ORDER BY image_index`,
+  'documentImages.getById': 'SELECT * FROM document_images WHERE id = ?',
+  'documentImages.insert': `INSERT INTO document_images
+       (id, document_id, page_number, image_index, width, height, format,
+        image_hash, thumbnail_data, image_data, extracted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  'documentImages.deleteByDocument': 'DELETE FROM document_images WHERE document_id = ?',
+  'documentImages.countsByDocuments': `SELECT document_id, COUNT(*) AS n
+       FROM document_images
+      WHERE document_id IN (__IN__)
+      GROUP BY document_id`,
+
   // bundle import
   'projects.listNames': 'SELECT name FROM projects',
   'bundleImport.updateLensValueParent':

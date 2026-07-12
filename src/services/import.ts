@@ -25,6 +25,7 @@ import {
 } from './documents'
 import { runStatement, runBatch, now, stringifyJson, type BatchOp } from './db'
 import { api } from './api'
+import { replaceDocumentImages } from './document-images'
 import type { Document } from '@/types/data'
 
 /**
@@ -82,10 +83,33 @@ export async function retryExtraction(doc: Document): Promise<void> {
       }
     }
     await runBatch(ops)
+
+    await extractImagesBestEffort(doc.id, doc.filePath, doc.filename)
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
     await runStatement('import.markFailed', [message, doc.id])
     throw err
+  }
+}
+
+/**
+ * Extract embedded images for a freshly extracted document (ADR-0027
+ * phase 1). Best-effort by design: the document's text extraction has
+ * already committed, and a corpus without thumbnails is strictly better
+ * than a failed import — so any error here is logged and swallowed.
+ */
+async function extractImagesBestEffort(
+  documentId: string,
+  filePath: string,
+  filename: string
+): Promise<void> {
+  // Backend image extraction walks PDF and DOCX only.
+  if (!/\.(pdf|docx)$/i.test(filename)) return
+  try {
+    const response = await api.extractImages(filePath)
+    await replaceDocumentImages(documentId, response.images)
+  } catch (err) {
+    console.warn(`[import] Image extraction failed for ${filename} (document kept):`, err)
   }
 }
 
@@ -288,6 +312,8 @@ async function importOne(
       }
     }
     await runBatch(ops)
+
+    await extractImagesBestEffort(created.id, filePath, filename)
 
     const updated = await getDocument(created.id)
     onPhase('completed')
