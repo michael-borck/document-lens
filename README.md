@@ -54,31 +54,54 @@ connection is required for analysis. macOS builds are signed and notarised.
    keyword list, the Pillar and Function axes, and the Wedding Cake scoring
    rule) so you can be productive immediately.
 2. **Library** → *Import* (or *Import folder*) to add your PDFs / DOCX / etc.
+   Embedded images are extracted as you import — the gallery button on a
+   Library row opens them.
 3. Create a **Project**, add documents to it, and pick your keyword list, axes,
    and scoring rule in **Setup**. Click **Classify documents** to tag sections.
-4. Explore: **Coverage**, **Map**, **Score**, **Compare**, **Track**, **Gap**,
-   **Audit**, and **Focus** (ranks the documents worth looking at first).
-5. **Setup → Export report** for a Word document, or use a BYOK provider under
+4. Open **Focus** — it lands there by default and ranks the documents worth
+   looking at first. Click any finding to drill into the tool that explains
+   it: a signal chip opens **Compare** on that metric, a document title opens
+   **Read** on that document.
+5. Adjust and re-rank, or go direct to any tool: **Coverage**, **Map**,
+   **Read**, **Discover**, **Score**, **Track**, **Compare**, **Audit**, **Gap**.
+6. **Setup → Export report** for a Word document, or use a BYOK provider under
    **Settings → AI provider** for optional, flagged AI observations.
 
 ## What it does
 
 You assemble a **project** — a set of documents, a keyword list, a
 few lenses (axes you want to break the analysis along, e.g. SDG /
-Pillar / Function), and a scoring rule. The app then exposes nine
-purpose-built workflows over that project:
+Pillar / Function), and a scoring rule. The app then exposes twelve
+purpose-built workflows over that project.
+
+The shape is **hub-and-spoke, not a pipeline** (ADR-0029). Focus is the
+hub: it ranks documents by notability and every finding it reports is a
+link into the tool that explains it, so you rank, drill into the
+evidence, adjust, and re-rank. The remaining phases still teach the
+journey — explore what the corpus contains, measure it, verify the
+evidence holds up — but you are never required to walk them in order.
 
 | Workflow | The question it answers |
 |---|---|
-| **Setup** | Assemble this project: documents, keywords, lenses, scoring rule. |
-| **Coverage** | Which keywords appear where? (per-document × per-keyword heatmap.) |
-| **Map** | How does each document distribute across two lens axes? (e.g. SDG × Function.) |
-| **Score** | A single number per document — Wedding Cake completeness, framework score, etc. |
-| **Track** | How does the metric move year-over-year? (per-company / sector overlay.) |
-| **Compare** | Rank documents on the chosen metric. (Track without the time dimension.) |
-| **Audit** | Is each keyword being used in the right context? (Anomalies + Confirmations modes.) |
-| **Discover** | What phrases / synonyms is the corpus using that you should know about? |
+| **Overview** | Where is this project up to? |
+| **Setup** | Assemble this project: documents, keywords, axes, scoring rule. |
+| *Start* | |
+| **Focus** | Which documents should you look at first? (Findings deep-link into the tools below.) |
+| *Explore — see what the corpus contains* | |
+| **Coverage** | Which of your documents discuss this framework? (per-document × per-keyword heatmap.) |
+| **Map** | Where in this document does each topic appear, and how do topics overlap? (e.g. SDG × Function.) |
 | **Read** | What does each document actually say about a topic? (Concordance with PDF preview.) |
+| **Discover** | What words is your corpus using that you should know about? |
+| *Measure — put numbers on it* | |
+| **Score** | How does this document rate on your chosen rubric? (Wedding Cake completeness, framework score, etc.) |
+| **Track** | How has this topic changed over the years? (per-company / sector overlay.) |
+| **Compare** | Which document does best on this framework? (Track without the time dimension.) |
+| *Verify — check the evidence holds up* | |
+| **Audit** | Is each keyword being used in the right context? (Anomalies + Confirmations modes.) |
+| **Gap** | Where does the tone run ahead of the substance? |
+
+The catalogue lives in `src/components/project/workflows.ts` — the tab
+strip, the Overview cards, and this table all describe the same list.
 
 ## Data model in one paragraph
 
@@ -152,6 +175,20 @@ inheriting an external process with no recovery path.
 | PowerPoint | `.pptx` | |
 | Plain text | `.txt`, `.md` | |
 
+## Document images
+
+Import extracts the images embedded in a document alongside its text
+(ADR-0027): the backend finds them, anchors each to its page,
+deduplicates by content hash, and filters out tiny decorative assets.
+Library rows with images get a **gallery** button — a thumbnail grid
+with page badges, click-through to the full-size rendition, and
+jump-to-page in the embedded PDF viewer.
+
+Extraction is best-effort and runs after text extraction commits, so a
+document whose images fail still imports cleanly. Image text (OCR,
+captions, AI descriptions) is phase 2 — the schema reserves the columns,
+but nothing populates them yet.
+
 ## Read workflow — finding the passage in the source
 
 Each concordance match card gives you four ways to land on the
@@ -224,11 +261,14 @@ document-lens/
 │   └── database.ts        # SQLite schema + greenfield wipe
 ├── src/                   # Renderer (React)
 │   ├── pages/
-│   │   ├── workflow/      # Setup, Coverage, Map, Score, Track,
-│   │   │                  # Compare, Audit, Discover, Read
+│   │   ├── workflow/      # Overview, Setup, Focus, Coverage, Map,
+│   │   │                  # Read, Discover, Score, Track, Compare,
+│   │   │                  # Audit, Gap
 │   │   └── ...            # Library, Keywords, Lenses, Settings
 │   ├── components/
+│   │   ├── project/       # workflows.ts — the workflow catalogue
 │   │   ├── pdf-viewer/    # iframe + Chromium PDFium
+│   │   ├── images/        # document image gallery
 │   │   └── ...
 │   ├── services/          # business logic; talks to SQLite via IPC
 │   │                      # and document-analyser over HTTP
