@@ -31,6 +31,58 @@ const targetDir =
 
 fs.mkdirSync(targetDir, { recursive: true })
 
+/**
+ * Sweep AppleDouble sidecars out of the Tauri source tree.
+ *
+ * Redirecting CARGO_TARGET_DIR keeps `._*` files out of target/, but Tauri's
+ * build.rs also globs directories that live in the *source* tree — notably
+ * `capabilities/` — and parses every entry it finds:
+ *
+ *   failed to read file 'capabilities/._default.json':
+ *   stream did not contain valid UTF-8
+ *
+ * On exFAT those sidecars reappear whenever macOS writes extended attributes,
+ * so this runs before every invocation rather than as a one-off cleanup.
+ * Deleting them is safe: they carry only xattrs/resource forks, never source.
+ *
+ * The durable fix is moving the repo to an APFS volume; this keeps the build
+ * green until then.
+ */
+function sweepAppleDouble(dir) {
+  let removed = 0
+  const walk = (current) => {
+    let entries
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true })
+    } catch {
+      return // unreadable dir — nothing to sweep
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name)
+      if (entry.isDirectory()) {
+        if (entry.name === 'target' || entry.name === 'node_modules') continue
+        walk(full)
+      } else if (entry.name.startsWith('._')) {
+        try {
+          fs.unlinkSync(full)
+          removed++
+        } catch {
+          /* best effort */
+        }
+      }
+    }
+  }
+  walk(dir)
+  return removed
+}
+
+if (process.platform === 'darwin') {
+  const removed = sweepAppleDouble(path.join(process.cwd(), 'src-tauri'))
+  if (removed > 0) {
+    console.log(`[tauri] swept ${removed} AppleDouble ._* file(s) from src-tauri/`)
+  }
+}
+
 const tauriBin = path.join(
   process.cwd(),
   'node_modules',

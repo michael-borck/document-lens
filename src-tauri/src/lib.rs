@@ -22,6 +22,20 @@ fn app_get_version(app: tauri::AppHandle) -> String {
     app.package_info().version.to_string()
 }
 
+/// Renderer → terminal logging.
+///
+/// Electron piped renderer console output to the terminal running `npm run
+/// dev`; a Tauri webview does not — its console only exists inside the
+/// webview inspector. During the migration that matters: the most common
+/// failure is a renderer throwing on a not-yet-ported `window.electron`
+/// method, and with no console the only symptom is a blank window. The bridge
+/// forwards uncaught errors and rejections here so they surface next to the
+/// Rust logs. See src/lib/desktop-bridge.ts.
+#[tauri::command]
+fn app_log(level: String, message: String) {
+    println!("[renderer:{level}] {message}");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -34,7 +48,7 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![app_get_version])
+        .invoke_handler(tauri::generate_handler![app_get_version, app_log])
         .run(tauri::generate_context!())
         .expect("error while running Document Lens");
 }

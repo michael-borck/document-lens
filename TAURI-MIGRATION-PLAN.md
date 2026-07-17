@@ -402,10 +402,19 @@ than APFS — expect meaningfully faster builds too. A machine-specific absolute
 path can't be committed to `.cargo/config.toml`, so this stays an env var
 (or move the repo to the internal disk).
 
+There is a **second** exFAT failure mode that `CARGO_TARGET_DIR` does *not*
+fix: Tauri's `build.rs` also globs directories in the **source** tree —
+notably `src-tauri/capabilities/` — and chokes on the `._*` sidecar there
+(`failed to read file 'capabilities/._default.json'`). Those live on the
+project drive, so the only fix is to delete them before each build.
+`scripts/tauri.mjs` does both jobs: redirects the target dir *and* sweeps
+`._*` from `src-tauri/` on every `npm run dev:tauri` / `build:tauri`. Use
+those scripts, not `tauri` directly.
+
 CI is unaffected (Linux/macOS runners use native filesystems).
 
-Housekeeping: `dot_clean -m .` sweeps existing `._*` files; they regenerate on
-exFAT, so treat it as maintenance rather than a cure.
+The durable fix for both is moving the repo to an APFS volume; until then the
+wrapper keeps builds green.
 
 ---
 

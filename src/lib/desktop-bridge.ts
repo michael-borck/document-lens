@@ -65,6 +65,33 @@ function buildBridge(): ElectronAPI {
   })
 }
 
+/** Fire-and-forget log to the Rust side, so it lands in the dev terminal. */
+function logToTerminal(level: 'info' | 'error', message: string): void {
+  void invoke('app_log', { level, message }).catch(() => {
+    /* logging must never itself break the app */
+  })
+}
+
+/**
+ * Forward uncaught renderer errors to the terminal.
+ *
+ * Electron piped renderer console output to the terminal; a Tauri webview does
+ * not — its console lives only in the webview inspector. During the migration
+ * the dominant failure mode is a renderer throwing on a not-yet-ported
+ * `window.electron` method, whose only visible symptom is a blank window. This
+ * makes that cause legible without opening devtools.
+ */
+function installErrorForwarding(): void {
+  window.addEventListener('error', (event) => {
+    logToTerminal('error', `${event.message} @ ${event.filename}:${event.lineno}`)
+  })
+  window.addEventListener('unhandledrejection', (event) => {
+    const reason = event.reason
+    const detail = reason instanceof Error ? `${reason.message}\n${reason.stack ?? ''}` : String(reason)
+    logToTerminal('error', `Unhandled rejection: ${detail}`)
+  })
+}
+
 /**
  * Install the Tauri-backed `window.electron` when running under Tauri. No-op
  * under Electron (preload already provided it) or in a plain browser/tests.
@@ -73,5 +100,7 @@ function buildBridge(): ElectronAPI {
 export function installDesktopBridge(): void {
   if (!isTauri()) return
   ;(window as unknown as { electron: ElectronAPI }).electron = buildBridge()
+  installErrorForwarding()
   console.info('[tauri-bridge] Tauri desktop bridge installed (Phase 0).')
+  logToTerminal('info', 'desktop bridge installed (Phase 0) — renderer bundle is executing')
 }
