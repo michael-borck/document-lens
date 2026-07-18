@@ -1,0 +1,247 @@
+name: Tauri Build and Release
+
+# Tauri packaging + signed auto-update release. Deliberately manual/tag-gated
+# (NOT on every PR) so it doesn't double the Actions storage/compute the Electron
+# build.yml already spends during the migration. Trigger explicitly:
+#   - workflow_dispatch (button), or
+#   - pushing a tag matching tauri-v* (e.g. tauri-v1.0.0).
+#
+# Secrets reused from the Electron pipeline: CSC_LINK / CSC_KEY_PASSWORD (.p12
+# cert), APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID (notarization).
+# NEW secrets required for Tauri:
+#   - TAURI_SIGNING_PRIVATE_KEY           (updater private key: ~/.tauri/document-lens-updater.key)
+#   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (empty — the key was generated without a password)
+#   - APPLE_SIGNING_IDENTITY              ("Developer ID Application: Michael Borck (TEAMID)")
+on:
+  workflow_dispatch: {}
+  push:
+    tags:
+      - 'tauri-v*'
+
+concurrency:
+  group: tauri-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+            backend_ext: ''
+          - os: macos-13
+            target: x86_64-apple-darwin
+            backend_ext: ''
+          - os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            backend_ext: ''
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            backend_ext: '.exe'
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout desktop app
+        uses: actions/checkout@v7
+
+      - name: Checkout document-analyser backend
+        uses: actions/checkout@v7
+        with:
+          repository: michael-borck/document-analyser
+          path: document-analyser-backend
+          # Includes the AI provider endpoints until that branch merges to main.
+          ref: feat/ai-provider-endpoints
+
+      - name: Enable long paths (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          git config --system core.longpaths true
+          Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" -Name "LongPathsEnabled" -Value 1 -Force
+
+      - name: Free disk space (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          docker system prune -af --volumes || true
+
+      # ---- Python backend → PyInstaller sidecar (from build.yml) -------------
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install backend deps + PyInstaller
+        shell: bash
+        run: |
+          cd document-analyser-backend
+          python -m pip install --upgrade pip
+          python -m pip install pyinstaller
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          fi
+          python -m pip install -e ".[nlp]"
+          python -m spacy download en_core_web_sm
+          python -m pip install "setuptools<81"
+
+      - name: Download NLTK data
+        shell: bash
+        run: |
+          python -c "
+          import os, io, time, zipfile, urllib.request
+          base = 'https://raw.githubusercontent.com/nltk/nltk_data/gh-pages/packages'
+          packages = {
+              'tokenizers/punkt': 'tokenizers',
+              'tokenizers/punkt_tab': 'tokenizers',
+              'taggers/averaged_perceptron_tagger': 'taggers',
+              'taggers/averaged_perceptron_tagger_eng': 'taggers',
+              'corpora/stopwords': 'corpora',
+              'corpora/cmudict': 'corpora',
+          }
+          out = os.path.join(os.getcwd(), 'nltk_data')
+          for pkg, sub in packages.items():
+              url = f'{base}/{pkg}.zip'
+              dest = os.path.join(out, sub); os.makedirs(dest, exist_ok=True)
+              for attempt in range(1, 6):
+                  try:
+                      data = urllib.request.urlopen(url, timeout=60).read()
+                      zipfile.ZipFile(io.BytesIO(data)).extractall(dest)
+                      print('OK', pkg); break
+                  except Exception as e:
+                      if attempt == 5: raise SystemExit(f'NLTK fetch failed for {pkg}: {e}')
+                      time.sleep(min(60, 5 * 2 ** (attempt - 1)))
+          "
+
+      - name: Prefetch sentence-transformer model
+        shell: bash
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          mkdir -p hf_cache
+          python -c "
+          import os, time, pathlib
+          os.environ['HF_HOME'] = os.path.abspath('hf_cache')
+          from huggingface_hub import snapshot_download
+          token = os.environ.get('HF_TOKEN') or None
+          ignore = ['onnx/**', 'openvino/**', '*.onnx', 'tf_model.h5', 'flax_model.msgpack', 'rust_model.ot']
+          for attempt in range(1, 6):
+              try:
+                  snapshot_download('sentence-transformers/all-MiniLM-L6-v2', ignore_patterns=ignore, token=token); break
+              except Exception as e:
+                  if attempt == 5: raise SystemExit(f'Model prefetch failed: {e}')
+                  time.sleep(min(60, 5 * 2 ** (attempt - 1)))
+          "
+
+      - name: Create PyInstaller entry point
+        shell: bash
+        run: |
+          cd document-analyser-backend
+          cat > run_server.py << 'ENTRYPOINT'
+          #!/usr/bin/env python3
+          import multiprocessing; multiprocessing.freeze_support()
+          import sys, os, argparse, tempfile
+          if getattr(sys, 'frozen', False):
+              app_temp = os.path.join(tempfile.gettempdir(), 'document-lens-temp')
+              os.makedirs(app_temp, exist_ok=True)
+              os.environ['TMPDIR'] = os.environ['TEMP'] = os.environ['TMP'] = app_temp
+              nltk_data_path = os.path.join(sys._MEIPASS, 'nltk_data')
+              if os.path.exists(nltk_data_path):
+                  import nltk; nltk.data.path.insert(0, nltk_data_path)
+              hf_cache_path = os.path.join(sys._MEIPASS, 'hf_cache')
+              if os.path.exists(hf_cache_path):
+                  os.environ['HF_HOME'] = hf_cache_path
+                  os.environ['HF_HUB_CACHE'] = os.path.join(hf_cache_path, 'hub')
+                  os.environ['TRANSFORMERS_OFFLINE'] = '1'
+          import uvicorn
+          from document_analyser.api import app as fastapi_app
+          if __name__ == "__main__":
+              parser = argparse.ArgumentParser()
+              parser.add_argument("--host", default="127.0.0.1")
+              parser.add_argument("--port", type=int, default=8000)
+              args = parser.parse_args()
+              uvicorn.run(fastapi_app, host=args.host, port=args.port, log_level="info")
+          ENTRYPOINT
+          python -c "import re;f='run_server.py';c=open(f).read();open(f,'w').write(re.sub(r'^          ','',c,flags=re.M))"
+
+      - name: Build backend (PyInstaller)
+        shell: bash
+        run: |
+          cd document-analyser-backend
+          cp -r ../nltk_data ./nltk_data
+          cp -r ../hf_cache ./hf_cache
+          if [ "$RUNNER_OS" == "Windows" ]; then SEP=";"; else SEP=":"; fi
+          pyinstaller --onefile --console --name "document-lens-api" \
+            --add-data "document_analyser/data${SEP}document_analyser/data" \
+            --add-data "nltk_data${SEP}nltk_data" \
+            --add-data "hf_cache${SEP}hf_cache" \
+            --collect-all sentence_transformers --collect-all transformers --collect-all torch \
+            --collect-all huggingface_hub --collect-all tokenizers --collect-all safetensors \
+            --collect-all spacy --collect-all en_core_web_sm --collect-all magika --collect-all markitdown \
+            --hidden-import uvicorn.logging --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on \
+            --hidden-import uvicorn.lifespan.off --hidden-import uvicorn.protocols \
+            --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto \
+            --hidden-import uvicorn.protocols.http.h11_impl --hidden-import uvicorn.protocols.http.httptools_impl \
+            --hidden-import uvicorn.protocols.websockets --hidden-import uvicorn.protocols.websockets.auto \
+            --hidden-import uvicorn.protocols.websockets.websockets_impl --hidden-import uvicorn.protocols.websockets.wsproto_impl \
+            --hidden-import uvicorn.loops --hidden-import uvicorn.loops.auto --hidden-import uvicorn.loops.asyncio \
+            --hidden-import uvicorn.loops.uvloop --hidden-import fastapi --hidden-import pydantic --hidden-import slowapi \
+            --hidden-import textstat --hidden-import nltk --hidden-import sklearn --hidden-import pypdf \
+            --hidden-import pdfplumber --hidden-import python_multipart --hidden-import multipart \
+            --hidden-import starlette.formparsers --hidden-import keyring.backends \
+            --exclude-module tensorflow --exclude-module keras --exclude-module matplotlib --exclude-module cv2 \
+            run_server.py
+
+      - name: Stage sidecar for Tauri (target-triple name)
+        shell: bash
+        run: |
+          mkdir -p src-tauri/binaries
+          cp "document-analyser-backend/dist/document-lens-api${{ matrix.backend_ext }}" \
+             "src-tauri/binaries/document-lens-api-${{ matrix.target }}${{ matrix.backend_ext }}"
+          ls -la src-tauri/binaries/
+
+      # ---- Frontend + Tauri build + sign + notarize + release ----------------
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Install Linux system deps
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install npm deps
+        run: npm ci
+
+      - name: Build, sign, and release
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Updater artifact signing (Ed25519).
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+          # macOS code signing + notarization — existing Electron secrets.
+          APPLE_CERTIFICATE: ${{ secrets.CSC_LINK }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        with:
+          # The release overlay adds the backend sidecar (externalBin).
+          args: --config src-tauri/tauri.release.conf.json --target ${{ matrix.target }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('tauri-v{0}', github.run_number) }}
+          releaseName: 'Document Lens (Tauri) __VERSION__'
+          releaseDraft: true
+          prerelease: false

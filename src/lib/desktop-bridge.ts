@@ -16,6 +16,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
 import type { ElectronAPI, BackendStatus } from '@/types/electron'
+import * as updater from './tauri-updater'
 
 /** True when running inside the Tauri shell (vs Electron or a plain browser). */
 export function isTauri(): boolean {
@@ -94,6 +95,17 @@ const implemented: Partial<ElectronAPI> = {
     }
   },
 
+  // Auto-updater (Phase 6) — tauri-plugin-updater behind the electron-updater
+  // contract (see tauri-updater.ts).
+  checkForUpdates: () => updater.checkForUpdates(),
+  downloadUpdate: () => updater.downloadUpdate(),
+  installUpdate: () => updater.installUpdate(),
+  onUpdateAvailable: (cb) => updater.onUpdateAvailable(cb),
+  onUpdateNotAvailable: (cb) => updater.onUpdateNotAvailable(cb),
+  onUpdateDownloadProgress: (cb) => updater.onUpdateDownloadProgress(cb),
+  onUpdateDownloaded: (cb) => updater.onUpdateDownloaded(cb),
+  onUpdateError: (cb) => updater.onUpdateError(cb),
+
   // Help-menu navigation (Phase 5) — the native Help > Documentation submenu
   // emits help:navigate with a topic id; App.tsx routes to /help?topic=<id>.
   onHelpNavigate: (callback: (topicId: string) => void) => {
@@ -115,13 +127,10 @@ const implemented: Partial<ElectronAPI> = {
  * stubbed, so `useEffect` cleanups stay valid. They simply never fire until
  * their producing command/event is wired in a later phase.
  */
-const EVENT_METHODS = new Set<string>([
-  'onUpdateAvailable',
-  'onUpdateNotAvailable',
-  'onUpdateDownloadProgress',
-  'onUpdateDownloaded',
-  'onUpdateError',
-])
+// Event-subscription methods not yet backed by a real producer. Kept as a set
+// (currently empty — all events are wired) so a future stub can degrade to a
+// no-op unsubscribe rather than a rejected promise.
+const EVENT_METHODS = new Set<string>([])
 
 function buildBridge(): ElectronAPI {
   return new Proxy(implemented as ElectronAPI, {

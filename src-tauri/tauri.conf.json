@@ -28,7 +28,30 @@
     }
   },
   "bundle": {
-    "active": false,
-    "targets": "all"
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../Document-Lens-User-Manual.pdf": "Document-Lens-User-Manual.pdf"
+    },
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "entitlements": "../build/entitlements.mac.plist",
+      "minimumSystemVersion": "10.15"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/michael-borck/document-lens/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDgwRkI4NDQxNTBBMUZCOTAKUldTUSs2RlFRWVQ3Z0wwNkFpbVJMdm1GZDZwTjlWSUkzYithUVhhRW5JeWpwL0tvcVAyeUFRRWYK"
+    }
   }
 }

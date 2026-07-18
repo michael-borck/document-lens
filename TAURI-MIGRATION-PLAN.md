@@ -572,3 +572,52 @@ Ports electron/menu.ts to `src-tauri/src/menu.rs` via Tauri's `MenuBuilder` /
 - Verified: `cargo check` + `tsc` clean; app boots with the menu built and
   backend reaching ready, no errors. Menu *clicks* (topic nav, open manual) need
   a manual click-through.
+
+## 17. Phase 6 — packaging, signing, auto-update (updater DONE; release wired)
+
+Replaces `electron-updater` with `tauri-plugin-updater` and sets up the bundle +
+signed-release pipeline. Data-dir migration skipped (no existing users, per
+decision). PyInstaller `keyring` hook handled via `--hidden-import keyring.backends`.
+
+**Updater (done + verified in dev):**
+- `tauri-plugin-updater` + `tauri-plugin-process` (Rust + JS). Ed25519 keypair
+  generated; **public key committed** in `tauri.conf.json` `plugins.updater`;
+  endpoint = the repo's `releases/latest/download/latest.json`.
+- `src/lib/tauri-updater.ts` presents the Tauri updater as the electron-updater
+  contract (checkForUpdates / downloadUpdate / installUpdate + on* events), so
+  `UpdateNotification.tsx` is unchanged. Bridge wired; all update events now
+  real (the no-op event set is empty).
+- Capabilities gain `updater:default`, `process:default`.
+
+**Bundle config (`tauri.conf.json`):** `active`, icons, the User-Manual resource,
+`createUpdaterArtifacts`, macOS entitlements (reused `build/entitlements.mac.plist`).
+The backend **sidecar (`externalBin`) lives in a release overlay**
+`tauri.release.conf.json`, NOT the base config — Tauri validates the binary
+exists even for `tauri dev`/`cargo check`, and dev spawns the backend from the
+sibling repo. `binaries/` holds the CI-built target-triple sidecar (gitignored).
+
+**CI (`.github/workflows/tauri.yml`):** manual/tag-gated (`workflow_dispatch` or
+`tauri-v*`) so it doesn't double the Electron build's Actions cost. Builds the
+PyInstaller backend (same recipe as build.yml), stages it as
+`document-lens-api-<triple>`, then `tauri-action` builds/signs/notarizes and
+publishes a **draft** release with `latest.json`.
+
+### YOU must do before the first release
+1. **Add GitHub secrets** (Settings → Secrets → Actions):
+   - `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.tauri/document-lens-updater.key`
+     (generated this session; **keep it safe — losing it breaks all future updates**).
+   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = empty string.
+   - `APPLE_SIGNING_IDENTITY` = e.g. `Developer ID Application: Michael Borck (TEAMID)`
+     (Tauri needs the identity string; Electron used auto-discovery).
+   - Reused as-is: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
+     `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`.
+2. **First-run shakedown** of `tauri.yml` (dispatch it): PyInstaller
+   collect/hidden-import issues and the Apple identity string usually need one
+   iteration. This is the one part not verifiable locally.
+
+### Verified vs not
+- Verified: updater plugin compiles + wires + boots; `check()` path reachable;
+  `tsc`/`cargo check` clean; keypair + config in place; dev unaffected by the
+  bundle/externalBin split.
+- NOT verified here (needs the release runner + secrets): actual bundle build,
+  code-sign, notarization, `latest.json` generation, and a live self-update.

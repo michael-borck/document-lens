@@ -3,5 +3,10 @@
   "identifier": "default",
   "description": "Base capability for the main window. Grows as phases add plugins (dialog, opener, updater, fs).",
   "windows": ["main"],
-  "permissions": ["core:default", "core:event:default"]
+  "permissions": [
+    "core:default",
+    "core:event:default",
+    "updater:default",
+    "process:default"
+  ]
 }
