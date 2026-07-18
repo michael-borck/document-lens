@@ -15,13 +15,14 @@
 //! Every command mirrors a method on the renderer's `window.electron`
 //! contract (see src/lib/desktop-bridge.ts).
 
+mod backend;
 mod db;
 mod db_generated;
 mod fs_guard;
 mod platform;
 
 use std::sync::Mutex;
-use tauri::Manager;
+use tauri::{Manager, RunEvent};
 
 /// Return the app version — mirrors Electron's `app.getVersion()`.
 /// The bridge maps `window.electron.getVersion()` → `invoke('app_get_version')`.
@@ -66,6 +67,10 @@ pub fn run() {
             app.manage(db::Db(Mutex::new(conn)));
             // Filesystem guard: the session dialog allowlist + app-data root.
             app.manage(fs_guard::FsGuard::new(&app.handle()));
+            // Analysis backend supervisor: spawns the Python engine, proves
+            // readiness, and emits backend:status-changed. Non-fatal on failure
+            // — local features still work without it.
+            app.manage(backend::Backend::start(&app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -87,7 +92,21 @@ pub fn run() {
             platform::shell_open_path,
             platform::shell_open_external,
             platform::app_get_path,
+            backend::backend_get_status,
+            backend::backend_get_url,
+            backend::backend_get_token,
+            backend::backend_restart,
         ])
-        .run(tauri::generate_context!())
-        .expect("error while running Document Lens");
+        .build(tauri::generate_context!())
+        .expect("error while building Document Lens")
+        // Kill the backend's whole process tree on exit so a stranded uvicorn
+        // doesn't hold :8765 into the next launch (the Electron before-quit /
+        // signal-handler cleanup).
+        .run(|app, event| {
+            if let RunEvent::Exit = event {
+                if let Some(b) = app.try_state::<backend::Backend>() {
+                    b.shutdown();
+                }
+            }
+        });
 }

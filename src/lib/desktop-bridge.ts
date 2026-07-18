@@ -14,7 +14,8 @@
  * so component cleanups don't crash before their producers are wired.
  */
 import { invoke } from '@tauri-apps/api/core'
-import type { ElectronAPI } from '@/types/electron'
+import { listen } from '@tauri-apps/api/event'
+import type { ElectronAPI, BackendStatus } from '@/types/electron'
 
 /** True when running inside the Tauri shell (vs Electron or a plain browser). */
 export function isTauri(): boolean {
@@ -71,6 +72,27 @@ const implemented: Partial<ElectronAPI> = {
   // Shell (Phase 2)
   openPath: (filePath: string) => invoke<string>('shell_open_path', { path: filePath }),
   openExternal: (url: string) => invoke('shell_open_external', { url }).then(() => undefined),
+
+  // Backend supervisor (Phase 4)
+  getBackendStatus: () => invoke<BackendStatus>('backend_get_status'),
+  getBackendUrl: () => invoke<string>('backend_get_url'),
+  getBackendToken: () => invoke<string>('backend_get_token'),
+  restartBackend: () => invoke<{ success: boolean; error?: string }>('backend_restart'),
+  onBackendStatusChanged: (callback: (status: BackendStatus) => void) => {
+    // Bridge Tauri's async listen() to the sync unsubscribe the contract wants:
+    // return immediately, and tear down whenever the caller unsubscribes (even
+    // if that happens before listen() resolves).
+    let unlisten: (() => void) | null = null
+    let cancelled = false
+    void listen<BackendStatus>('backend:status-changed', (e) => callback(e.payload)).then((un) => {
+      if (cancelled) un()
+      else unlisten = un
+    })
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  },
 }
 
 /**
@@ -79,7 +101,6 @@ const implemented: Partial<ElectronAPI> = {
  * their producing command/event is wired in a later phase.
  */
 const EVENT_METHODS = new Set<string>([
-  'onBackendStatusChanged',
   'onUpdateAvailable',
   'onUpdateNotAvailable',
   'onUpdateDownloadProgress',

@@ -519,3 +519,37 @@ OpenAI 401 surfaced via `/ai/test`; renderer `tsc` clean + 184 vitest pass.
   now. Full Tauri E2E of the AI UI awaits the backend supervisor.
 - **Phase 6 note:** `keyring` needs a PyInstaller collect hook to work in the
   packaged backend; dev falls back to plaintext cleanly.
+
+## 15. Phase 4 — backend supervisor (DONE)
+
+Ports electron/backend-manager.ts (591 lines) to Rust (`src-tauri/src/backend.rs`).
+This is what makes import/analysis and the Phase 3 AI path actually work under
+Tauri: the renderer's `useBackendStatus` gate opens when the engine is ready.
+
+- Per-launch bearer token (getrandom) → passed to the child via
+  `DOCUMENT_ANALYSER_AUTH_TOKEN`, exposed to the renderer via
+  `backend_get_token`. Reaching "ready" requires the authed probe to pass, so a
+  stale backend with the wrong token can't masquerade as ready.
+- Dev: spawns `uvicorn document_analyser.api:app` from the sibling
+  `../document-analyser` (found by walking cwd ancestors for the marker;
+  exe-relative won't work — `target/` is redirected off the exFAT drive).
+  Prod: bundled sidecar path (resolved fully in Phase 6).
+- Phase lifecycle (`not-started/starting/ready/unreachable/crashed`) emitted as
+  `backend:status-changed`; 5s health poll; bounded restart w/ backoff.
+- Stale-port reclaim: verifies `/manifest` looks like a document-analyser, then
+  `lsof`-kills the orphan and waits for the port.
+- Child spawned in its own process group; killed as a group (`kill(-pid)`), plus
+  SIGINT/SIGTERM/SIGHUP handlers so an external kill / Ctrl-C doesn't orphan
+  uvicorn. `RunEvent::Exit` covers graceful quit.
+- Minimal loopback HTTP client (raw tokio TCP) for the probes — no reqwest.
+- Bridge wires `getBackendStatus/Url/Token`, `restartBackend`, and the
+  `onBackendStatusChanged` event (async `listen` → sync unsubscribe).
+
+**Verified end-to-end (real dev run):** engine spawns and reaches "ready";
+authed probe passes; SIGTERM kills the child cleanly (no orphan); an orphaned
+backend from a hard-kill is reclaimed on the next launch. `cargo check` + `tsc`
+clean.
+
+**Import should now work under Tauri** — the gate is open. (Native file-pick
+still a manual click.) Prod sidecar spawn + process-group kill hardening is a
+Phase 6 item.
