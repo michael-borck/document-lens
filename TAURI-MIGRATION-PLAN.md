@@ -553,3 +553,22 @@ clean.
 **Import should now work under Tauri** — the gate is open. (Native file-pick
 still a manual click.) Prod sidecar spawn + process-group kill hardening is a
 Phase 6 item.
+
+## 16. Phase 5 — application menu + app info (DONE)
+
+Ports electron/menu.ts to `src-tauri/src/menu.rs` via Tauri's `MenuBuilder` /
+`SubmenuBuilder`. App-info (`getVersion`, `getPath`) already landed in Phases
+0/2, so this completes Phase 5.
+
+- Help → Documentation submenu with the same 13 topics as Help.tsx, each a
+  `help:<topic>` item. `on_menu_event` emits `help:navigate`; the bridge's
+  `onHelpNavigate` (now a real `listen`, not the no-op stub) routes the renderer
+  to /help?topic=<id>.
+- "Open User Manual (PDF)" resolves the bundled PDF (prod resource dir; dev by
+  walking cwd ancestors) and opens it via the opener plugin.
+- Standard Edit/Window/File items via Tauri predefined roles; macOS App menu
+  (about/services/hide/quit). "Check for Updates…" item present but inert until
+  Phase 6.
+- Verified: `cargo check` + `tsc` clean; app boots with the menu built and
+  backend reaching ready, no errors. Menu *clicks* (topic nav, open manual) need
+  a manual click-through.

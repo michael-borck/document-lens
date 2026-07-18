@@ -19,6 +19,7 @@ mod backend;
 mod db;
 mod db_generated;
 mod fs_guard;
+mod menu;
 mod platform;
 
 use std::sync::Mutex;
@@ -58,6 +59,9 @@ pub fn run() {
         }))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
+        // Custom application menu (Help → Documentation topics, User Manual).
+        .menu(|handle| menu::build(handle))
+        .on_menu_event(|app, event| menu::handle(app, event))
         .setup(|app| {
             // Open the database before the renderer can issue db_* commands.
             let conn = db::init_db(&app.handle()).map_err(|e| {

@@ -93,6 +93,21 @@ const implemented: Partial<ElectronAPI> = {
       unlisten?.()
     }
   },
+
+  // Help-menu navigation (Phase 5) — the native Help > Documentation submenu
+  // emits help:navigate with a topic id; App.tsx routes to /help?topic=<id>.
+  onHelpNavigate: (callback: (topicId: string) => void) => {
+    let unlisten: (() => void) | null = null
+    let cancelled = false
+    void listen<string>('help:navigate', (e) => callback(e.payload)).then((un) => {
+      if (cancelled) un()
+      else unlisten = un
+    })
+    return () => {
+      cancelled = true
+      unlisten?.()
+    }
+  },
 }
 
 /**
@@ -106,7 +121,6 @@ const EVENT_METHODS = new Set<string>([
   'onUpdateDownloadProgress',
   'onUpdateDownloaded',
   'onUpdateError',
-  'onHelpNavigate',
 ])
 
 function buildBridge(): ElectronAPI {
