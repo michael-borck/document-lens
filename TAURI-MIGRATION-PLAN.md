@@ -461,3 +461,28 @@ bundled SQLite). The security model is preserved verbatim.
   existing user's `document-lens.db` / `ai-providers.json`. Before the flip
   (§10): either point Tauri at the legacy path, or migrate/copy on first run.
   Same concern on Windows/Linux paths.
+
+## 13. Phase 2 — filesystem, dialogs, shell (DONE)
+
+Ports the fs:* / dialog:* / shell:* / app:getPath handlers to Rust
+(`tauri-plugin-dialog`, `tauri-plugin-opener`, `sha2`). The security model is
+preserved verbatim — dialogs, opens, and file IO all flow through the guard.
+
+- `src-tauri/src/fs_guard.rs`: faithful port of fs-guard.ts. Session dialog
+  allowlist (files + dirs) + app-data subtree + the registered-document DB
+  predicate; lexical `..`-collapsing normalization; component-wise containment.
+- `src-tauri/src/platform.rs`: `fs_read_file` (bytes via `tauri::ipc::Response`
+  → ArrayBuffer), `fs_write_file`, `fs_get_file_stats`, `fs_compute_file_hash`
+  (sha256); `dialog_open_file/directory/folder/save` (folder walk ports
+  `walkForImportableFiles` — dotfile skip, 5000 cap, symlink-loop guard);
+  `shell_open_path`, `shell_open_external` (web/mail + guarded `file://#page=N`);
+  `app_get_path` (allowlist). Long IO + blocking pickers run on
+  `spawn_blocking`, not the UI thread (the Electron main process got that for
+  free).
+- Bridge wires all of the above to `invoke`.
+- Verified: `cargo check` + `tsc` clean; **6 Rust unit tests** cover the guard
+  (containment, `..`-escape rejection), the folder walk (dotfile/ext filtering),
+  and URL parsing; app boots with both plugins, no errors.
+- **Needs manual click-through** (native pickers can't be driven headlessly):
+  import a PDF via the Library dialog, import a folder, open a PDF at a page,
+  export a bundle. Left for a UI pass.

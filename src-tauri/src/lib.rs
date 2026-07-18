@@ -17,6 +17,8 @@
 
 mod db;
 mod db_generated;
+mod fs_guard;
+mod platform;
 
 use std::sync::Mutex;
 use tauri::Manager;
@@ -53,6 +55,8 @@ pub fn run() {
                 let _ = win.set_focus();
             }
         }))
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             // Open the database before the renderer can issue db_* commands.
             let conn = db::init_db(&app.handle()).map_err(|e| {
@@ -60,6 +64,8 @@ pub fn run() {
                 e
             })?;
             app.manage(db::Db(Mutex::new(conn)));
+            // Filesystem guard: the session dialog allowlist + app-data root.
+            app.manage(fs_guard::FsGuard::new(&app.handle()));
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -70,6 +76,17 @@ pub fn run() {
             db::db_update,
             db::db_select_in,
             db::db_run_batch,
+            platform::fs_read_file,
+            platform::fs_get_file_stats,
+            platform::fs_compute_file_hash,
+            platform::fs_write_file,
+            platform::dialog_open_file,
+            platform::dialog_open_directory,
+            platform::dialog_open_folder,
+            platform::dialog_save_file,
+            platform::shell_open_path,
+            platform::shell_open_external,
+            platform::app_get_path,
         ])
         .run(tauri::generate_context!())
         .expect("error while running Document Lens");

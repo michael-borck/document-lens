@@ -32,6 +32,7 @@ function notImplementedError(method: string): Error {
 const implemented: Partial<ElectronAPI> = {
   // App
   getVersion: () => invoke<string>('app_get_version'),
+  getPath: (name: string) => invoke<string>('app_get_path', { name }),
 
   // Database — keyed access (Phase 1). Mirrors electron/preload.ts; the Rust
   // side resolves the key against the generated registry (db_generated.rs).
@@ -48,6 +49,28 @@ const implemented: Partial<ElectronAPI> = {
     await invoke('db_run_batch', { ops })
     return { success: true }
   },
+
+  // Dialogs (Phase 2) — the picked paths are recorded in the fs-guard allowlist
+  // by the Rust side, which is what lets the fs_* reads/writes below succeed.
+  openFileDialog: (options?: unknown) => invoke('dialog_open_file', { options }),
+  openDirectoryDialog: (options?: unknown) => invoke('dialog_open_directory', { options }),
+  openFolderDialog: (options?: unknown) => invoke('dialog_open_folder', { options }),
+  saveFileDialog: (options?: unknown) => invoke('dialog_save_file', { options }),
+
+  // Filesystem (Phase 2) — all guarded by fs-guard on the Rust side.
+  readFile: (filePath: string) => invoke<ArrayBuffer>('fs_read_file', { path: filePath }),
+  getFileStats: (filePath: string) =>
+    invoke<{ size: number; mtime: number }>('fs_get_file_stats', { path: filePath }),
+  computeFileHash: (filePath: string) =>
+    invoke<string>('fs_compute_file_hash', { path: filePath }),
+  writeFile: (filePath: string, data: ArrayBuffer | string) =>
+    typeof data === 'string'
+      ? invoke('fs_write_file', { path: filePath, text: data })
+      : invoke('fs_write_file', { path: filePath, bytes: Array.from(new Uint8Array(data)) }),
+
+  // Shell (Phase 2)
+  openPath: (filePath: string) => invoke<string>('shell_open_path', { path: filePath }),
+  openExternal: (url: string) => invoke('shell_open_external', { url }).then(() => undefined),
 }
 
 /**
