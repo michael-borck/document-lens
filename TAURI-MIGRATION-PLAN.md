@@ -602,23 +602,23 @@ PyInstaller backend (same recipe as build.yml), stages it as
 `document-lens-api-<triple>`, then `tauri-action` builds/signs/notarizes and
 publishes a **draft** release with `latest.json`.
 
-### YOU must do before the first release
-`tauri.yml` uses the **standard secret names** shared across all the other Tauri
-apps (numeron, ethos-mirror, …): `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
-`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`,
-`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Secret name ==
-env var name, no mapping. The Apple ones are already configured org-wide.
+### Secrets — DONE (set this session via `gh secret set`)
+All eight are now on `michael-borck/document-lens`:
+- Reused existing (Electron-era): `CSC_LINK`, `CSC_KEY_PASSWORD`,
+  `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_ID`, `APPLE_TEAM_ID` — wired to the Tauri
+  env vars in `tauri.yml` (secret VALUES can't be copied to renamed secrets, so
+  the workflow maps them rather than renaming).
+- Added this session: `APPLE_SIGNING_IDENTITY`
+  (`Developer ID Application: Michael Borck (H7XP9TYKB5)`, from the keychain),
+  `TAURI_SIGNING_PRIVATE_KEY` (this app's own updater key —
+  `~/.tauri/document-lens-updater.key`; **back it up, losing it breaks updates**),
+  `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` (empty).
 
-1. **Add only the app-specific updater key** to this repo's secrets:
-   `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.tauri/document-lens-updater.key`
-   (generated this session; each app has its own key — astron ≠ numeron), and
-   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = empty. This repo's matching **pubkey is
-   already in `tauri.conf.json`**. **Back the private key up — losing it breaks
-   all future updates.** (Or regenerate with `tauri signer generate` per your
-   usual flow and replace the pubkey in `tauri.conf.json`.)
-2. **First-run shakedown** of `tauri.yml` (dispatch it): PyInstaller
-   collect/hidden-import issues usually need one iteration. This is the one part
-   not verifiable locally.
+### YOU must do before the first release
+1. **First-run shakedown** of `tauri.yml` (dispatch it or push a `tauri-v*`
+   tag): PyInstaller collect/hidden-import issues usually need one iteration.
+   This is the one part not verifiable locally.
+That's it — the secrets are in place.
 
 ### Verified vs not
 - Verified: updater plugin compiles + wires + boots; `check()` path reachable;
