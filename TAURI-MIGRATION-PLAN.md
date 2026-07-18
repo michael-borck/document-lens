@@ -434,3 +434,30 @@ First commit of the coexistence setup (this branch):
 - Electron path untouched: `npm run dev` / `npm run build` still build Electron.
 
 Run the Tauri shell: `npm run dev:tauri` (first Rust build takes a few minutes).
+
+## 12. Phase 1 — database (DONE)
+
+`electron/database.ts` + the `db:*` IPC handlers are ported to Rust (`rusqlite`,
+bundled SQLite). The security model is preserved verbatim.
+
+- `scripts/gen-rust-db.mjs` generates `src-tauri/src/db_generated.rs` from
+  `electron/schema.ts` + `electron/queries.ts` (§3.1) — 119 queries, the DDL,
+  and the update allowlist. `npm run gen:rust-db` to regenerate; the output is
+  committed so `cargo build` never needs Node. **CI should run it +
+  `git diff --exit-code` to catch drift.**
+- `src-tauri/src/db.rs`: `db_select` / `db_run` / `db_update` / `db_select_in` /
+  `db_run_batch` (one transaction), keyed via the generated registry; ports of
+  `getInQuery` / `buildUpdate`; lifecycle (app-data path, wipe-on-version-bump,
+  WAL + FK pragmas, reference-data seed).
+- `desktop-bridge.ts` wires the `db*` methods to `invoke`; un-ported methods now
+  **reject** (async) instead of throwing, so the app degrades gracefully.
+- Verified: schema v6, 24 tables, seed (13 countries / 17 industries), WAL, no
+  renderer db errors; all 184 vitest tests green; `cargo check` + `tsc` clean.
+
+### Known cutover gaps (tracked, not yet addressed)
+- **Data directory differs.** Tauri uses the bundle identifier
+  (`~/Library/Application Support/com.documentlens.app/`); Electron used the
+  product name (`.../Document Lens/`). A shipped Tauri build won't see an
+  existing user's `document-lens.db` / `ai-providers.json`. Before the flip
+  (§10): either point Tauri at the legacy path, or migrate/copy on first run.
+  Same concern on Windows/Linux paths.

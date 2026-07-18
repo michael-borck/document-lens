@@ -15,6 +15,12 @@
 //! Every command mirrors a method on the renderer's `window.electron`
 //! contract (see src/lib/desktop-bridge.ts).
 
+mod db;
+mod db_generated;
+
+use std::sync::Mutex;
+use tauri::Manager;
+
 /// Return the app version — mirrors Electron's `app.getVersion()`.
 /// The bridge maps `window.electron.getVersion()` → `invoke('app_get_version')`.
 #[tauri::command]
@@ -43,12 +49,28 @@ pub fn run() {
         // (8765) and the SQLite database — same rationale as the Electron
         // requestSingleInstanceLock. The callback focuses the existing window.
         .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-            use tauri::Manager;
             if let Some(win) = app.get_webview_window("main") {
                 let _ = win.set_focus();
             }
         }))
-        .invoke_handler(tauri::generate_handler![app_get_version, app_log])
+        .setup(|app| {
+            // Open the database before the renderer can issue db_* commands.
+            let conn = db::init_db(&app.handle()).map_err(|e| {
+                eprintln!("[db] init failed: {e}");
+                e
+            })?;
+            app.manage(db::Db(Mutex::new(conn)));
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            app_get_version,
+            app_log,
+            db::db_select,
+            db::db_run,
+            db::db_update,
+            db::db_select_in,
+            db::db_run_batch,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running Document Lens");
 }

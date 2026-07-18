@@ -21,16 +21,33 @@ export function isTauri(): boolean {
   return typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 }
 
-function notImplemented(method: string): never {
-  throw new Error(
-    `[tauri-bridge] window.electron.${method}() is not implemented yet ` +
-      `(Phase 0 scaffold). See TAURI-MIGRATION-PLAN.md.`,
+function notImplementedError(method: string): Error {
+  return new Error(
+    `[tauri-bridge] window.electron.${method}() is not implemented yet. ` +
+      `See TAURI-MIGRATION-PLAN.md.`,
   )
 }
 
 /** Methods wired to Rust so far. Grows one phase at a time. */
 const implemented: Partial<ElectronAPI> = {
+  // App
   getVersion: () => invoke<string>('app_get_version'),
+
+  // Database — keyed access (Phase 1). Mirrors electron/preload.ts; the Rust
+  // side resolves the key against the generated registry (db_generated.rs).
+  // Tauri maps camelCase JS arg keys (idColumn) to snake_case Rust params.
+  dbSelect: <T = unknown>(key: string, params?: unknown[]) =>
+    invoke<T[]>('db_select', { key, params }),
+  dbRunKeyed: (key: string, params?: unknown[]) =>
+    invoke('db_run', { key, params }),
+  dbUpdate: (table: string, columns: string[], idColumn: string, params: unknown[]) =>
+    invoke('db_update', { table, columns, idColumn, params }),
+  dbSelectIn: <T = unknown>(key: string, ids: unknown[]) =>
+    invoke<T[]>('db_select_in', { key, ids }),
+  dbRunBatch: async (ops: { key: string; params?: unknown[] }[]) => {
+    await invoke('db_run_batch', { ops })
+    return { success: true }
+  },
 }
 
 /**
@@ -60,7 +77,10 @@ function buildBridge(): ElectronAPI {
           return () => {}
         }
       }
-      return () => notImplemented(prop)
+      // All non-event ElectronAPI methods are async; reject (don't throw
+      // synchronously) so callers' try/catch and .catch() behave normally and
+      // an un-ported method degrades to a handled failure, not a white screen.
+      return () => Promise.reject(notImplementedError(prop))
     },
   })
 }

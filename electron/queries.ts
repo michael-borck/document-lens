@@ -384,7 +384,7 @@ export function getQuery(key: string): string {
  * columns may be written via buildUpdate(); anything else throws. Keeps
  * identifier construction in the main process with a fixed allowlist.
  */
-const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
+export const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
   documents: new Set(['title', 'year', 'company', 'sector', 'type', 'company_size', 'id']),
   projects: new Set([
     'name',
