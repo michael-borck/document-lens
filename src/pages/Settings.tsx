@@ -21,6 +21,7 @@ import { toast } from '@/stores/toastStore'
 import { cn } from '@/lib/utils'
 import type { ScoringRule } from '@/types/data'
 import type { AiProviderId, AiProvidersSnapshot } from '@/types/electron'
+import * as aiApi from '@/services/ai'
 
 export function Settings() {
   return (
@@ -200,7 +201,7 @@ function AiProviderSection() {
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
-    window.electron.aiGetProviders().then((snap) => {
+    aiApi.getProviders().then((snap) => {
       setSnapshot(snap)
       setSelectedId(snap.active ?? snap.providers[0]?.id ?? 'anthropic')
     })
@@ -228,7 +229,7 @@ function AiProviderSection() {
   const handleShow = async () => {
     // Reveal the stored key on demand (decrypted in main) so it can be viewed/edited.
     if (!showKey && selected?.hasKey && !keyDirty && keyInput === '') {
-      const revealed = await window.electron.aiRevealKey(selectedId)
+      const revealed = await aiApi.revealKey(selectedId)
       if (revealed !== null) setKeyInput(revealed)
     }
     setShowKey((s) => !s)
@@ -238,7 +239,7 @@ function AiProviderSection() {
     setBusy(true)
     setTestMsg(null)
     try {
-      const res = await window.electron.aiTestConnection(selectedId, draft())
+      const res = await aiApi.testConnection(selectedId, draft())
       if (res.ok) {
         setModels(res.models ?? [])
         setTestMsg({ ok: true, text: `Connected — ${res.models?.length ?? 0} model${res.models?.length === 1 ? '' : 's'} available` })
@@ -253,7 +254,7 @@ function AiProviderSection() {
   const handleSave = async () => {
     setBusy(true)
     try {
-      const snap = await window.electron.aiSaveProvider(selectedId, {
+      const snap = await aiApi.saveProvider(selectedId, {
         baseUrl,
         model: model.trim() || null,
         key: keyDirty ? keyInput : undefined,
@@ -269,7 +270,7 @@ function AiProviderSection() {
   }
 
   const handleSetActive = async () => {
-    const snap = await window.electron.aiSetActiveProvider(selectedId)
+    const snap = await aiApi.setActiveProvider(selectedId)
     setSnapshot(snap)
     toast.success(`${selected?.label} is now the active AI provider`)
   }

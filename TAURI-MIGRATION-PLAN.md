@@ -486,3 +486,36 @@ preserved verbatim — dialogs, opens, and file IO all flow through the guard.
 - **Needs manual click-through** (native pickers can't be driven headlessly):
   import a PDF via the Library dialog, import a folder, open a PDF at a page,
   export a bundle. Left for a UI pass.
+
+## 14. Phase 3 — AI/BYOK folded into the Python backend (DONE)
+
+Per §3.2, the AI provider layer moved out of the desktop shell entirely and
+into `document-analyser` (a **separate repo**), so the Rust core needs no
+keyring/LLM HTTP. Spans two repos; shell-agnostic (improves Electron too).
+
+**Backend** (`document-analyser`, branch `feat/ai-provider-endpoints`):
+- `document_analyser/ai/store.py` — BYOK config store (port of
+  `ai-providers.ts`). Keys in the OS keychain via `keyring`, with a base64
+  plaintext fallback + `encryptionAvailable=false` when no keychain backend
+  (mirrors Electron `safeStorage`).
+- `document_analyser/ai/client.py` — async `httpx` client for the three API
+  shapes (anthropic / openai / gemini).
+- `api/routes/ai_providers.py` — `/ai/providers`, `/ai/providers/{id}`,
+  `/ai/active`, `/ai/reveal/{id}`, `/ai/test/{id}`, `/ai/models/{id}`,
+  `/ai/chat`. Deps: `keyring`, `platformdirs`. 7 pytest.
+
+**Renderer** (`document-lens`):
+- `src/services/ai.ts` — HTTP client for `/ai/*` using the backend URL + bearer
+  token (`config/backend.ts`). Replaces the `window.electron.ai*` IPC surface.
+- Repointed the 7 call sites (Settings.tsx ×5, ai-observations.ts ×2). The
+  Electron `ai:*` handlers / `ai-providers.ts` are now dead code (removed at the
+  flip).
+
+**Verified:** backend 7 pytest pass; manual curl round-trip incl. a real
+OpenAI 401 surfaced via `/ai/test`; renderer `tsc` clean + 184 vitest pass.
+
+- **Tradeoff (accepted):** AI is now backend-dependent — it needs the analysis
+  engine up. Under Tauri that means **after Phase 4**; under Electron it works
+  now. Full Tauri E2E of the AI UI awaits the backend supervisor.
+- **Phase 6 note:** `keyring` needs a PyInstaller collect hook to work in the
+  packaged backend; dev falls back to plaintext cleanly.
