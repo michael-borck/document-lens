@@ -603,17 +603,22 @@ PyInstaller backend (same recipe as build.yml), stages it as
 publishes a **draft** release with `latest.json`.
 
 ### YOU must do before the first release
-1. **Add GitHub secrets** (Settings → Secrets → Actions):
-   - `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.tauri/document-lens-updater.key`
-     (generated this session; **keep it safe — losing it breaks all future updates**).
-   - `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = empty string.
-   - `APPLE_SIGNING_IDENTITY` = e.g. `Developer ID Application: Michael Borck (TEAMID)`
-     (Tauri needs the identity string; Electron used auto-discovery).
-   - Reused as-is: `CSC_LINK`, `CSC_KEY_PASSWORD`, `APPLE_ID`,
-     `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`.
+`tauri.yml` uses the **standard secret names** shared across all the other Tauri
+apps (numeron, ethos-mirror, …): `APPLE_CERTIFICATE`, `APPLE_CERTIFICATE_PASSWORD`,
+`APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, `APPLE_TEAM_ID`,
+`TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Secret name ==
+env var name, no mapping. The Apple ones are already configured org-wide.
+
+1. **Add only the app-specific updater key** to this repo's secrets:
+   `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.tauri/document-lens-updater.key`
+   (generated this session; each app has its own key — astron ≠ numeron), and
+   `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = empty. This repo's matching **pubkey is
+   already in `tauri.conf.json`**. **Back the private key up — losing it breaks
+   all future updates.** (Or regenerate with `tauri signer generate` per your
+   usual flow and replace the pubkey in `tauri.conf.json`.)
 2. **First-run shakedown** of `tauri.yml` (dispatch it): PyInstaller
-   collect/hidden-import issues and the Apple identity string usually need one
-   iteration. This is the one part not verifiable locally.
+   collect/hidden-import issues usually need one iteration. This is the one part
+   not verifiable locally.
 
 ### Verified vs not
 - Verified: updater plugin compiles + wires + boots; `check()` path reachable;

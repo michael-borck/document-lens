@@ -6,12 +6,15 @@ name: Tauri Build and Release
 #   - workflow_dispatch (button), or
 #   - pushing a tag matching tauri-v* (e.g. tauri-v1.0.0).
 #
-# Secrets reused from the Electron pipeline: CSC_LINK / CSC_KEY_PASSWORD (.p12
-# cert), APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID (notarization).
-# NEW secrets required for Tauri:
-#   - TAURI_SIGNING_PRIVATE_KEY           (updater private key: ~/.tauri/document-lens-updater.key)
-#   - TAURI_SIGNING_PRIVATE_KEY_PASSWORD  (empty — the key was generated without a password)
-#   - APPLE_SIGNING_IDENTITY              ("Developer ID Application: Michael Borck (TEAMID)")
+# Secrets use the standard names shared across all the Tauri apps (numeron,
+# ethos-mirror, lesson-loom, …) — already configured: APPLE_CERTIFICATE,
+# APPLE_CERTIFICATE_PASSWORD, APPLE_SIGNING_IDENTITY, APPLE_ID, APPLE_PASSWORD,
+# APPLE_TEAM_ID, TAURI_SIGNING_PRIVATE_KEY, TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+# The ONLY document-lens-specific value is TAURI_SIGNING_PRIVATE_KEY — each app
+# has its own updater keypair (astron and numeron use different keys). This
+# repo's pubkey is in tauri.conf.json; add the matching private key (generated
+# at ~/.tauri/document-lens-updater.key) as this repo's TAURI_SIGNING_PRIVATE_KEY
+# secret, with an empty TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
 on:
   workflow_dispatch: {}
   push:
@@ -231,12 +234,14 @@ jobs:
           # Updater artifact signing (Ed25519).
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # macOS code signing + notarization — existing Electron secrets.
-          APPLE_CERTIFICATE: ${{ secrets.CSC_LINK }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # macOS code signing + notarization — the standard secret names used
+          # across all the other Tauri apps (numeron, ethos-mirror, …). Secret
+          # name == Tauri env var name, no mapping.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           # The release overlay adds the backend sidecar (externalBin).
