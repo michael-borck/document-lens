@@ -621,3 +621,44 @@ publishes a **draft** release with `latest.json`.
   bundle/externalBin split.
 - NOT verified here (needs the release runner + secrets): actual bundle build,
   code-sign, notarization, `latest.json` generation, and a live self-update.
+
+## 18. Phase 7 — CI guardrail (DONE) + the flip (GATED, not yet done)
+
+**CI guardrail (done):** `ci.yml` gains a `tauri-core` job on every PR — Rust
+`cargo check` + `cargo test --lib` + a **registry drift check** (regenerate
+`db_generated.rs` from queries.ts/schema.ts and fail if it changed). Cheap
+(small crate, cached), NOT the full signed bundle. Combined with the existing
+shell-agnostic lint/typecheck/vitest, a Tauri phase can no longer silently break
+the Rust shell, and the two query registries can't drift. Verified locally: no
+drift, 6 Rust tests pass.
+
+**e2e (deferred, not blocking):** a `tauri-driver`/WebdriverIO port of
+`e2e/smoke.spec.ts` is the "proper" parity check but is heavy and unverifiable
+here; the shared renderer logic is already covered by vitest + the Electron
+smoke. Treat a **manual parity click-through** as the gate instead, and port to
+tauri-driver later if desired.
+
+## 19. The flip — final cutover (do NOT run until a Tauri release is proven)
+
+Deleting `electron/` removes the only working shipping path, so this is gated on
+a **real, working Tauri release**, not merely on Phases 0–7 code:
+
+**Gate (all must hold):**
+- [ ] `tauri.yml` produces signed + notarized installers on all targets.
+- [ ] A **live self-update succeeds** (install vN, publish vN+1, app updates).
+- [ ] Manual parity click-through green (import, workflows, AI, menu, PDF open,
+      bundle export).
+- [ ] `document-analyser` `feat/ai-provider-endpoints` ready to merge to its main.
+
+**Flip PR (one small, reviewable change once the gate passes):**
+1. `package.json`: `dev`/`build` → the Tauri scripts (keep Electron under
+   `dev:electron`/`build:electron` for one release, or delete outright).
+2. Delete `electron/`, `electron-builder.yml`, `dist-electron/`,
+   `vite-plugin-electron*` deps, `better-sqlite3` + `electron*` deps, and the
+   dead `electron/ai-providers.ts` path.
+3. Delete `build.yml` (Electron release); make `tauri.yml` fire on `v*` tags.
+4. Merge `document-analyser` `feat/ai-provider-endpoints` → main.
+5. Drop the `window.electron` name for `window.desktop` (optional polish).
+6. Tag **1.0** — first Tauri release; the ~110 MB → ~25–45 MB download win ships.
+
+Until then: Electron keeps shipping from main; the Tauri branch stays unmerged.

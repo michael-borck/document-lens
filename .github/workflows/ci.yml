@@ -50,6 +50,49 @@ jobs:
           path: coverage/
           retention-days: 14
 
+  # ── Tauri core (Rust): the coexistence guardrail ────────────────────────
+  # Keeps a Tauri phase from silently breaking the Rust shell (and catches
+  # registry drift). Cheap — compiles the small src-tauri crate + unit tests,
+  # NOT the full signed bundle (that's tauri.yml, manual-gated). Cached so
+  # repeat runs are fast.
+  tauri-core:
+    name: Tauri core (Rust check · test · drift)
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22' # gen:rust-db uses node --experimental-strip-types
+
+      # Tauri crates link against system webkit/gtk on Linux.
+      - name: Install OS deps for Tauri
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      # The Rust query registry is generated from queries.ts/schema.ts and
+      # committed. Regenerate and fail if it drifted (plan §3.1).
+      - name: Registry drift check
+        run: |
+          npm run gen:rust-db
+          git diff --exit-code src-tauri/src/db_generated.rs \
+            || { echo "::error::db_generated.rs is stale — run 'npm run gen:rust-db' and commit"; exit 1; }
+
+      - name: Cargo check
+        working-directory: src-tauri
+        run: cargo check
+
+      - name: Cargo test
+        working-directory: src-tauri
+        run: cargo test --lib
+
   # ── Backend-free e2e smoke (boots the built app, creates a project) ──────
   e2e-smoke:
     name: E2E smoke (no backend)
