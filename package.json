@@ -14,7 +14,6 @@
     "dev": "vite",
     "dev:tauri": "node scripts/tauri.mjs dev",
     "build:tauri": "node scripts/tauri.mjs build",
-    "tauri": "node scripts/tauri.mjs",
     "gen:rust-db": "node --experimental-strip-types --no-warnings scripts/gen-rust-db.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
