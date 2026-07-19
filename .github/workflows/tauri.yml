@@ -89,8 +89,9 @@ jobs:
           cd document-analyser-backend
           python -m pip install --upgrade pip
           python -m pip install pyinstaller
-          # [nlp] is now the torch-free ONNX stack (onnxruntime + tokenizers +
-          # huggingface-hub) — no torch/transformers/sentence-transformers.
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+          fi
           python -m pip install -e ".[nlp]"
           # spaCy NER is only reachable via /advanced, which document-lens never
           # calls (ner_analyzer imports spacy under try/except and degrades to
@@ -127,29 +128,24 @@ jobs:
                       time.sleep(min(60, 5 * 2 ** (attempt - 1)))
           "
 
-      - name: Prefetch ONNX models
+      - name: Prefetch sentence-transformer model
         shell: bash
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           mkdir -p hf_cache
           python -c "
-          import os, time
+          import os, time, pathlib
           os.environ['HF_HOME'] = os.path.abspath('hf_cache')
           from huggingface_hub import snapshot_download
           token = os.environ.get('HF_TOKEN') or None
-          # Only the ONNX model + tokenizer for each repo (no pytorch weights).
-          repos = {
-              'sentence-transformers/all-MiniLM-L6-v2': ['onnx/model.onnx', 'tokenizer.json', 'config.json', '*.txt'],
-              'Xenova/distilbert-base-uncased-finetuned-sst-2-english': ['onnx/model.onnx', 'tokenizer.json', 'config.json'],
-          }
-          for repo, allow in repos.items():
-              for attempt in range(1, 6):
-                  try:
-                      snapshot_download(repo, allow_patterns=allow, token=token); break
-                  except Exception as e:
-                      if attempt == 5: raise SystemExit(f'ONNX prefetch failed for {repo}: {e}')
-                      time.sleep(min(60, 5 * 2 ** (attempt - 1)))
+          ignore = ['onnx/**', 'openvino/**', '*.onnx', 'tf_model.h5', 'flax_model.msgpack', 'rust_model.ot']
+          for attempt in range(1, 6):
+              try:
+                  snapshot_download('sentence-transformers/all-MiniLM-L6-v2', ignore_patterns=ignore, token=token); break
+              except Exception as e:
+                  if attempt == 5: raise SystemExit(f'Model prefetch failed: {e}')
+                  time.sleep(min(60, 5 * 2 ** (attempt - 1)))
           "
 
       - name: Create PyInstaller entry point
@@ -172,7 +168,6 @@ jobs:
                   os.environ['HF_HOME'] = hf_cache_path
                   os.environ['HF_HUB_CACHE'] = os.path.join(hf_cache_path, 'hub')
                   os.environ['TRANSFORMERS_OFFLINE'] = '1'
-                  os.environ['HF_HUB_OFFLINE'] = '1'  # hf_hub_download from cache, no network
           import uvicorn
           from document_analyser.api import app as fastapi_app
           if __name__ == "__main__":
@@ -195,7 +190,8 @@ jobs:
             --add-data "document_analyser/data${SEP}document_analyser/data" \
             --add-data "nltk_data${SEP}nltk_data" \
             --add-data "hf_cache${SEP}hf_cache" \
-            --collect-all onnxruntime --collect-all tokenizers --collect-all huggingface_hub \
+            --collect-all sentence_transformers --collect-all transformers --collect-all torch \
+            --collect-all huggingface_hub --collect-all tokenizers --collect-all safetensors \
             --collect-all magika --collect-all markitdown \
             --hidden-import uvicorn.logging --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on \
             --hidden-import uvicorn.lifespan.off --hidden-import uvicorn.protocols \
@@ -210,7 +206,6 @@ jobs:
             --hidden-import starlette.formparsers --hidden-import keyring.backends \
             --exclude-module tensorflow --exclude-module keras --exclude-module matplotlib --exclude-module cv2 \
             --exclude-module spacy --exclude-module en_core_web_sm --exclude-module thinc --exclude-module blis \
-            --exclude-module torch --exclude-module transformers --exclude-module sentence_transformers \
             run_server.py
 
       - name: Stage sidecar for Tauri (target-triple name)
