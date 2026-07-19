@@ -93,7 +93,11 @@ jobs:
             python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
           fi
           python -m pip install -e ".[nlp]"
-          python -m spacy download en_core_web_sm
+          # spaCy NER is only reachable via /advanced, which document-lens never
+          # calls (ner_analyzer imports spacy under try/except and degrades to
+          # None). Not installing/bundling it trims ~spacy+model+thinc/blis from
+          # the sidecar. If a future feature needs NER, restore the download +
+          # the collect-all below and drop the exclude-module lines.
           python -m pip install "setuptools<81"
 
       - name: Download NLTK data
@@ -188,7 +192,7 @@ jobs:
             --add-data "hf_cache${SEP}hf_cache" \
             --collect-all sentence_transformers --collect-all transformers --collect-all torch \
             --collect-all huggingface_hub --collect-all tokenizers --collect-all safetensors \
-            --collect-all spacy --collect-all en_core_web_sm --collect-all magika --collect-all markitdown \
+            --collect-all magika --collect-all markitdown \
             --hidden-import uvicorn.logging --hidden-import uvicorn.lifespan --hidden-import uvicorn.lifespan.on \
             --hidden-import uvicorn.lifespan.off --hidden-import uvicorn.protocols \
             --hidden-import uvicorn.protocols.http --hidden-import uvicorn.protocols.http.auto \
@@ -201,6 +205,7 @@ jobs:
             --hidden-import pdfplumber --hidden-import python_multipart --hidden-import multipart \
             --hidden-import starlette.formparsers --hidden-import keyring.backends \
             --exclude-module tensorflow --exclude-module keras --exclude-module matplotlib --exclude-module cv2 \
+            --exclude-module spacy --exclude-module en_core_web_sm --exclude-module thinc --exclude-module blis \
             run_server.py
 
       - name: Stage sidecar for Tauri (target-triple name)
