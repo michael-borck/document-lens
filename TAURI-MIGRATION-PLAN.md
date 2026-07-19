@@ -652,6 +652,60 @@ here; the shared renderer logic is already covered by vitest + the Electron
 smoke. Treat a **manual parity click-through** as the gate instead, and port to
 tauri-driver later if desired.
 
+## 20. Download size — where it actually stands, and lazy-download (scoped)
+
+Measured reality (this session): the shell swap is NOT the download lever — the
+Python ML backend is. Full-precision options:
+
+| Build | Precision | arm dmg |
+|---|---|---|
+| Electron (current, torch) | exact | ~805 MB |
+| Tauri + pytorch (spaCy dropped) | exact | ~687 MB |
+| Tauri + fp32 ONNX | exact | ~792 MB (bigger!) |
+| Tauri + int8 ONNX | ~0.99 cosine | ~500-550 MB (est) |
+
+We chose **Tauri + pytorch** (exact precision — this is sustainability research;
+the ONNX quantization drift, though only on the *optional* /semantic features
+not the deterministic keyword/axis/function scoring, wasn't worth it; and fp32
+ONNX was bigger anyway). So the download stays ~687 MB, dominated by
+torch (~350 MB) + the bundled model.
+
+**The only way to get a small download AND exact precision: don't ship the ML
+in the base app — download it on demand.** The analyzers already degrade to
+`None` gracefully, and the core keyword analysis + Wedding Cake scoring use NO
+ML, so the base app is fully useful without it.
+
+### Lazy-download — scope (NOT yet built)
+
+**Recommended architecture: two sidecars.**
+- **Lite backend** (bundled): fastapi + uvicorn + pdf/text extraction (pypdf,
+  pdfplumber, markitdown) + nltk + magika + keyword endpoints. NO torch /
+  transformers / sentence-transformers / models. Est. base sidecar ~150-250 MB
+  → total download **~200-300 MB** (from 805). Works fully for import + the
+  deterministic thematic analysis, offline, immediately.
+- **ML sidecar** (downloaded on demand): a second PyInstaller binary with torch
+  + sentence-transformers + the models, serving the `/semantic/*` endpoints.
+  Built per-platform in CI, published as signed release assets (~450-550 MB
+  each), checksum-verified.
+- **Flow:** first use of a /semantic feature → the lite backend reports
+  "ML not installed" → UI prompts "Enable AI/semantic features (~500 MB)" with
+  progress → download + verify + cache in the app-data dir → lite backend spawns
+  the ML sidecar and proxies /semantic to it (loopback, same auth token).
+
+Why two sidecars rather than a downloadable "wheel pack" loaded into the frozen
+process: a PyInstaller bundle has no pip/python to build a venv, and loading
+torch's native libs from an arbitrary path into a frozen process is fragile. A
+second self-contained frozen binary sidesteps both.
+
+**Effort:** a focused piece — CI builds a second binary per platform; a small
+proxy/spawn layer in the lite backend; a download+verify+cache manager; a
+Settings/first-run UX with progress. Roughly comparable to Phase 4 (the backend
+supervisor), reusing much of its spawn/health/port machinery.
+
+**Alternative (smaller win, much less work):** keep torch bundled but stop
+bundling the model *weights*; download them on first /semantic use. Saves only
+the model (~90 MB currently) — torch still dominates. Low value.
+
 ## 19. The flip — DONE on the branch (main not yet merged)
 
 Executed on `tauri/phase-0-scaffold`: deleted `electron/` (all 8 modules),
