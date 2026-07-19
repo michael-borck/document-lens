@@ -1,0 +1,4 @@
+# The PyInstaller backend sidecar is built in CI and named per target triple
+# (document-lens-api-<triple>). Keep the dir, ignore the binaries.
+*
+!.gitignore

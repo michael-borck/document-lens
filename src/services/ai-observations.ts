@@ -14,6 +14,7 @@ import { evaluateScore } from './scoring'
 import { selectAll } from './db'
 import { rowToDocument, type DocumentRow } from './_shared/document-row'
 import { confidenceLabel } from './substance'
+import { chat as aiChat } from './ai'
 import type { ScoringRule } from '@/types/data'
 
 const SYSTEM_PROMPT = `You are a careful research assistant helping analyse corporate sustainability and annual reports. You are given DETERMINISTIC signals that a tool computed (not you), and sometimes document text. Surface the most INTERESTING observations, patterns, and outliers, and suggest where the researcher should focus next.
@@ -141,7 +142,7 @@ export async function observeProject(input: ObserveProjectInput): Promise<Observ
     `Project: ${input.projectName}\nKeyword list: ${input.keywordListName}\nDocuments: ${rows.length}\n\n` +
     `Per-document signals (tab-separated):\n${formatRows(rows)}\n\n${GLOSSARY}\n\n` +
     `Give your observations across the project — outliers, patterns, and where to focus.`
-  return window.electron.aiChat(SYSTEM_PROMPT, user, 1500)
+  return aiChat(SYSTEM_PROMPT, user, 1500)
 }
 
 export interface ObserveDocumentInput extends ObserveProjectInput {
@@ -160,5 +161,5 @@ export async function observeDocument(input: ObserveDocumentInput): Promise<Obse
     `Its signals (tab-separated):\n${formatRows([row])}\n\n${GLOSSARY}\n\n` +
     (text ? `Document text (truncated):\n"""\n${text}\n"""\n\n` : '') +
     `Give observations about THIS document — what stands out in its signals, and (if text is provided) whether the language supports or overstates the signals. Note any sign of repeated/boilerplate evidence.`
-  return window.electron.aiChat(SYSTEM_PROMPT, user, 1500)
+  return aiChat(SYSTEM_PROMPT, user, 1500)
 }

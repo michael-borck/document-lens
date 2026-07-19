@@ -26,8 +26,8 @@
 import { createRequire } from 'node:module'
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
-import { SCHEMA } from '../../../electron/schema'
-import { getQuery, getInQuery, buildUpdate } from '../../../electron/queries'
+import { SCHEMA } from '../../db/schema'
+import { getQuery, getInQuery, buildUpdate } from '../../db/queries'
 import type { DbDriver } from '../db'
 
 // Load node:sqlite via require so Vite's ESM resolver doesn't try to bundle the

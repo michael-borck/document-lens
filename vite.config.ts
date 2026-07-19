@@ -1,42 +1,21 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import electron from 'vite-plugin-electron'
-import renderer from 'vite-plugin-electron-renderer'
 import path from 'path'
 
+// Pure frontend build — the desktop shell is Tauri (src-tauri/). The Tauri CLI
+// runs this via beforeDevCommand/beforeBuildCommand (see src-tauri/tauri.conf.json).
 export default defineConfig({
-  plugins: [
-    react(),
-    electron([
-      {
-        entry: 'electron/main.ts',
-        vite: {
-          build: {
-            outDir: 'dist-electron',
-            rollupOptions: {
-              external: ['better-sqlite3']
-            }
-          }
-        }
-      },
-      {
-        entry: 'electron/preload.ts',
-        onstart(options) {
-          options.reload()
-        },
-        vite: {
-          build: {
-            outDir: 'dist-electron'
-          }
-        }
-      }
-    ]),
-    renderer()
-  ],
+  plugins: [react()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')
     }
+  },
+  // Tauri expects a fixed dev-server port (matches devUrl in tauri.conf.json).
+  clearScreen: false,
+  server: {
+    port: 5173,
+    strictPort: true
   },
   build: {
     outDir: 'dist'
