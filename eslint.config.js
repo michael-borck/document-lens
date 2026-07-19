@@ -31,13 +31,14 @@ export default tseslint.config(
   {
     ignores: [
       'dist/**',
-      'dist-electron/**',
       'release/**',
       'node_modules/**',
       'public/**',
       'manual/**',
       '*.config.js',
       '*.config.ts',
+      // macOS AppleDouble sidecars on the exFAT project drive — binary, not code.
+      '**/._*',
     ],
   }
 )

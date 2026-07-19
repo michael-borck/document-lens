@@ -652,7 +652,23 @@ here; the shared renderer logic is already covered by vitest + the Electron
 smoke. Treat a **manual parity click-through** as the gate instead, and port to
 tauri-driver later if desired.
 
-## 19. The flip — final cutover (do NOT run until a Tauri release is proven)
+## 19. The flip — DONE on the branch (main not yet merged)
+
+Executed on `tauri/phase-0-scaffold`: deleted `electron/` (all 8 modules),
+`electron-builder.yml`, `build.yml`, `dist-electron/`; removed the electron /
+electron-builder / electron-updater / better-sqlite3 / vite-plugin-electron deps
+(320 npm packages); `queries.ts` + `schema.ts` moved `electron/` → `src/db/`
+(the codegen + vitest adapter now import from there); `vite.config.ts` is pure
+React; `package.json` `dev`/`build` are Tauri; `ci.yml` dropped the Electron
+e2e-smoke job; `tauri.yml` now fires on `v*`. Verified: tsc + lint + `cargo
+check` clean, 184 vitest pass, codegen + drift-check green.
+
+**Still gated (do NOT merge to `main` until):** the `tauri-v0.30.0` release
+finished green on all 4 targets (macOS arm + Windows already ✓), AND a live
+self-update works, AND `document-analyser` `feat/ai-provider-endpoints` merges
+to its main. `main` still ships Electron until then — the safety net holds.
+
+### Original flip checklist (for reference)
 
 Deleting `electron/` removes the only working shipping path, so this is gated on
 a **real, working Tauri release**, not merely on Phases 0–7 code:

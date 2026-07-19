@@ -1,17 +1,14 @@
 name: Tauri Build and Release
 
-# Tauri packaging + signed auto-update release. Deliberately manual/tag-gated
-# (NOT on every PR) so it doesn't double the Actions storage/compute the Electron
-# build.yml already spends during the migration. Trigger explicitly:
-#   - workflow_dispatch (button), or
-#   - pushing a tag matching tauri-v* (e.g. tauri-v1.0.0).
+# Tauri packaging + signed auto-update release. Triggered by a v* tag (or the
+# workflow_dispatch button). Builds/signs/notarizes installers on all targets
+# and publishes a draft-then-published release with latest.json (the updater
+# manifest tauri.conf.json points at).
 #
 # Structure mirrors numeron/release-tauri.yml (matrix args, includeUpdaterJson,
-# draft-then-publish). Deviations, both required: (1) trigger is manual/tauri-v*
-# not v*, so it doesn't collide with the Electron build.yml (which is on v*)
-# during coexistence — at the flip, delete build.yml and switch this to v*;
-# (2) macOS uses split runners (macos-14 arm + macos-13 intel) because the
-# PyInstaller backend can't cross-compile — it must be built natively per arch.
+# draft-then-publish). One deviation: macOS uses split runners (macos-14 arm +
+# macos-13 intel) because the PyInstaller backend can't cross-compile — it must
+# be built natively per arch.
 #
 # Secrets (all configured on this repo): the cert + passwords reuse the repo's
 # existing Electron names (CSC_LINK, CSC_KEY_PASSWORD, APPLE_APP_SPECIFIC_PASSWORD)
@@ -23,7 +20,7 @@ on:
   workflow_dispatch: {}
   push:
     tags:
-      - 'tauri-v*'
+      - 'v*'
 
 concurrency:
   group: tauri-${{ github.ref }}
@@ -254,7 +251,7 @@ jobs:
         with:
           # matrix.args carries the release overlay (backend sidecar) + target.
           args: ${{ matrix.args }}
-          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('tauri-v{0}', github.run_number) }}
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || format('v{0}', github.run_number) }}
           releaseName: 'Document Lens __VERSION__'
           releaseDraft: true
           prerelease: false
@@ -266,7 +263,7 @@ jobs:
   publish:
     needs: build
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/tauri-v')
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
