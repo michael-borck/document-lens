@@ -1,6 +1,5 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "//": "Release-only overlay merged at bundle time: `tauri build --config src-tauri/tauri.release.conf.json`. It adds the Python backend sidecar. externalBin is kept OUT of the base config because Tauri validates the binary exists even for `tauri dev` / `cargo check`, and dev spawns the backend from the sibling repo instead. CI builds the PyInstaller binary into binaries/document-lens-api-<target-triple> before invoking the build.",
   "bundle": {
     "externalBin": ["binaries/document-lens-api"]
   }

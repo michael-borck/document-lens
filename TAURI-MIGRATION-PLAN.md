@@ -411,14 +411,16 @@ project drive, so the only fix is to delete them before each build.
 `._*` from `src-tauri/` on every `npm run dev:tauri` / `build:tauri`. Use
 those scripts, not `tauri` directly.
 
-CI is unaffected (Linux/macOS runners use native filesystems) — and must stay
-that way: the `scripts/tauri.mjs` wrapper is **local-only**. It's wired to
-`dev:tauri`/`build:tauri`, NOT a bare `tauri` script, precisely so
-`tauri-action` doesn't pick it up. If it did, two things break on CI — npm
-injects a `--` that routes `--config` to cargo, and the wrapper's
-`CARGO_TARGET_DIR` redirect hides the bundles from `tauri-action`. CI uses the
-`@tauri-apps/cli` directly (like numeron). (Learned the hard way on the first
-`tauri-v0.30.0` run.)
+CI is unaffected (Linux/macOS runners use native filesystems). The
+`scripts/tauri.mjs` wrapper (target-dir redirect + AppleDouble sweep) is
+**local-only** — wired to `dev:tauri`/`build:tauri`. The bare `"tauri": "tauri"`
+script is the plain CLI that `tauri-action` invokes on CI (no target-dir
+redirect, so bundles land in `src-tauri/target` where tauri-action looks). Do
+NOT point the bare `tauri` script at the wrapper — its `CARGO_TARGET_DIR`
+redirect would hide the bundles from tauri-action. (First `tauri-v0.30.0` run
+actually failed on a different bug — a `"//"` comment key in
+`tauri.release.conf.json`; Tauri's config schema rejects unknown properties, so
+these files can't carry JSON comments.)
 
 The durable fix for both exFAT issues is moving the repo to an APFS volume;
 until then the wrapper keeps local builds green.
