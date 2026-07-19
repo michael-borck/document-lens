@@ -61,8 +61,7 @@ jobs:
         with:
           repository: michael-borck/document-analyser
           path: document-analyser-backend
-          # Includes the AI provider endpoints until that branch merges to main.
-          ref: feat/ai-provider-endpoints
+          ref: main
 
       - name: Enable long paths (Windows)
         if: runner.os == 'Windows'
