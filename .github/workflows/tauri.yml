@@ -6,9 +6,13 @@ name: Tauri Build and Release
 # manifest tauri.conf.json points at).
 #
 # Structure mirrors numeron/release-tauri.yml (matrix args, includeUpdaterJson,
-# draft-then-publish). One deviation: macOS uses split runners (macos-14 arm +
-# macos-13 intel) because the PyInstaller backend can't cross-compile — it must
-# be built natively per arch.
+# draft-then-publish). macOS is ARM-ONLY (macos-14): unlike the pure-Rust apps,
+# document-lens can't cross-compile the x86_64 Mac build because the PyInstaller
+# Python backend must be built natively per arch — which needs a scarce Intel
+# (macos-13) runner. Intel Macs are EOL (macOS 26 is their last release), and
+# the old Electron x64 DMG shipped a mismatched arm64 backend anyway, so Intel
+# was never really working. Re-add a macos-13 entry if genuine Intel demand
+# appears.
 #
 # Secrets (all configured on this repo): the cert + passwords reuse the repo's
 # existing Electron names (CSC_LINK, CSC_KEY_PASSWORD, APPLE_APP_SPECIFIC_PASSWORD)
@@ -38,10 +42,6 @@ jobs:
             target: aarch64-apple-darwin
             backend_ext: ''
             args: --config src-tauri/tauri.release.conf.json --target aarch64-apple-darwin
-          - os: macos-13
-            target: x86_64-apple-darwin
-            backend_ext: ''
-            args: --config src-tauri/tauri.release.conf.json --target x86_64-apple-darwin
           - os: ubuntu-22.04
             target: x86_64-unknown-linux-gnu
             backend_ext: ''
