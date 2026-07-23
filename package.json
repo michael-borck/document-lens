@@ -1,6 +1,6 @@
 {
   "name": "document-lens",
-  "version": "0.30.0",
+  "version": "0.31.0",
   "description": "Desktop research tool for analyzing document collections through keyword frameworks. Map documents to domains, track terminology, and surface patterns across corpora.",
   "author": "Michael Borck",
   "license": "MIT",

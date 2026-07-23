@@ -57,6 +57,8 @@ export interface TestDb {
     company?: string | null
     sector?: string | null
     extractedText?: string | null
+    /** null models a document whose word count was never stored. */
+    wordCount?: number | null
     status?: string
   }): string
   addDocToProject(projectId: string, documentId: string): void
@@ -172,7 +174,7 @@ export function createTestDb(): TestDb {
         company: opts.company === undefined ? null : opts.company,
         sector: opts.sector === undefined ? null : opts.sector,
         page_count: 1,
-        word_count: 100,
+        word_count: opts.wordCount === undefined ? 100 : opts.wordCount,
         extracted_text: opts.extractedText === undefined ? 'placeholder text' : opts.extractedText,
         pdf_metadata: null,
         status: opts.status ?? 'extracted',

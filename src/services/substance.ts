@@ -71,12 +71,16 @@ export function intensityPer1k(i: SubstanceInputs): number | null {
  * derived from a short document with few matches is thin; both dimensions must
  * be adequate, so we take the weaker of the two (a 50,000-word report with 2
  * matches is still thin evidence). Deterministic, no randomness.
+ *
+ * An UNKNOWN word count (null) is not the same as an EMPTY document (0). We
+ * can't judge length, so confidence rests on match volume alone rather than
+ * collapsing to 0 — otherwise a substantial report that simply has no stored
+ * word count gets notability 0 in Focus and sinks silently out of the ranking.
  */
 export function substanceConfidence(i: SubstanceInputs): number {
-  const wordConf = i.wordCount && i.wordCount > 0
-    ? Math.min(1, i.wordCount / WORDS_FOR_FULL_CONFIDENCE)
-    : 0
   const matchConf = Math.min(1, i.totalMatches / MATCHES_FOR_FULL_CONFIDENCE)
+  if (i.wordCount === null || i.wordCount === undefined) return matchConf
+  const wordConf = i.wordCount > 0 ? Math.min(1, i.wordCount / WORDS_FOR_FULL_CONFIDENCE) : 0
   return Math.min(wordConf, matchConf)
 }
 

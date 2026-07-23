@@ -60,8 +60,14 @@ describe('substanceConfidence', () => {
     // 50k words but only 2 matches → matchConf = 2/20 = 0.1 dominates
     expect(substanceConfidence({ ...base, wordCount: 50000, totalMatches: 2 })).toBeCloseTo(0.1)
   })
-  it('is 0 when word count is unknown', () => {
-    expect(substanceConfidence({ ...base, wordCount: null })).toBe(0)
+  it('falls back to match volume when the word count is unknown', () => {
+    // Unknown length ≠ empty document: judging on matches alone keeps the
+    // document rankable in Focus instead of zeroing its notability.
+    expect(substanceConfidence({ ...base, wordCount: null, totalMatches: 40 })).toBe(1)
+    expect(substanceConfidence({ ...base, wordCount: null, totalMatches: 5 })).toBeCloseTo(0.25)
+  })
+  it('is 0 for a genuinely empty document', () => {
+    expect(substanceConfidence({ ...base, wordCount: 0, totalMatches: 40 })).toBe(0)
   })
 })
 

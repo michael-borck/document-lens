@@ -56,6 +56,12 @@ export interface CompareResult {
   scoreFallback?: boolean
   /** Documents excluded from ranking (no extracted text). */
   excluded: number
+  /**
+   * Documents dropped from THIS metric because it can't be computed for them —
+   * currently only intensity with an unknown word count. Distinct from
+   * `excluded`: these documents have text and rank fine on other metrics.
+   */
+  unmeasured?: number
   /** When set, ranking was narrowed to a single keyword (display label). */
   keywordLabel?: string
 }
@@ -92,6 +98,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     throw new Error('Score metric requires a scoring rule definition')
   }
   let scoreFallback: boolean | undefined
+  let unmeasured = 0
 
   // 2. Load the corpus (usable docs + enabled keywords both polarities +
   //    synonym-aware counts), then figure out how many docs were excluded.
@@ -160,10 +167,18 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
         enabledKeywords: corpus.keywords.length,
         wordCount: doc.wordCount,
       })
+      if (input.metric === 'intensity' && signals.intensity === null) {
+        // Unknown word count → intensity is genuinely uncomputable here.
+        // Coercing it to 0 would rank the document as maximally sparse AND
+        // drag the corpus mean/σ down for every other document (Focus
+        // z-scores these values), so drop it and report it separately.
+        unmeasured++
+        continue
+      }
       const value =
         input.metric === 'repetition' ? signals.repetition
         : input.metric === 'diversity' ? signals.diversity
-        : (signals.intensity ?? 0)
+        : signals.intensity!
       const point = makePoint(doc, value)
       point.confidence = signals.confidence
       points.push(point)
@@ -290,6 +305,7 @@ export async function computeCompare(input: ComputeCompareInput): Promise<Compar
     group: input.group,
     scoreFallback,
     excluded,
+    unmeasured: unmeasured > 0 ? unmeasured : undefined,
     keywordLabel,
   }
 }

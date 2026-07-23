@@ -95,6 +95,38 @@ describe('computeCompare', () => {
     expect(r.points.map((p) => p.documentId)).toEqual([alpha])
   })
 
+  it('drops docs with no word count from the intensity ranking instead of scoring them 0', async () => {
+    // A missing word count means intensity is uncomputable, not zero. Ranking
+    // such a doc as maximally sparse would also drag the corpus mean/σ down for
+    // every other doc, since Focus z-scores these same values.
+    const { pid, list, alpha, beta } = seed()
+    const noWords = t.document({ title: 'Unmeasured', extractedText: 'energy water', wordCount: null })
+    t.addDocToProject(pid, noWords)
+
+    const r = await computeCompare({
+      projectId: pid, keywordListId: list, metric: 'intensity', polarity: 'positive', group: 'none',
+    })
+    expect(r.points.map((p) => p.documentId).sort()).toEqual([alpha, beta].sort())
+    expect(r.unmeasured).toBe(1)
+    expect(r.points.every((p) => p.value > 0)).toBe(true)
+  })
+
+  it('still ranks a doc with no word count on length-independent metrics', async () => {
+    const { pid, list } = seed()
+    const noWords = t.document({ title: 'Unmeasured', extractedText: 'energy water', wordCount: null })
+    t.addDocToProject(pid, noWords)
+
+    const r = await computeCompare({
+      projectId: pid, keywordListId: list, metric: 'diversity', polarity: 'positive', group: 'none',
+    })
+    const point = r.points.find((p) => p.documentId === noWords)
+    expect(point).toBeDefined()
+    expect(r.unmeasured).toBeUndefined()
+    // Confidence falls back to match volume rather than collapsing to 0, so the
+    // doc stays rankable in Focus (2 matches / 20 for full confidence).
+    expect(point!.confidence).toBeCloseTo(0.1)
+  })
+
   it('scores via the Score Evaluator (v1 mode)', async () => {
     const { pid, list, alpha, beta, rule } = seed()
     const r = await computeCompare({

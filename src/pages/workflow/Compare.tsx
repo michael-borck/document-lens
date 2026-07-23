@@ -266,7 +266,7 @@ export function Compare() {
               <SelectItem value="year">Year</SelectItem>
               <SelectItem value="sector">Sector</SelectItem>
               <SelectItem value="type">Type</SelectItem>
-              <SelectItem value="companySize">Company size</SelectItem>
+              <SelectItem value="companySize">Organisation size</SelectItem>
             </SelectContent>
           </Select>
         </Field>
@@ -318,7 +318,7 @@ export function Compare() {
           )}
           {allCompanySizes.length > 0 && (
             <FilterCheckboxList
-              label="Filter by company size"
+              label="Filter by organisation size"
               options={allCompanySizes}
               selected={companySizes}
               onToggle={toggleCompanySize}
@@ -452,9 +452,11 @@ function ResultsView({ result }: { result: CompareResult }) {
       <EmptyState
         title="No documents matched the filters"
         description={
-          result.excluded > 0
-            ? `${result.excluded} document(s) excluded because they have no extracted text. Adjust the filters or import more documents.`
-            : 'Adjust the year / company / sector filters and try again.'
+          result.unmeasured
+            ? `${result.unmeasured} document(s) have no word count, so intensity (matches per 1,000 words) can't be measured for them. Try another metric.`
+            : result.excluded > 0
+              ? `${result.excluded} document(s) excluded because they have no extracted text. Adjust the filters or import more documents.`
+              : 'Adjust the year / company / sector filters and try again.'
         }
       />
     )
@@ -473,6 +475,7 @@ function ResultsView({ result }: { result: CompareResult }) {
         )}
         {' · '}{result.points.length} document{result.points.length === 1 ? '' : 's'}
         {result.excluded > 0 && ` (${result.excluded} excluded — no extracted text)`}
+        {result.unmeasured ? ` · ${result.unmeasured} not ranked — no word count, so intensity can't be measured` : ''}
         {result.scoreFallback && (
           <> · <strong>fallback to v1 Pillar coverage</strong> (Function classification incomplete)</>
         )}

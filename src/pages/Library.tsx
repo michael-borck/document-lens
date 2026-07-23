@@ -520,7 +520,7 @@ function DocumentTable({
             <option value="type">Type</option>
             <option value="sector">Sector</option>
             <option value="company">Company</option>
-            <option value="companySize">Company size</option>
+            <option value="companySize">Organisation size</option>
             <option value="year">Year</option>
           </select>
           <input

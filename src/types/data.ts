@@ -30,7 +30,9 @@ export interface Document {
   sector: string | null
   /** Document type (e.g. "Annual Report"). Auto-detected on import, free-text, user-editable. */
   type: string | null
-  /** Coarse company size (Small/Medium/Large) — manual faceting dimension, nullable. */
+  /** Coarse organisation size (Small/Medium/Large) — manual faceting dimension, nullable.
+   *  Deliberately unitless: what "Large" means (revenue, headcount, student load) is the
+   *  researcher's call for their corpus. Column stays `company_size` for now. */
   companySize: string | null
   pageCount: number | null
   wordCount: number | null
