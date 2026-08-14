@@ -58,6 +58,11 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0027](0027-image-text-extraction-boundary.md) | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | Proposed |
 | [0028](0028-synthetic-test-corpus.md) | Synthetic test corpus: Markdown sources in-repo, PDFs built on demand | Proposed |
 | [0029](0029-focus-first-hub.md) | Focus-first hub: findings deep-link into the tools | Accepted |
+| [0030](0030-find-judge-split.md) | The find/judge split: the tool finds, the researchers judge | Accepted |
+| [0031](0031-per-mention-validation-export.md) | Per-mention validation export, deduplicated one row per SDG per passage | Accepted (implemented) |
+| [0032](0032-two-zone-prominence.md) | Two-zone positional prominence: Leadership voice vs Body | Proposed |
+| [0033](0033-five-functions-mission-groups.md) | Five delivery Functions (+ human-only Cross-cutting); grouping derived from university name | Accepted (implemented) |
+| [0034](0034-framework-invocation-terms.md) | Framework-invocation terms counted apart from topic hits | Proposed |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision

@@ -94,3 +94,7 @@ samples/test-corpus/*
 !samples/test-corpus/docs/
 
 .superpowers/
+
+# Researcher correspondence + coding sheet (private until co-author approval
+# to publish; see research-context/README.md)
+research-context/
