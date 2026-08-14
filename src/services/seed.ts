@@ -87,7 +87,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
 
   const functionAxis = await createAxis({
     name: 'Function',
-    description: 'Universities core functions: Teaching, Research, Engagement, Operations. Inferred per section via embedding similarity (deterministic, batch-friendly).',
+    description: 'Universities delivery functions: Research, Teaching/curriculum, Engagement, Campus operations, Governance. Inferred per section via embedding similarity (deterministic, batch-friendly). Cross-cutting is a human-only override, never classified (ADR-0033).',
     type: 'document-context',
     isHierarchical: false,
     isBuiltin: true,
@@ -118,7 +118,7 @@ export async function seedSustainabilityDefaults(): Promise<SeedResult> {
     pillarValueByKey.set(p.value, value)
   }
 
-  // Function values: teaching / research / engagement / operations
+  // Function values: research / teaching / engagement / operations / governance
   for (const f of FUNCTIONS) {
     await createAxisValue({
       axisId: functionAxis.id,
@@ -195,10 +195,12 @@ async function seedWeddingCakeScore(
   if (existing.some((r) => r.name === WEDDING_CAKE_SCORE_NAME || r.name === '5-level Wedding Cake Score')) return 0
 
   // Definition shape (interpreted by the rule evaluator, not by SQL).
-  // Rule logic: count how many Function values (Teaching, Research,
-  // Engagement, Operations) have keyword matches in ALL THREE pillars
-  // (Biosphere, Society, Economy) — Partnership is excluded from the
-  // requirement. Result is the count (0–4), mapped to Levels 0–4.
+  // Rule logic: count how many Function values (Research, Teaching/
+  // curriculum, Engagement, Campus operations, Governance) have keyword
+  // matches in ALL THREE pillars (Biosphere, Society, Economy) —
+  // Partnership is excluded from the requirement. Result is the count
+  // (0–5), mapped to Levels 0–5 over a 3 × 5 = 15-cell coverage grid
+  // (ADR-0033).
   const definition = {
     type: 'wedding-cake',
     version: 1,
@@ -210,16 +212,17 @@ async function seedWeddingCakeScore(
   }
 
   const outputLevels = [
-    { value: 0, label: 'Level 0', description: 'No core function delivered economic, environmental and social SDGs at the same time.' },
-    { value: 1, label: 'Level 1', description: 'One core function delivered economic, environmental and social SDGs at the same time.' },
-    { value: 2, label: 'Level 2', description: 'Two core functions delivered economic, environmental and social SDGs at the same time.' },
-    { value: 3, label: 'Level 3', description: 'Three core functions delivered economic, environmental and social SDGs at the same time.' },
-    { value: 4, label: 'Level 4', description: 'All four core functions delivered economic, environmental and social SDGs at the same time.' },
+    { value: 0, label: 'Level 0', description: 'No delivery function delivered economic, environmental and social SDGs at the same time.' },
+    { value: 1, label: 'Level 1', description: 'One delivery function delivered economic, environmental and social SDGs at the same time.' },
+    { value: 2, label: 'Level 2', description: 'Two delivery functions delivered economic, environmental and social SDGs at the same time.' },
+    { value: 3, label: 'Level 3', description: 'Three delivery functions delivered economic, environmental and social SDGs at the same time.' },
+    { value: 4, label: 'Level 4', description: 'Four delivery functions delivered economic, environmental and social SDGs at the same time.' },
+    { value: 5, label: 'Level 5', description: 'All five delivery functions delivered economic, environmental and social SDGs at the same time.' },
   ]
 
   await createScoringRule({
     name: WEDDING_CAKE_SCORE_NAME,
-    description: 'For each Core Function (Teaching, Research, Engagement, Operations), check whether the document delivers SDGs in all three Pillars (Biosphere, Society, Economy) simultaneously. The score is the count of Functions that satisfy this — Level 0 (none) to Level 4 (all four).',
+    description: 'For each delivery Function (Research, Teaching/curriculum, Engagement, Campus operations, Governance), check whether the document delivers SDGs in all three Pillars (Biosphere, Society, Economy) simultaneously. The score is the count of Functions that satisfy this — Level 0 (none) to Level 5 (all five).',
     isBuiltin: true,
     definition,
     outputLevels,

@@ -116,12 +116,13 @@ intersecting these tag sets.
 
 ## The Wedding Cake Score (the headline scoring rule)
 
-For each document, ask: of the four organisational **Functions**
-(Operations, Supporting, Awareness, Educating), how many deliver all
-three sustainability **Pillars** (Biosphere, Society, Economy)?
+For each document, ask: of the five delivery **Functions**
+(Research, Teaching/curriculum, Engagement, Campus operations,
+Governance), how many deliver all three sustainability **Pillars**
+(Biosphere, Society, Economy)?
 
 - **Level 0** — none qualify
-- **Level 4** — all four Functions cover all three Pillars
+- **Level 5** — all five Functions cover all three Pillars
 
 The score is grounded in the SDG Wedding Cake model (Rockström et al.).
 Function classification is automatic via sentence embeddings against

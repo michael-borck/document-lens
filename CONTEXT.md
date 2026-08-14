@@ -79,9 +79,11 @@ A value of the Wedding-Cake Pillar **Lens** (Biosphere / Society / Economy /
 Partnership), derived from SDG tags. Keyword-attached.
 
 **Function**:
-A value of the Function **Lens** (Teaching / Research / Engagement /
-Operations), inferred per section by embedding similarity (document-context,
-deterministic per model — IA-1).
+A value of the Function **Lens** (Research / Teaching/curriculum /
+Engagement / Campus operations / Governance), inferred per section by
+embedding similarity (document-context, deterministic per model — IA-1).
+The researchers' sixth domain value, Cross-cutting, is a human-only
+override — never a classification target (ADR-0033).
 
 **Project Corpus**:
 The loaded, filtered analysis inputs for one run, behind a single primitive:

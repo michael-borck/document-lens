@@ -77,15 +77,31 @@ export function countConcept(text: string, terms: string[]): number {
 }
 
 /**
- * Extract the sentence containing a span (runs between sentence-ending
- * punctuation or newlines). Used by applyExclusions to scope the veto check.
+ * Boundaries of the sentence containing a span (runs between
+ * sentence-ending punctuation or newlines). `end` is exclusive and stops
+ * BEFORE the terminating punctuation character, matching the historical
+ * exclusion-window behaviour. Also the passage-grouping unit for the
+ * per-mention export: spans sharing a sentence share these bounds.
  */
-function getSentenceWindow(text: string, spanStart: number, spanEnd: number): string {
+export function sentenceWindowBounds(
+  text: string,
+  spanStart: number,
+  spanEnd: number
+): { start: number; end: number } {
   let lo = spanStart
   while (lo > 0 && !/[.!?\n]/.test(text[lo - 1])) lo--
   let hi = spanEnd
   while (hi < text.length && !/[.!?\n]/.test(text[hi])) hi++
-  return text.slice(lo, hi)
+  return { start: lo, end: hi }
+}
+
+/**
+ * Extract the sentence containing a span. Used by applyExclusions to scope
+ * the veto check.
+ */
+function getSentenceWindow(text: string, spanStart: number, spanEnd: number): string {
+  const { start, end } = sentenceWindowBounds(text, spanStart, spanEnd)
+  return text.slice(start, end)
 }
 
 /**

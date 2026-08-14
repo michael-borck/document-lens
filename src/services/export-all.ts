@@ -7,12 +7,17 @@
  * Files produced:
  *   documents.csv        — project document inventory
  *   keyword-matches.csv  — per (document × keyword) match counts + lens tags
+ *   mentions.csv         — one row per mention, deduplicated one row per
+ *                          primary-axis value (SDG) per passage, judgement
+ *                          columns empty (ADR-0031)
+ *   mention-counts.csv   — raw vs deduplicated mention counts per document
  *   score-breakdown.csv  — per (document × subject/category) detail (scoring rule required)
  *   track.csv            — year-by-year match and score aggregates
  */
 
 import { stringifyCsv } from './csv'
 import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
+import { buildPerMentionFiles } from './per-mention-export'
 import { computeCoverage } from './coverage'
 import { computeCoverage2D } from './coverage-2d'
 import { evaluateScore } from './scoring'
@@ -43,6 +48,12 @@ export async function exportAllData(input: ExportAllInput): Promise<ExportFile[]
 
   files.push(buildDocumentsCSV(docs))
   files.push(await buildKeywordMatchesCSV(docs, posCorpus, cntCorpus, keywordListId))
+
+  const def = (scoringRule?.definition ?? {}) as Record<string, unknown>
+  const subjectLensId = (def.subjectLensId ?? def.functionLensId ?? null) as string | null
+  files.push(
+    ...(await buildPerMentionFiles({ docs, posCorpus, cntCorpus, keywordListId, subjectLensId }))
+  )
 
   if (scoringRule) {
     const breakdown = await buildScoreBreakdownCSV(projectId, keywordListId, scoringRule, docs)

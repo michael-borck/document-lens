@@ -9,6 +9,9 @@ export default defineConfig({
     environment: 'node',
     environmentMatchGlobs: [['**/*.test.tsx', 'jsdom']],
     include: ['src/**/*.test.{ts,tsx}'],
+    // macOS writes AppleDouble ("._foo.ts") metadata twins on exFAT volumes;
+    // they aren't source and esbuild can't parse them.
+    exclude: ['**/node_modules/**', '**/._*'],
     coverage: {
       provider: 'v8',
       // text = CI log summary; lcov = artifact / external tools; html = local browsing.

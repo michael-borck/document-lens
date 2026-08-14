@@ -272,11 +272,16 @@ function SetupTopic() {
       <H2>Exporting raw data</H2>
       <P>
         The <strong>Export data</strong> button (top-right header, beside <em>Export bundle</em>)
-        writes four CSVs to a folder you choose: <Code>documents.csv</Code>,{' '}
-        <Code>keyword-matches.csv</Code> (one row per match, with axis-tag columns),{' '}
-        <Code>score-breakdown.csv</Code>, and <Code>track.csv</Code>. Useful for a
-        collaborator who wants the raw numbers without installing the app, or for
-        independent analysis in a spreadsheet or statistical package.
+        writes six CSVs to a folder you choose: <Code>documents.csv</Code>,{' '}
+        <Code>keyword-matches.csv</Code> (match <em>counts</em> per document × keyword, with
+        axis-tag columns), <Code>mentions.csv</Code> (one row per mention for manual
+        validation — deduplicated to one row per SDG per passage, with the passage, page,
+        and suggested domain pre-filled and the judgement columns Relevance / Framing /
+        Prominence / Notes left empty for the coder), <Code>mention-counts.csv</Code> (raw
+        vs deduplicated mention totals per document), <Code>score-breakdown.csv</Code>, and{' '}
+        <Code>track.csv</Code>. Useful for a collaborator who wants the raw numbers without
+        installing the app, or for independent analysis in a spreadsheet or statistical
+        package.
       </P>
       <Tip>
         <strong>Bundle export</strong> (.lens file) is different — it packages the whole
@@ -350,8 +355,8 @@ function MapTopic() {
       </UL>
       <P>
         Use the two-axis view to test the Wedding Cake hypothesis per document: does
-        this report deliver SDG 13 (Climate Action) through Operations, or only through
-        Awareness? An empty Function column means the doc isn't delivering any SDG via
+        this report deliver SDG 13 (Climate Action) through Campus operations, or only
+        through Engagement? An empty Function column means the doc isn't delivering any SDG via
         that activity type.
       </P>
       <P>
@@ -371,7 +376,7 @@ function ScoreTopic() {
       <P>
         Score runs each document through the project's <strong>scoring rule</strong>{' '}
         and gives it a level — a small integer like <Code>3 / 4</Code>. The default
-        rule is the <strong>Wedding Cake Score</strong> (levels 0–4, counting how many of the 4 Functions achieve coverage across all 3 pillars). The big
+        rule is the <strong>Wedding Cake Score</strong> (levels 0–5, counting how many of the 5 Functions achieve coverage across all 3 pillars). The big
         number is "how many criteria this document met"; the{' '}
         <strong>Why this score</strong> panel underneath lists exactly which ones.
       </P>

@@ -66,6 +66,16 @@ export const PILLARS: Array<{
   },
 ]
 
+/**
+ * Five delivery Functions (ADR-0033). Values, display names, and
+ * descriptions follow the domain researchers' "Coding legend" v9
+ * verbatim in substance — the descriptions drive the embedding
+ * classification, so their wording is the researchers', not ours.
+ *
+ * Their sixth domain value, Cross-cutting (a whole-of-institution claim
+ * naming no single function), is deliberately NOT listed: assigning it
+ * is a human judgement the classifier must never make.
+ */
 export const FUNCTIONS: Array<{
   value: string
   displayName: string
@@ -73,27 +83,38 @@ export const FUNCTIONS: Array<{
   sortOrder: number
 }> = [
   {
-    value: 'teaching',
-    displayName: 'Teaching',
-    description: 'Curriculum, pedagogy, student learning, course design.',
+    value: 'research',
+    displayName: 'Research',
+    description:
+      'The generation of new knowledge: research projects, grants, fellowships and contracts to do research; institutes and centres; research staff and expertise; HDR supervision and research training; outputs such as publications, creative works, datasets and findings; novel methods, processes, patents and frameworks; research into teaching itself (SoTL). Is new knowledge being generated?',
     sortOrder: 1,
   },
   {
-    value: 'research',
-    displayName: 'Research',
-    description: 'Inquiry, innovation, knowledge production, academic outputs.',
+    value: 'teaching',
+    displayName: 'Teaching/curriculum',
+    description:
+      'Facilitating learning: degrees, units, courses, executive education, MOOCs and micro-credentials; enrolments, scholarships and funded places to study; curriculum and assessment; student learning, support, retention and completion; research built into a course. Is the passage about students learning or a programme of study?',
     sortOrder: 2,
   },
   {
     value: 'engagement',
     displayName: 'Engagement',
-    description: 'Community partnerships, outreach, reconciliation, public-facing work.',
+    description:
+      'Mobilising knowledge, and relationships with outside parties: reviewing, editorial and learned-society roles; expert advice, consultancy and policy influence; partnerships with industry, government, community and other universities; advisory boards, joint appointments, philanthropy; public communication, advocacy, media, events and submissions; global partnerships and alliances. Is knowledge being put to work, or a relationship described?',
     sortOrder: 3,
   },
   {
     value: 'operations',
-    displayName: 'Operations',
-    description: 'Infrastructure, administration, sustainability practices, internal systems.',
+    displayName: 'Campus operations',
+    description:
+      'How the university sustains and runs itself as a physical and financial entity: buildings and energy, operational emissions and net-zero-operations targets, water, waste, procurement and supply chain, transport and travel, the university\'s own investments and divestment. The university acting on itself, not on the world. Is the passage about the university running itself?',
     sortOrder: 4,
+  },
+  {
+    value: 'governance',
+    displayName: 'Governance',
+    description:
+      'How the university sets its direction and holds itself accountable: strategic plans, mission and values, owned commitments and targets; councils, boards, committees, executive roles and portfolios, responsibility and reporting lines; risk management, oversight, audit, compliance, disclosure and policy frameworks. The steering of the institution, not the activity being steered. Is the passage about who decides, who is accountable, or how the institution is steered and monitored?',
+    sortOrder: 5,
   },
 ]
