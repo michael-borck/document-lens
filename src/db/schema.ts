@@ -25,8 +25,12 @@
  *      thumbnail + display renditions, page anchor for jump-to-page,
  *      and nullable text columns for the ADR-0027 phase-2 image-text
  *      classes: verbatim OCR/caption vs flagged AI description)
+ *   7: no DDL change — seed-semantics bump (five-Function lens + 0-5
+ *      Wedding Cake, ADR-0033). Forces the greenfield wipe so databases
+ *      seeded with the four-Function setup re-seed on update; without it,
+ *      idempotent seeding keeps the stale axes forever.
  */
-export const SCHEMA_VERSION = 6
+export const SCHEMA_VERSION = 7
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence

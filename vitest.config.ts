@@ -3,6 +3,7 @@ import path from 'path'
 
 export default defineConfig({
   resolve: { alias: { '@': path.resolve(__dirname, './src') } },
+  define: { __APP_VERSION__: JSON.stringify('test') },
   test: {
     // Services run in node (node:sqlite-backed DbDriver); hook/component tests
     // (*.test.tsx) need a DOM, so route those to jsdom.

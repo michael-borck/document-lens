@@ -62,6 +62,9 @@ export function Sidebar() {
       <div className="px-4 py-5 border-b border-border">
         <div className="font-display text-lg font-semibold tracking-tight">
           Document Lens
+          <span className="ml-2 text-[10px] font-normal tracking-normal text-muted-foreground align-middle">
+            v{__APP_VERSION__}
+          </span>
         </div>
       </div>
       <div className="flex-1 py-3">
