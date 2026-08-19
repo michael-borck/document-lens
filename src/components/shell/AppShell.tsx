@@ -12,6 +12,11 @@ export function AppShell() {
     <div className="min-h-screen bg-background">
       {isMac && (
         <div
+          // data-tauri-drag-region is Tauri's grab-handle mechanism; the
+          // .app-drag class (-webkit-app-region) is the Electron one and is
+          // inert in Tauri's webview — kept only so a future Electron build
+          // of this shell keeps working.
+          data-tauri-drag-region
           className="app-drag fixed top-0 left-0 right-0 h-7 z-50 pointer-events-auto"
           style={{ paddingLeft: 70 }}
           aria-hidden="true"
