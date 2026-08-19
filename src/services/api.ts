@@ -41,6 +41,19 @@ class ApiClient {
     if (!this.urlInitialized && this.initPromise) {
       await this.initPromise
     }
+    // The desktop bridge (window.electron) is installed by main.tsx AFTER
+    // module evaluation, so the token fetched at construction time is null
+    // under Tauri (Electron's preload happened to set the bridge before any
+    // renderer code, masking the ordering). Without the token every backend
+    // request 401s and extraction/classification fail bare. Re-try on each
+    // request until the bridge answers; once set, it's set for the session.
+    if (!this.authToken) {
+      try {
+        this.authToken = await getBackendToken()
+      } catch {
+        // Stay unauthenticated — valid against a backend with auth disabled.
+      }
+    }
   }
 
   setBaseUrl(url: string) {
