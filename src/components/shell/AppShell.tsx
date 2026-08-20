@@ -23,11 +23,14 @@ export function AppShell() {
         />
       )}
 
-      <div className={isMac ? 'pt-7' : undefined}>
+      {/* h-screen on THIS padded box (not the flex row): border-box sizing
+          makes the content area 100vh minus the drag-strip padding, so the
+          sidebar footer isn't pushed 28px below the window edge on macOS. */}
+      <div className={isMac ? 'pt-7 h-screen' : 'h-screen'}>
         <Toaster />
         <UpdateNotification />
 
-        <div className="flex h-screen">
+        <div className="flex h-full">
           <Sidebar />
           <main className="flex-1 flex flex-col overflow-hidden">
             <header className="h-10 border-b border-border bg-card/40 flex items-center justify-end px-4">
