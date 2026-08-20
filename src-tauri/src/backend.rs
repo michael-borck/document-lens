@@ -470,7 +470,18 @@ fn spawn_child(spec: &SpawnSpec, token: &str) -> std::io::Result<Child> {
     cmd.args(&args)
         .env("DOCUMENT_ANALYSER_PORT", BACKEND_PORT.to_string())
         .env("DOCUMENT_ANALYSER_HOST", BACKEND_HOST)
-        .env("DOCUMENT_ANALYSER_MODE", "desktop")
+        // NOT MODE=desktop: that branch's CORS regex predates Tauri — it
+        // allows Electron's origins (localhost/127.0.0.1/file/null) but not
+        // the packaged-webview origins, so every renderer→backend fetch dies
+        // with a preflight 400 ("Load failed") in production builds while dev
+        // (http://localhost:5173, allowed) works. Explicit allowlist instead:
+        // tauri://localhost is macOS/Linux, http(s)://tauri.localhost is
+        // Windows WebView2, the localhost pair is `tauri dev`. Verified
+        // against the bundled backend binary 2026-08-20.
+        .env(
+            "DOCUMENT_ANALYSER_ALLOWED_ORIGINS",
+            "tauri://localhost,https://tauri.localhost,http://tauri.localhost,http://localhost:5173,http://localhost:3000",
+        )
         .env("DOCUMENT_ANALYSER_AUTH_TOKEN", token)
         .env("PYTHONUNBUFFERED", "1")
         .stdin(Stdio::null())

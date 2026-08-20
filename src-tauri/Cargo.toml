@@ -1,6 +1,6 @@
 [package]
 name = "document-lens"
-version = "0.32.3"
+version = "0.32.4"
 description = "Document Lens desktop shell (Tauri)"
 authors = ["Michael Borck"]
 license = "MIT"
