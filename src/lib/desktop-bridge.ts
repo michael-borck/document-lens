@@ -188,6 +188,7 @@ export function installDesktopBridge(): void {
   if (!isTauri()) return
   ;(window as unknown as { electron: ElectronAPI }).electron = buildBridge()
   installErrorForwarding()
+  updater.installUpdateTriggers()
   console.info('[tauri-bridge] Tauri desktop bridge installed (Phase 0).')
   logToTerminal('info', 'desktop bridge installed (Phase 0) — renderer bundle is executing')
 }

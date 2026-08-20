@@ -12,6 +12,8 @@
 
 import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { listen } from '@tauri-apps/api/event'
+import { toast } from '@/stores/toastStore'
 import type { UpdateInfo, UpdateProgress } from '@/types/electron'
 
 type Listener<T> = (v: T) => void
@@ -44,7 +46,7 @@ function messageOf(e: unknown): string {
   return e instanceof Error ? e.message : String(e)
 }
 
-export async function checkForUpdates(): Promise<{
+export async function checkForUpdates(opts?: { quietErrors?: boolean }): Promise<{
   updateAvailable: boolean
   version?: string
   error?: string
@@ -60,9 +62,41 @@ export async function checkForUpdates(): Promise<{
     return { updateAvailable: false }
   } catch (e) {
     const error = messageOf(e)
-    emit(listeners.error, error)
+    // quietErrors: the unattended startup check must not surface an error
+    // banner for transient failures (offline, CDN hiccup) — the user asked
+    // for nothing. Manual checks still report loudly.
+    if (!opts?.quietErrors) emit(listeners.error, error)
     return { updateAvailable: false, error }
   }
+}
+
+/**
+ * The two update-check triggers Electron's main process used to own, never
+ * ported until now (the menu item was a stub and NOTHING called
+ * checkForUpdates, so the updater had never once run in a Tauri build):
+ *
+ *  - Help/App-menu "Check for Updates…" → menu.rs emits
+ *    `updates:check-requested`. A manual check answers EVERY outcome —
+ *    including "you're up to date" — because a silent success is
+ *    indistinguishable from a broken button.
+ *  - A one-shot startup check, delayed so it never competes with the
+ *    analysis engine's cold start, quiet on both no-update and errors.
+ *
+ * Called once from installDesktopBridge() (Tauri shell only).
+ */
+export function installUpdateTriggers(): void {
+  void listen('updates:check-requested', async () => {
+    const result = await checkForUpdates()
+    if (result.error) {
+      toast.error(`Update check failed: ${result.error}`)
+    } else if (!result.updateAvailable) {
+      toast.success(`You're up to date (v${__APP_VERSION__})`)
+    }
+    // update available → the UpdateNotification banner announces it.
+  })
+  window.setTimeout(() => {
+    void checkForUpdates({ quietErrors: true })
+  }, 30_000)
 }
 
 export async function downloadUpdate(): Promise<{ success: boolean; error?: string }> {

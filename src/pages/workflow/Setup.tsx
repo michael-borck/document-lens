@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useLocation, useOutletContext } from 'react-router-dom'
-import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, ArrowDown, Lock, Download } from 'lucide-react'
+import { FileText, Tag, Layers, Award, Plus, X, Sparkles, RefreshCw, Package, FileWarning, Link as LinkIcon, AlertTriangle, Lock, Download } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -204,12 +204,6 @@ export function Setup() {
         </div>
       </header>
 
-      {/* Surfaces incomplete-classification status near the top of the page so
-          it's not buried inside section #4 of 5. Renders nothing when the
-          project has no document-context lens (classification doesn't apply),
-          no documents (nothing to classify), or all docs already classified. */}
-      <ClassificationBanner vm={vm} />
-
       <div className="space-y-8">
         <DocumentsSection vm={vm} />
         <KeywordsSection
@@ -222,7 +216,6 @@ export function Setup() {
           activeAxisIds={new Set(vm.project.axisIds)}
           onToggle={handleToggleAxis}
         />
-        <ClassificationSection vm={vm} />
         <ScoringRuleSection
           allRules={allRules}
           activeRuleId={vm.scoringRule?.id ?? null}
@@ -230,66 +223,6 @@ export function Setup() {
           locked={vm.project.lens === 'sustainability'}
         />
       </div>
-    </div>
-  )
-}
-
-/**
- * Banner shown above the Setup sections when Function classification is
- * incomplete. Companion to ClassificationSection (which lives in section 4
- * of 5 and is easy to scroll past). Both components independently fetch the
- * classification status — a single SQLite query each, faster than the
- * refactor needed to share state.
- */
-function ClassificationBanner({ vm }: { vm: ProjectViewModel }) {
-  const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
-  const activeLensId = contextAxes[0]?.id ?? ''
-  const [status, setStatus] = useState<ClassificationStatus | null>(null)
-
-  useEffect(() => {
-    if (!activeLensId || vm.documentCount === 0) {
-      setStatus(null)
-      return
-    }
-    getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
-  }, [vm.project.id, vm.documentCount, activeLensId])
-
-  // Don't render when there's nothing actionable: no context axis, no docs,
-  // status not loaded yet, or all docs already classified.
-  if (!status || contextAxes.length === 0 || vm.documentCount === 0) return null
-  if (status.classifiedDocuments === status.totalDocuments) return null
-
-  const remaining = status.totalDocuments - status.classifiedDocuments
-  const lensName = contextAxes[0]?.name ?? 'document-context'
-
-  return (
-    <div
-      role="status"
-      className="mb-6 flex items-start gap-3 border border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/20 rounded-md p-4"
-    >
-      <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-foreground">
-          Function classification incomplete
-        </p>
-        <p className="text-xs text-muted-foreground mt-0.5">
-          <strong>{remaining}</strong> of <strong>{status.totalDocuments}</strong> document
-          {status.totalDocuments === 1 ? '' : 's'} need classifying on the{' '}
-          <strong>{lensName}</strong> lens before the <strong>Map</strong> two-axis matrix and the
-          full <strong>Wedding Cake Score</strong> can compute.
-        </p>
-      </div>
-      <Button
-        variant="outline"
-        size="sm"
-        className="gap-1.5 shrink-0"
-        onClick={() => document.getElementById('classification')?.scrollIntoView({
-          behavior: 'smooth', block: 'start',
-        })}
-      >
-        <ArrowDown className="h-3.5 w-3.5" />
-        Jump to Classification
-      </Button>
     </div>
   )
 }
@@ -333,13 +266,33 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
     setDocs(rows.filter((d): d is Document => d !== null))
   }
 
-  // Classification affordance right next to "Add documents". Gated on there
-  // being a document-context (Function/Pillar) axis to classify against; the
-  // detailed axis picker + progress live in the Classification section below.
+  // Classification lives HERE, beside "Add documents" — the single entry
+  // point (the old dedicated section + top-of-page banner duplicated it).
+  // Gated on a document-context (Function/Pillar) axis AND on the analysis
+  // engine being ready: it takes ~2 min after launch to load its model, and
+  // firing into that window used to yield a bare "failed".
   const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
   const hasContextAxis = contextAxes.length > 0
   const [classifying, setClassifying] = useState(false)
   const [classifyStatus, setClassifyStatus] = useState<ClassificationStatus | null>(null)
+  const [classifyProgress, setClassifyProgress] = useState<ClassifyDocumentProgress | null>(null)
+
+  const [enginePhase, setEnginePhase] = useState<string>('checking')
+  useEffect(() => {
+    // No desktop shell (plain-browser dev / tests) → no supervisor to ask;
+    // assume ready rather than dead-locking the button.
+    if (!window.electron?.getBackendStatus) {
+      setEnginePhase('ready')
+      return
+    }
+    let mounted = true
+    window.electron.getBackendStatus()
+      .then((s) => { if (mounted) setEnginePhase(s.phase) })
+      .catch(() => { if (mounted) setEnginePhase('unreachable') })
+    const unsub = window.electron.onBackendStatusChanged?.((s) => setEnginePhase(s.phase))
+    return () => { mounted = false; unsub?.() }
+  }, [])
+  const engineReady = enginePhase === 'ready'
 
   useEffect(() => {
     if (!hasContextAxis || vm.documentCount === 0) { setClassifyStatus(null); return }
@@ -353,8 +306,9 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
   const handleClassify = async () => {
     if (!hasContextAxis) return
     setClassifying(true)
+    setClassifyProgress(null)
     try {
-      const result = await classifyProjectFunctions(vm.project.id, contextAxes[0].id)
+      const result = await classifyProjectFunctions(vm.project.id, contextAxes[0].id, setClassifyProgress)
       setClassifyStatus(await getClassificationStatus(vm.project.id, contextAxes[0].id))
       const summary = `Classified ${result.documentsProcessed} document${result.documentsProcessed === 1 ? '' : 's'} (${result.totalSectionsTagged} sections tagged)`
       if (result.documentsFailed > 0) {
@@ -369,6 +323,7 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
       toast.error(`Classification failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
       setClassifying(false)
+      setClassifyProgress(null)
     }
   }
 
@@ -480,7 +435,10 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
             })}
           </ul>
         )}
-        <div className="border-t border-border p-3 space-y-2">
+        {/* id="classification": deep-link target for Map/Score's "run
+            classification on Setup" links (the dedicated section this
+            replaced carried the anchor before). */}
+        <div id="classification" className="border-t border-border p-3 space-y-2 scroll-mt-4">
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
@@ -493,35 +451,60 @@ function DocumentsSection({ vm }: { vm: ProjectViewModel }) {
             <Button
               variant="outline"
               onClick={handleClassify}
-              disabled={!hasContextAxis || vm.documentCount === 0 || classifying}
+              disabled={!hasContextAxis || vm.documentCount === 0 || classifying || !engineReady}
               className="gap-2"
               title={
                 !hasContextAxis
                   ? 'Add a Function/Pillar (document-context) axis to enable classification'
-                  : `Classify document sections on the ${contextAxes[0]?.name ?? 'document-context'} axis`
+                  : !engineReady
+                    ? 'The analysis engine is still starting — this enables when the status chip says Ready'
+                    : `Classify document sections on the ${contextAxes[0]?.name ?? 'document-context'} axis`
               }
             >
               {classifying ? (
                 <><RefreshCw className="h-4 w-4 animate-spin" /> Classifying…</>
               ) : (
-                <><Sparkles className="h-4 w-4" /> Classify documents</>
+                <><Sparkles className="h-4 w-4" /> {classifyStatus && classifyStatus.classifiedDocuments > 0 ? 'Re-classify documents' : 'Classify documents'}</>
               )}
             </Button>
           </div>
-          {/* One combined warning: either no document-context axis is active,
-              or some documents still need classifying. */}
-          {vm.documentCount > 0 && (!hasContextAxis || unclassifiedCount > 0) && (
-            <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-              <span>
-                {!hasContextAxis ? (
-                  <>No <strong>Function/Pillar</strong> axis is active — add a document-context axis (Axes section below) to enable classification for the Map matrix and Wedding Cake score.</>
-                ) : (
-                  <><strong>{unclassifiedCount}</strong> of <strong>{classifyStatus?.totalDocuments}</strong> document{classifyStatus && classifyStatus.totalDocuments === 1 ? '' : 's'} {unclassifiedCount === 1 ? 'is' : 'are'} not classified yet — classify to enable the Map matrix and full Wedding Cake score.</>
-                )}
-              </span>
-            </p>
-          )}
+          {classifyProgress && <ClassificationProgressBar progress={classifyProgress} />}
+          {/* Status line: when classification isn't complete it always states
+              the REASON (no axis / engine warming / docs without text / not
+              run yet) — a count and a colour alone send people hunting. */}
+          {vm.documentCount > 0 && !classifying && (() => {
+            const unavailable = classifyStatus?.unavailableDocuments ?? 0
+            const total = classifyStatus?.totalDocuments ?? 0
+            const allDone = classifyStatus !== null && total > 0 && unclassifiedCount === 0 && unavailable === 0
+            if (allDone) {
+              return (
+                <p className="text-xs text-green-700 dark:text-green-500">
+                  All {total} document{total === 1 ? '' : 's'} classified.
+                </p>
+              )
+            }
+            return (
+              <p className="text-xs text-amber-700 dark:text-amber-400 flex items-start gap-1.5">
+                <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                <span>
+                  {!hasContextAxis ? (
+                    <>No <strong>Function/Pillar</strong> axis is active — add a document-context axis (Axes section below) to enable classification for the Map matrix and Wedding Cake score.</>
+                  ) : !engineReady ? (
+                    <>The analysis engine is starting (a minute or two after launch) — <strong>Classify</strong> enables when the status chip at the top says Ready.</>
+                  ) : (
+                    <>
+                      <strong>{classifyStatus?.classifiedDocuments ?? 0}</strong> of{' '}
+                      <strong>{total}</strong> document{total === 1 ? '' : 's'} classified
+                      {unavailable > 0 && (
+                        <> · <strong>{unavailable}</strong> {unavailable === 1 ? 'has' : 'have'} no extracted text — re-import from the Library</>
+                      )}
+                      {unclassifiedCount > 0 && <> — classify to enable the Map matrix and full Wedding Cake score.</>}
+                    </>
+                  )}
+                </span>
+              </p>
+            )
+          })()}
         </div>
       </div>
       <AddDocumentsDialog
@@ -630,122 +613,6 @@ function AxesSection({
             </label>
           ))
         )}
-      </div>
-    </section>
-  )
-}
-
-function ClassificationSection({ vm }: { vm: ProjectViewModel }) {
-  // Find a document-context axis active on the project. v1 only handles
-  // one such axis at a time (typically Function); the dropdown is not
-  // shown unless a project has more than one.
-  const contextAxes = vm.axes.filter((a) => a.type === 'document-context')
-  const [activeLensId, setActiveLensId] = useState<string>(contextAxes[0]?.id ?? '')
-  const [status, setStatus] = useState<ClassificationStatus | null>(null)
-  const [running, setRunning] = useState(false)
-  const [progress, setProgress] = useState<ClassifyDocumentProgress | null>(null)
-
-  useEffect(() => {
-    if (contextAxes.length > 0 && !activeLensId) {
-      setActiveLensId(contextAxes[0].id)
-    }
-  }, [contextAxes, activeLensId])
-
-  useEffect(() => {
-    if (!activeLensId || vm.documentCount === 0) {
-      setStatus(null)
-      return
-    }
-    getClassificationStatus(vm.project.id, activeLensId).then(setStatus)
-  }, [vm.project.id, vm.documentCount, activeLensId])
-
-  const lens = contextAxes.find((a) => a.id === activeLensId)
-
-  const handleRun = async () => {
-    if (!activeLensId) return
-    setRunning(true)
-    setProgress(null)
-    try {
-      const result = await classifyProjectFunctions(vm.project.id, activeLensId, setProgress)
-      const fresh = await getClassificationStatus(vm.project.id, activeLensId)
-      setStatus(fresh)
-      const summary =
-        `Classified ${result.documentsProcessed} document${result.documentsProcessed === 1 ? '' : 's'}` +
-        ` (${result.totalSectionsTagged} sections tagged)`
-      if (result.documentsFailed > 0) {
-        // Some documents failed but the run continued (per-document isolation).
-        toast.error(
-          `${summary}. ${result.documentsFailed} document${result.documentsFailed === 1 ? '' : 's'} failed`,
-          'Check the backend status and re-run classification to retry the failed documents.'
-        )
-      } else {
-        toast.success(summary)
-      }
-    } catch (err) {
-      toast.error(`Classification failed: ${err instanceof Error ? err.message : String(err)}`)
-    } finally {
-      setRunning(false)
-      setProgress(null)
-    }
-  }
-
-  if (contextAxes.length === 0) {
-    // No document-context axis active — nothing to classify. Hide the
-    // section entirely to keep Setup clean for projects that don't use
-    // Function-style classification.
-    return null
-  }
-
-  return (
-    <section id="classification">
-      <SectionHeader
-        icon={<Sparkles className="h-5 w-5" />}
-        title="Function classification"
-        count={
-          status
-            ? `${status.classifiedDocuments} / ${status.totalDocuments} documents`
-            : undefined
-        }
-      />
-      <div className="border border-border rounded-md p-4 space-y-3">
-        <p className="text-sm text-muted-foreground">
-          Classifies each section of each document on the{' '}
-          <strong>{lens?.name ?? 'document-context'}</strong> axis via embedding similarity.
-          Required for the Map two-axis matrix and the full Wedding Cake Score.
-          {status && status.unavailableDocuments > 0 && (
-            <>
-              {' '}<strong>{status.unavailableDocuments}</strong>{' '}
-              document{status.unavailableDocuments === 1 ? '' : 's'} can't be classified
-              (no extracted text — re-import or check the Library).
-            </>
-          )}
-        </p>
-
-        {progress && <ClassificationProgressBar progress={progress} />}
-
-        <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            onClick={handleRun}
-            disabled={running || vm.documentCount === 0}
-            className="gap-2"
-          >
-            {running ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Classifying…
-              </>
-            ) : (
-              <>
-                <Sparkles className="h-4 w-4" />
-                {status && status.classifiedDocuments > 0 ? 'Re-classify' : 'Classify documents'}
-              </>
-            )}
-          </Button>
-          {status && status.classifiedDocuments === status.totalDocuments && status.totalDocuments > 0 && (
-            <span className="text-xs text-green-700">All documents classified.</span>
-          )}
-        </div>
       </div>
     </section>
   )

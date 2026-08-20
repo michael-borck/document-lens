@@ -399,8 +399,8 @@ function ScoreTopic() {
           <strong>Layer coverage only</strong> (yellow) — documents haven't been
           Subject-classified yet, so the full score can't be computed. This fallback
           shows how many required Layers the document mentions positively. Run{' '}
-          <strong>Function classification</strong> on the Setup tab (the banner has a
-          "Classify now" button) to upgrade to the full score.
+          <strong>Classify documents</strong> on the Setup tab (next to{' '}
+          <em>Add documents from Library</em>) to upgrade to the full score.
         </li>
         <li>
           <strong>Coverage count</strong> (blue) — used by flat (Coverage Count) rules.

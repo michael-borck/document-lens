@@ -123,7 +123,11 @@ pub fn handle<R: Runtime>(app: &AppHandle<R>, event: MenuEvent) {
     };
     match topic {
         "manual" => open_manual(app),
-        "updates" => { /* wired in Phase 6 (updater) */ }
+        // The renderer owns the updater (tauri-updater.ts); this just asks it
+        // to run a user-initiated check, which also reports "up to date".
+        "updates" => {
+            let _ = app.emit("updates:check-requested", ());
+        }
         // A documentation topic → route the renderer to /help?topic=<id>.
         _ => {
             let _ = app.emit("help:navigate", topic);
