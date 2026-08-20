@@ -200,12 +200,22 @@ function AiProviderSection() {
   const [busy, setBusy] = useState(false)
   const [testMsg, setTestMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
-  useEffect(() => {
-    aiApi.getProviders().then((snap) => {
-      setSnapshot(snap)
-      setSelectedId(snap.active ?? snap.providers[0]?.id ?? 'anthropic')
-    })
-  }, [])
+  // Providers come from the backend over HTTP, which can legitimately fail
+  // (engine still starting, engine crashed). Without the catch this section
+  // showed an infinite <Loading /> on any failure — surface the error and a
+  // retry instead.
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const loadProviders = () => {
+    setLoadError(null)
+    aiApi
+      .getProviders()
+      .then((snap) => {
+        setSnapshot(snap)
+        setSelectedId(snap.active ?? snap.providers[0]?.id ?? 'anthropic')
+      })
+      .catch((e) => setLoadError(e instanceof Error ? e.message : String(e)))
+  }
+  useEffect(loadProviders, [])
 
   const selected = snapshot?.providers.find((p) => p.id === selectedId)
 
@@ -221,6 +231,19 @@ function AiProviderSection() {
     setTestMsg(null)
   }, [selectedId, snapshot])
 
+  if (loadError) {
+    return (
+      <div className="text-sm text-muted-foreground space-y-2">
+        <p>
+          Couldn't load AI providers — {loadError}. If the analysis engine is
+          still starting (the status chip at the top), give it a minute.
+        </p>
+        <Button variant="outline" size="sm" onClick={loadProviders}>
+          Retry
+        </Button>
+      </div>
+    )
+  }
   if (!snapshot) return <Loading />
 
   const isActive = snapshot.active === selectedId

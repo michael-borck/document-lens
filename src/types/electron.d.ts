@@ -117,14 +117,11 @@ export interface ElectronAPI {
   openFolderDialog: (options?: DialogOptions) => Promise<OpenFolderResult>
   saveFileDialog: (options?: DialogOptions) => Promise<SaveDialogResult>
 
-  // AI providers (BYOK)
-  aiGetProviders: () => Promise<AiProvidersSnapshot>
-  aiSaveProvider: (id: AiProviderId, input: AiSaveInput) => Promise<AiProvidersSnapshot>
-  aiSetActiveProvider: (id: AiProviderId | null) => Promise<AiProvidersSnapshot>
-  aiRevealKey: (id: AiProviderId) => Promise<string | null>
-  aiTestConnection: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
-  aiListModels: (id: AiProviderId, draft?: AiDraft) => Promise<AiTestResult>
-  aiChat: (system: string, user: string, maxTokens?: number) => Promise<AiChatResult>
+  // NOTE: no ai* methods here. The Electron-era ai* IPC surface was replaced
+  // by backend HTTP (services/ai.ts) during the Tauri migration; the Ai* type
+  // shapes above are kept because that HTTP client returns the same shapes.
+  // Don't re-add methods here that the bridge doesn't implement — an
+  // unimplemented contract entry is indistinguishable from a stub in audits.
 
   // Shell
   openPath: (filePath: string) => Promise<string>
