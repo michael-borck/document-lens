@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createTestDb, type TestDb } from './_shared/test-db'
-import { setDbDriver, resetDbDriver } from './db'
+import { setDbDriver, resetDbDriver, runBatch } from './db'
 import { loadProjectCorpus } from './_shared/project-corpus'
 import { buildPerMentionFiles } from './per-mention-export'
+import { replaceDocumentHeadingsOps } from './document-headings'
 import { parseCsv } from './csv'
 
 let t: TestDb
@@ -60,11 +61,32 @@ function seed() {
   t.sectionTag(sec0, fn, operations, 0.9)
   t.section(doc, { index: 1, start: P1.length + 2, end: TEXT.length, text: P2 }) // untagged
 
-  return { pid, list, fn }
+  return { pid, list, fn, doc }
+}
+
+/**
+ * Variant of runExport with layout-pass headings: a Vice-Chancellor
+ * heading opens a Leadership zone that runs to a Body heading at the
+ * start of P2 — so P1 mentions export as Ldr ×2, P2 mentions as Body ×1.
+ */
+async function runExportWithZone() {
+  const s = seed()
+  const p2Start = TEXT.indexOf(P2)
+  await runBatch(
+    replaceDocumentHeadingsOps(s.doc, [
+      { pageNumber: 1, text: "Vice-Chancellor's introduction", fontSize: 18, bold: true, startOffset: 0, endOffset: 30 },
+      { pageNumber: 1, text: 'Operations', fontSize: 16, bold: true, startOffset: p2Start, endOffset: p2Start + 10 },
+    ])
+  )
+  return runExportSeed(s)
 }
 
 async function runExport() {
   const s = seed()
+  return runExportSeed(s)
+}
+
+async function runExportSeed(s: { pid: string; list: string; fn: string }) {
   const posCorpus = await loadProjectCorpus({ projectId: s.pid, keywordListId: s.list, polarity: 'positive' })
   const cntCorpus = await loadProjectCorpus({ projectId: s.pid, keywordListId: s.list, polarity: 'counter' })
   const files = await buildPerMentionFiles({
@@ -133,7 +155,8 @@ describe('buildPerMentionFiles', () => {
       expect(row[col('university')]).toBe('Test University')
       expect(row[col('relevance')]).toBe('')
       expect(row[col('framing')]).toBe('')
-      expect(row[col('prominence')]).toBe('')
+      expect(row[col('prominence')]).toBe('') // no headings → undetected, human fills
+      expect(row[col('prom_weight')]).toBe('')
       expect(row[col('notes')]).toBe('')
       expect(row[col('provenance')]).toBe('Voluntary')
     }
@@ -141,6 +164,24 @@ describe('buildPerMentionFiles', () => {
     // second paragraph stays empty rather than guessing.
     expect(rows[0][col('domain_suggested')]).toBe('Campus operations')
     expect(rows[3][col('domain_suggested')]).toBe('')
+  })
+
+  it('fills prominence + weight from the detected zone; framing stays human', async () => {
+    const { mentions } = await runExportWithZone()
+    const [header, ...rows] = mentions
+    const col = (name: string) => header.indexOf(name)
+    // P1 sits in the Leadership zone; P2 (from the Operations heading on) is Body.
+    expect(rows[0][col('prominence')]).toBe('Ldr')
+    expect(rows[0][col('prom_weight')]).toBe('2')
+    expect(rows[1][col('prominence')]).toBe('Ldr')
+    expect(rows[2][col('prominence')]).toBe('Body')
+    expect(rows[2][col('prom_weight')]).toBe('1')
+    expect(rows[3][col('prominence')]).toBe('Body')
+    // Framing is never tool-filled, zone or no zone.
+    for (const row of rows) {
+      expect(row[col('framing')]).toBe('')
+      expect(row[col('relevance')]).toBe('')
+    }
   })
 
   it('reports raw mention counts per document alongside the deduplicated row count', async () => {

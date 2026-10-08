@@ -4,8 +4,12 @@
  * One CSV row per mention, shaped for the researchers' manual coding
  * instrument: the tool pre-populates the *finding* columns (where each
  * mention is and what it matched) and ships the *judgement* columns
- * (Relevance, Framing, Prominence, Notes) empty — the find/judge split
- * (ADR-0030).
+ * (Relevance, Framing, Notes) empty — the find/judge split (ADR-0030).
+ * Prominence is the exception by the researchers' own design: the v9
+ * legend marks it "positional; tool-readable" (Axis 3), so when the
+ * layout pass detected a Leadership-voice zone (ADR-0032 + ADR-0040)
+ * the column and its weight (Ldr ×2 / Body ×1) are pre-filled; when no
+ * zone was detected it ships empty for the human, never guessed.
  *
  * Deduplication rule — one row per value of the PRIMARY keyword-attached
  * axis (SDG in the seeded lens) per passage: several terms firing in one
@@ -28,6 +32,7 @@ import { getKeywordListAxes } from './keyword-lists'
 import { getAxis, listAxisValues } from './axes'
 import { listSectionsForDocuments, getSectionTagsForDocuments, type DocumentSection } from './sections'
 import { getPageOffsets, findPageForOffset, type PageOffset } from './document-pages'
+import { getLeadershipZone, zoneForOffset, type LeadershipZone } from './prominence'
 import { sentenceWindowBounds } from './_shared/keyword-match'
 import { selectAll } from './db'
 import type { ProjectCorpus } from './_shared/project-corpus'
@@ -114,8 +119,10 @@ export async function buildPerMentionFiles(input: PerMentionExportInput): Promis
     for (const v of await listAxisValues(subjectLensId)) subjectValueById.set(v.id, v)
   }
   const pageOffsetsByDoc = new Map<string, PageOffset[]>()
+  const zoneByDoc = new Map<string, LeadershipZone | null>()
   for (const doc of docs) {
     pageOffsetsByDoc.set(doc.id, await getPageOffsets(doc.id))
+    zoneByDoc.set(doc.id, await getLeadershipZone(doc.id))
   }
 
   // --- collect + collapse mentions ----------------------------------------
@@ -123,7 +130,7 @@ export async function buildPerMentionFiles(input: PerMentionExportInput): Promis
     'university', 'document', 'year', 'page',
     ...lensIds.map((id) => lensNameById.get(id) ?? id),
     'word', 'passage', 'domain_suggested',
-    'relevance', 'framing', 'prominence', 'notes',
+    'relevance', 'framing', 'prominence', 'prom_weight', 'notes',
     'polarity', 'provenance', 'duplicate', 'mentions_in_passage',
   ]
   const mentionRows: Array<Array<string | number | null>> = [mentionHeader]
@@ -238,6 +245,14 @@ export async function buildPerMentionFiles(input: PerMentionExportInput): Promis
       const domain = domainValue ? domainValue.displayName ?? domainValue.value : ''
       const page = findPageForOffset(pageOffsets, g.firstSpanStart)
 
+      // Prominence: tool-readable when the zone was detected (legend Axis
+      // 3); empty for the human when it was not. Weight: Ldr ×2 / Body ×1.
+      const zone = zoneByDoc.get(doc.id) ?? null
+      const prominence = zone
+        ? zoneForOffset(zone, g.firstSpanStart) === 'leadership' ? 'Ldr' : 'Body'
+        : ''
+      const promWeight = zone ? (prominence === 'Ldr' ? 2 : 1) : ''
+
       mentionRows.push([
         doc.company ?? '',
         doc.title ?? doc.filename,
@@ -251,8 +266,9 @@ export async function buildPerMentionFiles(input: PerMentionExportInput): Promis
         passage,
         domain,
         '', // relevance — researcher's gate
-        '', // framing — researcher's judgement
-        '', // prominence — manual until ADR-0032 lands
+        '', // framing — researcher's judgement (always human)
+        prominence, // positional, tool-readable when the zone was detected
+        promWeight,
         '', // notes
         g.polarity,
         'Voluntary', // provenance default; researchers overwrite where Mandated
