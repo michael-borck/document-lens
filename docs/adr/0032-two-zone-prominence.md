@@ -2,6 +2,11 @@
 
 **Status:** Proposed
 **Date:** 2026-08-13
+**Update:** 2026-10-08 — the "full layout extraction — deferred" alternative
+is superseded by [ADR-0040](0040-layout-pass-prominence-zones.md): a
+deterministic PyMuPDF layout pass now supplies the heading/position
+information this ADR lacked. The two-zone model, fallback rule, and
+inherit-by-offset mechanism below stand unchanged.
 **Evidence:** researcher correspondence 23–30 Jul 2026 (`research-context/`); coding sheet v5 Legend tab (Axis 3)
 
 ## Context

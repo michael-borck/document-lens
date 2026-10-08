@@ -68,6 +68,7 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0037](0037-keyword-match-mode.md) | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | Accepted (implemented) |
 | [0038](0038-coding-legend-v9-as-framework.md) | The v9 Coding Legend becomes shipped seed data, not bespoke code | Proposed |
 | [0039](0039-climatebert-framing-suggestions.md) | ClimateBERT target analyzers as flagged framing suggestions *(backend)* | Proposed |
+| [0040](0040-layout-pass-prominence-zones.md) | Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)* | Proposed |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision
