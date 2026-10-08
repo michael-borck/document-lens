@@ -1,11 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createTestDb, type TestDb } from './_shared/test-db'
-import { setDbDriver, resetDbDriver } from './db'
+import { setDbDriver, resetDbDriver, runBatch } from './db'
 import {
   listDocumentHeadings,
   replaceDocumentHeadingsOps,
 } from './document-headings'
-import { runBatch } from './db'
+import { setZoneOverride } from './documents'
 import {
   detectLeadershipZone,
   zoneForOffset,
@@ -142,5 +142,27 @@ describe('document headings storage', () => {
     expect(zone!.startOffset).toBe(headingStart)
     expect(zone!.endOffset).toBe(nextHeading)
     expect(zoneForOffset(zone, text.indexOf('climate'))).toBe('leadership')
+  })
+
+  it('manual override wins over heading derivation, and clearing restores it', async () => {
+    t = createTestDb()
+    setDbDriver(t.driver)
+    const text = "Vice-Chancellor's introduction\n\nDetected zone content.\n\nOperations\n\nBody content."
+    const doc = t.document({ extractedText: text })
+
+    // The human marks a DIFFERENT range than detection would find.
+    const override = { startOffset: 0, endOffset: text.indexOf('Detected') + 20 }
+    await setZoneOverride(doc, override)
+
+    const zone = await getLeadershipZone(doc)
+    expect(zone).not.toBeNull()
+    expect(zone!.headingText).toBe('Manual override')
+    expect(zone!.startOffset).toBe(override.startOffset)
+    expect(zone!.endOffset).toBe(override.endOffset)
+
+    // Clearing the override lets derivation answer again (null here —
+    // no headings were ever stored).
+    await setZoneOverride(doc, null)
+    expect(await getLeadershipZone(doc)).toBeNull()
   })
 })

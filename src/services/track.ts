@@ -18,6 +18,8 @@ import { selectAll } from './db'
 import { getKeywordListAxes } from './keyword-lists'
 import { loadProjectCorpus, type ProjectCorpus } from './_shared/project-corpus'
 import { evaluateScore, type ScoreEvaluation, type ScoringMode } from './scoring'
+import { listDocumentHeadings } from './document-headings'
+import { detectLeadershipZone, zoneForOffset, type LeadershipZone } from './prominence'
 import type {
   Document,
   Keyword,
@@ -26,7 +28,7 @@ import type {
 } from '@/types/data'
 
 export type TrackMeasure = 'match-count' | 'coverage-percent' | 'score'
-export type TrackGroup = 'none' | 'polarity' | 'company' | 'sector'
+export type TrackGroup = 'none' | 'polarity' | 'company' | 'sector' | 'prominence'
 
 /**
  * Topic to track. One of:
@@ -100,18 +102,42 @@ export interface ComputeTrackInput {
 /**
  * One axis of grouping for the track output. Polarity grouping splits
  * by positive/counter; company/sector grouping splits by document
- * attribute (one series per unique value found in the project).
+ * attribute (one series per unique value found in the project);
+ * prominence grouping splits by mention band (Leadership voice vs Body,
+ * ADR-0032) — the only grouping that partitions *mentions within* a
+ * document rather than documents themselves.
  */
 interface SeriesSpec {
   name: string
   polarity: KeywordPolarity
   /** Per-doc filter applied before per-doc measure computation. null = no filter. */
   docFilter: ((doc: Document) => boolean) | null
+  /** Prominence band for group='prominence'; undefined = not band-split. */
+  band?: 'leadership' | 'body'
 }
 
 export async function computeTrack(input: ComputeTrackInput): Promise<TrackResult> {
+  if (input.group === 'prominence' && input.measure === 'score') {
+    throw new Error('Score measure is not available with prominence grouping — a Wedding Cake score is a whole-document signal, not a per-band one')
+  }
+
   // Build the list of series we need to compute.
   const seriesSpecs = await resolveSeriesSpecs(input)
+
+  // Prominence grouping needs each document's Leadership zone (ADR-0032
+  // via the layout pass, ADR-0040); undetected → all-Body fallback.
+  const zonesByDoc = new Map<string, LeadershipZone | null>()
+  if (input.group === 'prominence') {
+    const firstCorpus = await loadProjectCorpus({
+      projectId: input.projectId,
+      keywordListId: input.keywordListId,
+      polarity: seriesSpecs[0]?.polarity ?? input.polarity,
+    })
+    for (const doc of firstCorpus.docs) {
+      const headings = await listDocumentHeadings(doc.id)
+      zonesByDoc.set(doc.id, detectLeadershipZone(headings, doc.extractedText?.length ?? 0))
+    }
+  }
 
   // For the score measure, evaluate the rule once per distinct polarity the
   // series need (the Score Evaluator owns mode + matrix selection + counting).
@@ -165,7 +191,8 @@ export async function computeTrack(input: ComputeTrackInput): Promise<TrackResul
       input,
       spec,
       corpusByPolarity.get(spec.polarity)!,
-      scoreEvalByPolarity?.get(spec.polarity) ?? null
+      scoreEvalByPolarity?.get(spec.polarity) ?? null,
+      zonesByDoc
     )
     series.push(oneSeries.series)
     yearUnknownDocs = Math.max(yearUnknownDocs, oneSeries.yearUnknownDocs)
@@ -196,6 +223,12 @@ async function resolveSeriesSpecs(input: ComputeTrackInput): Promise<SeriesSpec[
     return [
       { name: 'Positive', polarity: 'positive', docFilter: null },
       { name: 'Counter', polarity: 'counter', docFilter: null },
+    ]
+  }
+  if (input.group === 'prominence') {
+    return [
+      { name: 'Leadership voice', polarity: input.polarity, docFilter: null, band: 'leadership' },
+      { name: 'Body', polarity: input.polarity, docFilter: null, band: 'body' },
     ]
   }
   if (input.group === 'company' || input.group === 'sector') {
@@ -247,7 +280,8 @@ async function buildSeriesForSpec(
   input: ComputeTrackInput,
   spec: SeriesSpec,
   corpus: ProjectCorpus,
-  scoreEval: ScoreEvaluation | null
+  scoreEval: ScoreEvaluation | null,
+  zonesByDoc: Map<string, LeadershipZone | null> = new Map()
 ): Promise<SeriesBuildResult> {
   const polarity = spec.polarity
   const topicKeywords = await filterToTopic(corpus.keywords, input.keywordListId, input.topic)
@@ -276,7 +310,9 @@ async function buildSeriesForSpec(
     corpus,
     topicKeywords,
     yearFilteredDocs,
-    scoreEval
+    scoreEval,
+    spec.band ?? null,
+    zonesByDoc
   )
 
   // Aggregate by year.
@@ -357,7 +393,9 @@ async function computePerDocumentMeasure(
   corpus: ProjectCorpus,
   topicKeywords: Keyword[],
   docs: Document[],
-  scoreEval: ScoreEvaluation | null
+  scoreEval: ScoreEvaluation | null,
+  band: 'leadership' | 'body' | null = null,
+  zonesByDoc: Map<string, LeadershipZone | null> = new Map()
 ): Promise<Map<string, PerDocMeasure>> {
   const out = new Map<string, PerDocMeasure>()
 
@@ -367,8 +405,20 @@ async function computePerDocumentMeasure(
   if (input.measure === 'match-count' || input.measure === 'coverage-percent') {
     for (const doc of docs) {
       let total = 0
-      for (const kw of topicKeywords) {
-        total += corpus.countFor(doc.id, kw.id)
+      if (band) {
+        // Prominence banding: count only the spans inside the series'
+        // band. A document without a detected zone contributes everything
+        // to Body (the ADR-0032 fallback) and nothing to Leadership.
+        const zone = zonesByDoc.get(doc.id) ?? null
+        for (const kw of topicKeywords) {
+          for (const span of corpus.spansFor(doc.id, kw.id)) {
+            if (zoneForOffset(zone, span.start) === band) total++
+          }
+        }
+      } else {
+        for (const kw of topicKeywords) {
+          total += corpus.countFor(doc.id, kw.id)
+        }
       }
       out.set(doc.id, { matchCount: total, hasMatch: total > 0, score: 0 })
     }

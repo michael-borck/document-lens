@@ -69,12 +69,22 @@ export function zoneForOffset(zone: LeadershipZone | null, offset: number): Prom
 }
 
 /**
- * Convenience: load a document's headings and derive its zone in one
- * call. Null when the document (or its text) is missing, or when no
- * leadership heading was detected.
+ * Convenience: derive a document's effective Leadership zone. The manual
+ * override (ADR-0032, `zoneOverride` on the document) wins when present;
+ * otherwise the layout-pass headings are matched against the leadership
+ * vocabulary. Null when neither exists — all-Body fallback, surfaced not
+ * guessed.
  */
 export async function getLeadershipZone(documentId: string): Promise<LeadershipZone | null> {
-  const [headings, doc] = await Promise.all([listDocumentHeadings(documentId), getDocument(documentId)])
+  const doc = await getDocument(documentId)
   if (!doc) return null
+  if (doc.zoneOverride) {
+    return {
+      headingText: 'Manual override',
+      startOffset: doc.zoneOverride.startOffset,
+      endOffset: doc.zoneOverride.endOffset,
+    }
+  }
+  const headings = await listDocumentHeadings(documentId)
   return detectLeadershipZone(headings, doc.extractedText?.length ?? 0)
 }

@@ -29,6 +29,7 @@ function doc(over: Partial<Document>): Document {
     statusError: null,
     importedAt: '2026-01-01T00:00:00Z',
     extractedAt: null,
+    zoneOverride: null,
     ...over,
   }
 }

@@ -1,5 +1,5 @@
-import { selectAll, selectOne, runStatement, updateRow, newId, now } from './db'
-import type { Document } from '@/types/data'
+import { selectAll, selectOne, runStatement, updateRow, newId, now, stringifyJson } from './db'
+import type { Document, ZoneOverride } from '@/types/data'
 import { type DocumentRow, rowToDocument } from './_shared/document-row'
 
 export async function listDocuments(): Promise<Document[]> {
@@ -87,6 +87,21 @@ export async function updateDocumentAttributes(
 
 export async function deleteDocument(id: string): Promise<void> {
   await runStatement('documents.deleteById', [id])
+}
+
+/**
+ * Set or clear the manual prominence-zone marker (ADR-0032). The override
+ * wins over heading-derived detection; clearing it (null) lets derivation
+ * run again. Offsets are in extracted_text coordinates.
+ */
+export async function setZoneOverride(
+  id: string,
+  override: ZoneOverride | null
+): Promise<void> {
+  await updateRow('documents', ['zone_override'], 'id', [
+    override ? stringifyJson(override) : null,
+    id,
+  ])
 }
 
 export async function countDocumentsInProject(projectId: string): Promise<number> {

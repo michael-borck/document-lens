@@ -407,7 +407,7 @@ export function getQuery(key: string): string {
  * identifier construction in the main process with a fixed allowlist.
  */
 export const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
-  documents: new Set(['title', 'year', 'company', 'sector', 'type', 'company_size', 'id']),
+  documents: new Set(['title', 'year', 'company', 'sector', 'type', 'company_size', 'zone_override', 'id']),
   projects: new Set([
     'name',
     'description',

@@ -1,4 +1,4 @@
-import type { Document, DocumentStatus } from '@/types/data'
+import type { Document, DocumentStatus, ZoneOverride } from '@/types/data'
 import { parseJson } from '../db'
 
 export interface DocumentRow {
@@ -21,6 +21,7 @@ export interface DocumentRow {
   status_error: string | null
   imported_at: string
   extracted_at: string | null
+  zone_override: string | null
 }
 
 export function rowToDocument(row: DocumentRow): Document {
@@ -46,5 +47,8 @@ export function rowToDocument(row: DocumentRow): Document {
     statusError: row.status_error,
     importedAt: row.imported_at,
     extractedAt: row.extracted_at,
+    zoneOverride: row.zone_override
+      ? parseJson<ZoneOverride | null>(row.zone_override, null)
+      : null,
   }
 }

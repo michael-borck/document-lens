@@ -71,6 +71,13 @@ export function Track() {
   const [yearMin, setYearMin] = useState<string>('')
   const [yearMax, setYearMax] = useState<string>('')
 
+  // Score is a whole-document signal — meaningless split by prominence
+  // band. Prominence grouping silently drops back to match-count.
+  const handleGroupChange = (g: TrackGroup) => {
+    setGroup(g)
+    if (g === 'prominence' && measure === 'score') setMeasure('match-count')
+  }
+
   // Load keywords + axes for the topic picker.
   useEffect(() => {
     if (!vm.keywordList) return
@@ -166,13 +173,14 @@ export function Track() {
           </Select>
         </Field>
         <Field label="Overlay by">
-          <Select value={group} onValueChange={(v) => setGroup(v as TrackGroup)}>
+          <Select value={group} onValueChange={(v) => handleGroupChange(v as TrackGroup)}>
             <SelectTrigger><SelectValue /></SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">None (single line)</SelectItem>
-              <SelectItem value="polarity">Polarity (positive vs counter)</SelectItem>
-              <SelectItem value="company">Company (one line per company)</SelectItem>
-              <SelectItem value="sector">Sector (one line per sector)</SelectItem>
+          <SelectItem value="none">None (single line)</SelectItem>
+          <SelectItem value="polarity">Polarity (positive vs counter)</SelectItem>
+          <SelectItem value="company">Company (one line per company)</SelectItem>
+          <SelectItem value="sector">Sector (one line per sector)</SelectItem>
+          <SelectItem value="prominence">Prominence (Leadership voice vs Body)</SelectItem>
             </SelectContent>
           </Select>
         </Field>

@@ -17,6 +17,16 @@
 
 export type DocumentStatus = 'pending' | 'extracting' | 'extracted' | 'failed'
 
+/**
+ * Manual prominence-zone marker (ADR-0032): the human-visible fix when
+ * heading detection misses the foreword. Offsets are in extracted_text
+ * coordinates; the override wins over heading-derived detection.
+ */
+export interface ZoneOverride {
+  startOffset: number
+  endOffset: number
+}
+
 export interface Document {
   id: string
   filename: string
@@ -42,6 +52,8 @@ export interface Document {
   statusError: string | null
   importedAt: string
   extractedAt: string | null
+  /** DB column: zone_override (ADR-0032). Null = derive from headings. */
+  zoneOverride: ZoneOverride | null
 }
 
 /**

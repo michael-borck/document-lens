@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { createTestDb, type TestDb } from './_shared/test-db'
-import { setDbDriver, resetDbDriver } from './db'
+import { setDbDriver, resetDbDriver, runBatch } from './db'
 import { computeTrack } from './track'
+import { replaceDocumentHeadingsOps } from './document-headings'
 
 let t: TestDb
 
@@ -120,5 +121,51 @@ describe('computeTrack', () => {
       { year: 2019, value: 2, documentCount: 1 },
       { year: 2020, value: 2, documentCount: 1 },
     ])
+  })
+
+  describe('prominence grouping (ADR-0032/0040)', () => {
+    it('splits match-count into Leadership voice and Body series by mention offset', async () => {
+      const { pid, list } = seed()
+      // Give the 2019 doc a detected zone: "energy" in leadership, the
+      // rest in body. d2020 has no headings — all-Body fallback.
+      const row = t.db.prepare("SELECT id FROM documents WHERE year = 2019").get() as { id: string }
+      const text = "Vice-Chancellor's introduction\n\nenergy\n\nOperations\n\nenergy water greenwash"
+      t.db.prepare('UPDATE documents SET extracted_text = ? WHERE id = ?').run(text, row.id)
+      const ops = text.indexOf('Operations')
+      await runBatch(
+        replaceDocumentHeadingsOps(row.id, [
+          { pageNumber: 1, text: "Vice-Chancellor's introduction", fontSize: 18, bold: true, startOffset: 0, endOffset: 31 },
+          { pageNumber: 1, text: 'Operations', fontSize: 16, bold: true, startOffset: ops, endOffset: ops + 10 },
+        ])
+      )
+
+      const r = await computeTrack({
+        projectId: pid, keywordListId: list,
+        topic: { kind: 'all' }, measure: 'match-count', group: 'prominence', polarity: 'positive',
+      })
+      const leadership = r.series.find((s) => s.name === 'Leadership voice')!
+      const body = r.series.find((s) => s.name === 'Body')!
+      // 2019: leadership "energy" (1); body "energy water" (2). 2020: no
+      // zone → all-Body fallback, so Leadership honestly reads 0.
+      expect(leadership.points).toEqual([
+        { year: 2019, value: 1, documentCount: 1 },
+        { year: 2020, value: 0, documentCount: 1 },
+      ])
+      expect(body.points).toEqual([
+        { year: 2019, value: 2, documentCount: 1 },
+        { year: 2020, value: 2, documentCount: 1 },
+      ])
+    })
+
+    it('rejects the score measure with prominence grouping', async () => {
+      const { pid, list, rule } = seed()
+      await expect(
+        computeTrack({
+          projectId: pid, keywordListId: list,
+          topic: { kind: 'all' }, measure: 'score', group: 'prominence', polarity: 'positive',
+          scoringRule: rule,
+        })
+      ).rejects.toThrow(/whole-document signal/)
+    })
   })
 })

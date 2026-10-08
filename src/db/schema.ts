@@ -42,8 +42,12 @@
  *      PyMuPDF font-geometry heading candidates aligned into
  *      extracted_text offsets, persisted at import. Feeds prominence-zone
  *      derivation (ADR-0032) and better sectioning.
+ *   11: add documents.zone_override (ADR-0032 manual zone marker) — JSON
+ *      {startOffset, endOffset} or null. The human-visible fix when
+ *      heading detection misses the foreword: the override wins over
+ *      derivation, and its existence is the detection-quality signal.
  */
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -76,7 +80,11 @@ CREATE TABLE IF NOT EXISTS documents (
     CHECK(status IN ('pending', 'extracting', 'extracted', 'failed')),
   status_error TEXT,
   imported_at TEXT NOT NULL,
-  extracted_at TEXT
+  extracted_at TEXT,
+  -- Manual prominence-zone marker (ADR-0032): JSON {"startOffset", "endOffset"}
+  -- in extracted_text coordinates, or NULL. Wins over heading-derived
+  -- detection; NULL lets derivation run (fail-loudly detection quality).
+  zone_override TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_documents_year ON documents(year);
 CREATE INDEX IF NOT EXISTS idx_documents_company ON documents(company);
