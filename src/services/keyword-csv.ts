@@ -27,9 +27,9 @@ import {
   createSynonym,
 } from './keyword-lists'
 import { listAxes, listAxisValues } from './axes'
-import type { KeywordPolarity } from '@/types/data'
+import type { KeywordMatchMode, KeywordPolarity } from '@/types/data'
 
-const BASE_HEADERS = ['text', 'polarity', 'enabled', 'notes', 'synonyms'] as const
+const BASE_HEADERS = ['text', 'polarity', 'enabled', 'notes', 'synonyms', 'match_mode'] as const
 const SYNONYM_SEP = ';'
 
 // ---------------------------------------------------------------------------
@@ -88,6 +88,7 @@ export async function keywordListToCsv(listId: string): Promise<string> {
       kw.enabled ? 'true' : 'false',
       kw.notes ?? '',
       (synonymsByKeyword.get(kw.id) ?? []).join(SYNONYM_SEP),
+      kw.matchMode,
       ...lensCells,
     ])
   }
@@ -135,6 +136,12 @@ function parseEnabled(raw: string): boolean {
   return !(v === 'false' || v === '0' || v === 'no' || v === 'disabled')
 }
 
+/** Forgiving match-mode parse (ADR-0037): anything unrecognised → 'exact'. */
+function parseMatchMode(raw: string): KeywordMatchMode {
+  const v = raw.trim().toLowerCase()
+  return v === 'prefix' || v === 'stem' ? 'prefix' : 'exact'
+}
+
 /** Build "X (imported)" / "X (imported 2)" so import never clobbers a name. */
 function uniqueName(desired: string, existing: string[]): string {
   if (!existing.includes(desired)) return desired
@@ -165,6 +172,7 @@ export async function csvToNewKeywordList(
   const enIdx = col('enabled')
   const notesIdx = col('notes')
   const synIdx = col('synonyms')
+  const modeIdx = col('match_mode')
 
   // Match any non-base column header to an existing axis (case-insensitive).
   const allAxes2 = await listAxes()
@@ -217,6 +225,7 @@ export async function csvToNewKeywordList(
       enabled: enIdx >= 0 ? parseEnabled(row[enIdx] ?? '') : true,
       notes: notesIdx >= 0 ? unguard(row[notesIdx] ?? '').trim() || undefined : undefined,
       sortOrder: r,
+      matchMode: modeIdx >= 0 ? parseMatchMode(row[modeIdx] ?? '') : 'exact',
     })
     keywordsCreated++
 

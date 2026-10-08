@@ -188,8 +188,8 @@ export const QUERIES = {
   // keywords
   'keywords.listByList':
     'SELECT * FROM keywords WHERE list_id = ? ORDER BY polarity, sort_order, text',
-  'keywords.create': `INSERT INTO keywords (id, list_id, text, polarity, enabled, notes, sort_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  'keywords.create': `INSERT INTO keywords (id, list_id, text, polarity, enabled, notes, sort_order, match_mode)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
   'keywords.getById': 'SELECT * FROM keywords WHERE id = ?',
   'keywords.setEnabled': 'UPDATE keywords SET enabled = ? WHERE id = ?',
   'keywords.deleteById': 'DELETE FROM keywords WHERE id = ?',
@@ -395,7 +395,7 @@ export const UPDATABLE_COLUMNS: Record<string, ReadonlySet<string>> = {
     'updated_at',
     'id',
   ]),
-  keywords: new Set(['text', 'polarity', 'notes', 'sort_order', 'id']),
+  keywords: new Set(['text', 'polarity', 'notes', 'sort_order', 'match_mode', 'id']),
 }
 
 /**

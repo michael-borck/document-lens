@@ -8,7 +8,7 @@
 
 import { getDocument } from './documents'
 import { findConceptSpans } from './_shared/keyword-match'
-import type { KeywordPolarity } from '@/types/data'
+import type { KeywordMatchMode, KeywordPolarity } from '@/types/data'
 
 export interface ConcordanceMatch {
   /** 0-based occurrence index across the document. */
@@ -38,6 +38,9 @@ export interface FindConcordanceInput {
   /** Accepted (enabled) synonym texts for this keyword; their matches are
    *  surfaced alongside the keyword's own, attributed to the keyword (US-A-04). */
   synonyms?: string[]
+  /** The keyword's match mode (ADR-0037) — applies to the keyword text only;
+   *  synonyms always match exactly. Defaults to 'exact'. */
+  matchMode?: KeywordMatchMode
   /** N words to include on each side. */
   contextWords: number
 }
@@ -60,7 +63,7 @@ export async function findConcordance(input: FindConcordanceInput): Promise<Conc
   }
 
   const terms = [input.keyword, ...(input.synonyms ?? [])]
-  const matches = findAllMatches(text, terms, input.contextWords)
+  const matches = findAllMatches(text, terms, input.contextWords, input.matchMode ?? 'exact')
   return {
     documentId: input.documentId,
     keyword: input.keyword,
@@ -70,8 +73,13 @@ export async function findConcordance(input: FindConcordanceInput): Promise<Conc
   }
 }
 
-function findAllMatches(text: string, terms: string[], contextWords: number): ConcordanceMatch[] {
-  return findConceptSpans(text, terms).map((span, i) => ({
+function findAllMatches(
+  text: string,
+  terms: string[],
+  contextWords: number,
+  keywordMode: KeywordMatchMode
+): ConcordanceMatch[] {
+  return findConceptSpans(text, terms, keywordMode).map((span, i) => ({
     index: i,
     position: span.start,
     matched: span.matched,

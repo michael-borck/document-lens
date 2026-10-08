@@ -104,6 +104,8 @@ export interface BundleKeyword {
   enabled: boolean
   notes: string | null
   sortOrder: number
+  /** Match mode (ADR-0037); optional so bundles written before it still import. */
+  matchMode?: Keyword['matchMode']
   /** Tags as { lensName, valueName } so the importer can re-resolve
    *  to remapped IDs. */
   tags: Array<{ lensName: string; valueName: string }>
@@ -269,6 +271,7 @@ export async function exportProjectBundle(
         enabled: kw.enabled,
         notes: kw.notes,
         sortOrder: kw.sortOrder,
+        matchMode: kw.matchMode,
         tags: namedTags,
         synonyms: synonyms.map((s) => ({
           text: s.text,

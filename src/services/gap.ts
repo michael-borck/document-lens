@@ -55,7 +55,7 @@ async function buildSections(corpus: ProjectCorpus, docs: Document[], keywords: 
       let positive = 0, counter = 0
       for (const kw of keywords) {
         const terms = corpus.termsFor(kw)
-        const n = findConceptSpans(sec.text, terms).length
+        const n = findConceptSpans(sec.text, terms, kw.matchMode).length
         if (n === 0) continue
         if (kw.polarity === 'counter') counter += n
         else positive += n
@@ -180,7 +180,7 @@ export async function computeGap(input: ComputeGapInput): Promise<GapDataset> {
     for (const s of secs) {
       for (const kw of keywords) {
         const terms = corpus.termsFor(kw)
-        const n = findConceptSpans(s.text, terms).length
+        const n = findConceptSpans(s.text, terms, kw.matchMode).length
         if (n === 0) continue
         const key = `${s.documentId}:${kw.id}`
         const a = acc.get(key) ?? { polarity: kw.polarity === 'counter' ? -1 : 1, freq: 0, toneWeighted: 0, text: kw.text, documentId: s.documentId, documentLabel: s.documentLabel }

@@ -15,6 +15,7 @@ import type {
   KeywordListType,
   Keyword,
   KeywordPolarity,
+  KeywordMatchMode,
   KeywordTag,
 } from '@/types/data'
 
@@ -37,6 +38,7 @@ interface KeywordRow {
   enabled: number
   notes: string | null
   sort_order: number
+  match_mode: KeywordMatchMode
 }
 
 interface KeywordTagRow {
@@ -67,6 +69,7 @@ function rowToKeyword(row: KeywordRow): Keyword {
     enabled: dbBool(row.enabled),
     notes: row.notes,
     sortOrder: row.sort_order,
+    matchMode: row.match_mode ?? 'exact',
   }
 }
 
@@ -143,6 +146,7 @@ export interface CreateKeywordInput {
   enabled?: boolean
   notes?: string
   sortOrder?: number
+  matchMode?: KeywordMatchMode
 }
 
 export async function createKeyword(input: CreateKeywordInput): Promise<Keyword> {
@@ -155,6 +159,7 @@ export async function createKeyword(input: CreateKeywordInput): Promise<Keyword>
     toDbBool(input.enabled ?? true),
     input.notes ?? null,
     input.sortOrder ?? 0,
+    input.matchMode ?? 'exact',
   ])
   const row = await selectOne<KeywordRow>('keywords.getById', [id])
   if (!row) throw new Error(`Failed to create keyword ${input.text}`)
@@ -170,13 +175,14 @@ export interface UpdateKeywordInput {
   polarity?: KeywordPolarity
   notes?: string | null
   sortOrder?: number
+  matchMode?: KeywordMatchMode
 }
 
 /**
  * Patch one or more fields on a keyword. Used by the Keywords page
- * for inline edits (text, polarity, notes). Skips fields not in the
- * patch — leaves enabled / list_id alone (those have dedicated helpers
- * because the CRUD shape differs).
+ * for inline edits (text, polarity, notes, match mode). Skips fields
+ * not in the patch — leaves enabled / list_id alone (those have dedicated
+ * helpers because the CRUD shape differs).
  */
 export async function updateKeyword(id: string, patch: UpdateKeywordInput): Promise<void> {
   const columns: string[] = []
@@ -196,6 +202,10 @@ export async function updateKeyword(id: string, patch: UpdateKeywordInput): Prom
   if (patch.sortOrder !== undefined) {
     columns.push('sort_order')
     params.push(patch.sortOrder)
+  }
+  if (patch.matchMode !== undefined) {
+    columns.push('match_mode')
+    params.push(patch.matchMode)
   }
   if (columns.length === 0) return
   params.push(id)

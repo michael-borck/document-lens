@@ -29,8 +29,12 @@
  *      Wedding Cake, ADR-0033). Forces the greenfield wipe so databases
  *      seeded with the four-Function setup re-seed on update; without it,
  *      idempotent seeding keeps the stale axes forever.
+ *   8: add keywords.match_mode (per-keyword match mode: exact | prefix —
+ *      ADR-0037). Wipe gives every keyword row the 'exact' DEFAULT; without
+ *      the bump, databases created before the column would fail every
+ *      keywords.insert.
  */
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -203,7 +207,11 @@ CREATE TABLE IF NOT EXISTS keywords (
   polarity TEXT NOT NULL CHECK(polarity IN ('positive', 'counter')),
   enabled INTEGER NOT NULL DEFAULT 1,
   notes TEXT,
-  sort_order INTEGER NOT NULL DEFAULT 0
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  -- ADR-0037: 'exact' = whole-word/literal-phrase match (always);
+  -- 'prefix' = word-start match with extension (\bsustain + word chars).
+  match_mode TEXT NOT NULL DEFAULT 'exact'
+    CHECK(match_mode IN ('exact', 'prefix'))
 );
 CREATE INDEX IF NOT EXISTS idx_keywords_list ON keywords(list_id);
 CREATE INDEX IF NOT EXISTS idx_keywords_polarity ON keywords(list_id, polarity);

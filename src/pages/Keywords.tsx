@@ -80,6 +80,7 @@ import type {
   Synonym,
   KeywordExclusion,
   KeywordPolarity,
+  KeywordMatchMode,
 } from '@/types/data'
 
 type PolarityFilter = KeywordPolarity | 'all'
@@ -399,9 +400,9 @@ function KeywordsPane({ list }: { list: KeywordList }) {
     return true
   })
 
-  const handleAddKeyword = async (text: string, polarity: KeywordPolarity) => {
+  const handleAddKeyword = async (text: string, polarity: KeywordPolarity, matchMode: KeywordMatchMode) => {
     if (!text.trim()) return
-    await createKeyword({ listId: list.id, text: text.trim(), polarity, enabled: true })
+    await createKeyword({ listId: list.id, text: text.trim(), polarity, enabled: true, matchMode })
     await refresh()
     toast.success(`Added "${text.trim()}"`)
   }
@@ -419,7 +420,7 @@ function KeywordsPane({ list }: { list: KeywordList }) {
     if (expandedId === pendingDeleteKw.id) setExpandedId(null)
   }
 
-  const handleSaveEdit = async (id: string, patch: { text?: string; polarity?: KeywordPolarity; notes?: string | null }) => {
+  const handleSaveEdit = async (id: string, patch: { text?: string; polarity?: KeywordPolarity; notes?: string | null; matchMode?: KeywordMatchMode }) => {
     await updateKeyword(id, patch)
     setEditingId(null)
     await refresh()
@@ -571,13 +572,14 @@ function PolarityFilterPills({
 function AddKeywordInline({
   onAdd,
 }: {
-  onAdd: (text: string, polarity: KeywordPolarity) => void | Promise<void>
+  onAdd: (text: string, polarity: KeywordPolarity, matchMode: KeywordMatchMode) => void | Promise<void>
 }) {
   const [text, setText] = useState('')
   const [polarity, setPolarity] = useState<KeywordPolarity>('positive')
+  const [matchMode, setMatchMode] = useState<KeywordMatchMode>('exact')
   const submit = async () => {
     if (!text.trim()) return
-    await onAdd(text, polarity)
+    await onAdd(text, polarity, matchMode)
     setText('')
   }
   return (
@@ -596,6 +598,15 @@ function AddKeywordInline({
         <SelectContent>
           <SelectItem value="positive">Positive</SelectItem>
           <SelectItem value="counter">Counter</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={matchMode} onValueChange={(v) => setMatchMode(v as KeywordMatchMode)}>
+        <SelectTrigger className="w-24 h-8" title="Match mode: Exact = whole word; Prefix = word-start stem match (ADR-0037)">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="exact">Exact</SelectItem>
+          <SelectItem value="prefix">Prefix</SelectItem>
         </SelectContent>
       </Select>
       <Button
@@ -676,6 +687,14 @@ function KeywordRow({
           )}>
             {keyword.polarity}
           </span>
+          {keyword.matchMode === 'prefix' && (
+            <span
+              className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded border bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/20 dark:text-sky-300 dark:border-sky-800"
+              title={`Prefix match — "${keyword.text}" also counts longer words starting with it (synonyms stay exact)`}
+            >
+              prefix
+            </span>
+          )}
           <button
             type="button"
             onClick={onStartEdit}
@@ -714,11 +733,12 @@ function KeywordEditRow({
 }: {
   keyword: Keyword
   onCancel: () => void
-  onSave: (patch: { text?: string; polarity?: KeywordPolarity; notes?: string | null }) => void | Promise<void>
+  onSave: (patch: { text?: string; polarity?: KeywordPolarity; notes?: string | null; matchMode?: KeywordMatchMode }) => void | Promise<void>
 }) {
   const [text, setText] = useState(keyword.text)
   const [polarity, setPolarity] = useState<KeywordPolarity>(keyword.polarity)
   const [notes, setNotes] = useState(keyword.notes ?? '')
+  const [matchMode, setMatchMode] = useState<KeywordMatchMode>(keyword.matchMode)
 
   const submit = async () => {
     const trimmedText = text.trim()
@@ -727,6 +747,7 @@ function KeywordEditRow({
       text: trimmedText !== keyword.text ? trimmedText : undefined,
       polarity: polarity !== keyword.polarity ? polarity : undefined,
       notes: notes !== (keyword.notes ?? '') ? (notes.trim() || null) : undefined,
+      matchMode: matchMode !== keyword.matchMode ? matchMode : undefined,
     })
   }
 
@@ -746,6 +767,15 @@ function KeywordEditRow({
         <SelectContent>
           <SelectItem value="positive">Positive</SelectItem>
           <SelectItem value="counter">Counter</SelectItem>
+        </SelectContent>
+      </Select>
+      <Select value={matchMode} onValueChange={(v) => setMatchMode(v as KeywordMatchMode)}>
+        <SelectTrigger className="w-24 h-8" title="Match mode: Exact = whole word; Prefix = word-start stem match (ADR-0037)">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="exact">Exact</SelectItem>
+          <SelectItem value="prefix">Prefix</SelectItem>
         </SelectContent>
       </Select>
       <Input

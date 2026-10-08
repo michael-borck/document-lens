@@ -93,7 +93,7 @@ export function Read() {
       const counts: Record<string, number> = {}
       for (const k of keywords) {
         if (!k.enabled) continue
-        counts[k.id] = countConcept(text, [k.text, ...(synonymsByKeyword.get(k.id) ?? [])])
+        counts[k.id] = countConcept(text, [k.text, ...(synonymsByKeyword.get(k.id) ?? [])], k.matchMode)
       }
       setMatchCounts(counts)
       setCountingMatches(false)
@@ -168,6 +168,7 @@ export function Read() {
         documentId: docId,
         keyword: keyword.text,
         synonyms: synonymsByKeyword.get(keyword.id) ?? [],
+        matchMode: keyword.matchMode,
         contextWords,
       })
     },

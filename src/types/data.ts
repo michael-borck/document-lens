@@ -110,6 +110,15 @@ export interface AxisValue {
 export type KeywordListType = 'built-in' | 'custom'
 export type KeywordPolarity = 'positive' | 'counter'
 
+/**
+ * How the keyword's own text matches document text (ADR-0037).
+ * 'exact'  — whole-word (single token) / literal phrase (multi token).
+ * 'prefix' — word-start match with extension: "sustainability" fires on
+ *            "sustainable", never on "unsustainable". Synonyms always
+ *            match exactly regardless of this mode.
+ */
+export type KeywordMatchMode = 'exact' | 'prefix'
+
 export interface KeywordList {
   id: string
   name: string
@@ -129,6 +138,8 @@ export interface Keyword {
   enabled: boolean
   notes: string | null
   sortOrder: number
+  /** DB column: match_mode (ADR-0037). */
+  matchMode: KeywordMatchMode
 }
 
 export interface KeywordTag {

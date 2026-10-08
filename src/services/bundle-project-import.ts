@@ -364,6 +364,7 @@ export async function applyBundle(
           enabled: bk.enabled,
           notes: bk.notes ?? undefined,
           sortOrder: bk.sortOrder,
+          matchMode: bk.matchMode ?? 'exact',
         })
         newKeywordCount++
 

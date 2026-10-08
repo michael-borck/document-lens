@@ -69,7 +69,7 @@ export interface TestDb {
     listId: string,
     text: string,
     polarity?: 'positive' | 'counter',
-    opts?: { enabled?: boolean; sortOrder?: number }
+    opts?: { enabled?: boolean; sortOrder?: number; matchMode?: 'exact' | 'prefix' }
   ): string
   synonym(keywordId: string, text: string, enabled?: boolean): string
   lens(opts?: {
@@ -222,6 +222,7 @@ export function createTestDb(): TestDb {
         enabled: bool(opts.enabled, true),
         notes: null,
         sort_order: opts.sortOrder ?? 0,
+        match_mode: opts.matchMode ?? 'exact',
       })
       return id
     },

@@ -32,11 +32,11 @@ describe('keyword CSV export/import', () => {
     db.synonym(k1, 'global warming')
     db.synonym(k1, 'carbon reduction')
 
-    const k2 = db.keyword(list, 'greenwashing', 'counter', { enabled: false })
+    const k2 = db.keyword(list, 'greenwashing', 'counter', { enabled: false, matchMode: 'prefix' })
     db.keywordTag(k2, pillar, soc)
 
     const csv = await keywordListToCsv(list)
-    expect(csv.split('\n')[0]).toBe('text,polarity,enabled,notes,synonyms,Pillar')
+    expect(csv.split('\n')[0]).toBe('text,polarity,enabled,notes,synonyms,match_mode,Pillar')
 
     const summary = await csvToNewKeywordList(csv, 'Copy')
     expect(summary.keywordsCreated).toBe(2)
@@ -52,8 +52,10 @@ describe('keyword CSV export/import', () => {
 
     expect(byText['climate action'].polarity).toBe('positive')
     expect(byText['climate action'].enabled).toBe(true)
+    expect(byText['climate action'].matchMode).toBe('exact')
     expect(byText['greenwashing'].polarity).toBe('counter')
     expect(byText['greenwashing'].enabled).toBe(false)
+    expect(byText['greenwashing'].matchMode).toBe('prefix')
 
     // tags re-resolved to the same lens value codes
     const tags = await listKeywordTags(byText['climate action'].id)
@@ -84,6 +86,18 @@ describe('keyword CSV export/import', () => {
     const kws = await listKeywords(list.id)
     expect(kws[0].text).toBe('clean energy')
     expect(kws[0].polarity).toBe('positive') // default
+    expect(kws[0].matchMode).toBe('exact') // default — column absent
+  })
+
+  it('parses match_mode forgivingly: prefix/stem honoured, junk → exact', async () => {
+    withDb()
+    const csv = 'text,match_mode\nsustainability,prefix\nenergy,stem\nclimate,junk'
+    await csvToNewKeywordList(csv, 'Modes')
+    const list = (await listKeywordLists()).find((l) => l.name === 'Modes')!
+    const byText = Object.fromEntries((await listKeywords(list.id)).map((k) => [k.text, k]))
+    expect(byText['sustainability'].matchMode).toBe('prefix')
+    expect(byText['energy'].matchMode).toBe('prefix') // 'stem' accepted as an alias
+    expect(byText['climate'].matchMode).toBe('exact')
   })
 
   it('appends a suffix instead of clobbering an existing list name', async () => {

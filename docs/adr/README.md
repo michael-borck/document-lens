@@ -64,6 +64,9 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0033](0033-five-functions-mission-groups.md) | Five delivery Functions (+ human-only Cross-cutting); grouping derived from university name | Accepted (implemented) |
 | [0034](0034-framework-invocation-terms.md) | Framework-invocation terms counted apart from topic hits | Proposed |
 | [0035](0035-genai-last-ladder.md) | GenAI last: deterministic → interpretable ML → generative | Accepted |
+| [0036](0036-windows-signing-azure-artifact-signing.md) | Windows code signing via Azure Artifact Signing (org-validated, dormant CI) | Accepted |
+| [0037](0037-keyword-match-mode.md) | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | Accepted (implemented) |
+| [0038](0038-coding-legend-v9-as-framework.md) | The v9 Coding Legend becomes shipped seed data, not bespoke code | Proposed |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision

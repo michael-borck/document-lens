@@ -36,6 +36,9 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0027 | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | 2026-07 | Proposed | Reports carry load-bearing content in figures the text-only pipeline never counts |
 | 0028 | Synthetic test corpus: Markdown in-repo, PDFs built, manifest expectations | 2026-07 | Proposed | Real reports can't exercise signal extremes on demand or ship with the repo |
 | 0029 | Focus-first hub: findings deep-link into the tools | 2026-07 | Accepted | Twelve pipeline-ordered tabs buried the "start here" view; research is hub-and-spoke, not a pipeline |
+| 0036 | Windows code signing via Azure Artifact Signing | 2026-08 | Accepted (dormant CI) | $9.99/mo org-validated signing beats $116–580/yr certs; EV lost its SmartScreen bypass in 2024 |
+| 0037 | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | 2026-10 | Accepted (implemented) | Shipped lists enumerate inflections by hand; an automatic stemmer would silently change counts — make it a per-keyword researcher choice instead |
+| 0038 | The v9 Coding Legend becomes shipped seed data, not bespoke code | 2026-10 | Proposed | Forking the methodology into a bespoke validation module would drift from the Excel instrument; data through the existing seams keeps one methodology |
 
 **Cross-cutting principle** running through 0007 / 0010 / 0011 / 0012 / 0014:
 every computed signal is **deterministic and reproducible**; generative AI is an

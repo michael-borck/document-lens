@@ -61,4 +61,19 @@ describe('loadProjectCorpus', () => {
     expect(corpus.countFor(doc, energy)).toBe(2)
     expect(corpus.spansFor(doc, energy)).toHaveLength(2)
   })
+
+  it('countFor honours the keyword match mode (prefix counts inflections)', async () => {
+    t = createTestDb()
+    setDbDriver(t.driver)
+    const pid = t.project()
+    const list = t.keywordList()
+    t.projectKeywordList(pid, list)
+    const kw = t.keyword(list, 'sustain', 'positive', { matchMode: 'prefix' })
+    const doc = t.document({ extractedText: 'Sustainable work. Unsustainable spin. Sustaining effort.' })
+    t.addDocToProject(pid, doc)
+    const corpus = await loadProjectCorpus({ projectId: pid, keywordListId: list, polarity: 'positive' })
+    // "Sustainable" + "Sustaining" fire; "Unsustainable" does not (no word start).
+    expect(corpus.countFor(doc, kw)).toBe(2)
+    expect(corpus.spansFor(doc, kw).map((s) => s.matched).sort()).toEqual(['Sustainable', 'Sustaining'])
+  })
 })
