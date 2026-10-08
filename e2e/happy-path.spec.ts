@@ -7,16 +7,16 @@
  * backend isn't reachable — CI without the ML stack stays green, and it runs for
  * real wherever the backend is up.
  *
- * The native file-open dialog is mocked (as in scripts/capture-help-
- * screenshots.mjs) so import picks the bundled sample PDFs headlessly.
+ * The native file-open dialog is stubbed at the bridge (host.mockOpenFileDialog)
+ * so import picks the bundled sample PDFs headlessly.
  *
  * HARD assertions cover import → extraction → docs attached to the project (a
- * full renderer ↔ main ↔ backend ↔ SQLite round-trip). Function classification
+ * full renderer ↔ bridge ↔ backend ↔ SQLite round-trip). Function classification
  * and scoring are embedding-heavy and take minutes over full annual reports, so
  * they're exercised BEST-EFFORT (clicked + screenshotted) rather than gated on —
  * an automated acceptance guard shouldn't hinge on a multi-minute CPU run.
  */
-import { test, expect, waitForBackendReady, ROOT } from './fixtures'
+import { test, expect, bootWithBackend, ROOT } from './fixtures'
 import path from 'node:path'
 
 const SAMPLES = [
@@ -25,19 +25,16 @@ const SAMPLES = [
 ]
 
 test('imports sample PDFs into a project via the backend, then reaches the workspace', async ({
-  app,
+  host,
   page,
 }, testInfo) => {
   test.slow() // PDF extraction is minutes, not seconds.
 
-  const ready = await waitForBackendReady(page, 150_000)
+  const ready = await bootWithBackend(page, host)
   test.skip(!ready, 'analysis backend not reachable (no sibling document-analyser) — skipping')
 
-  // Mock the native open dialog to return the sample PDFs.
-  await app.evaluate(({ dialog }, paths) => {
-    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths })
-    dialog.showOpenDialogSync = () => paths
-  }, SAMPLES)
+  // The open dialog returns the sample PDFs for the rest of this test.
+  host.mockOpenFileDialog(SAMPLES)
 
   // --- Wizard: name → import samples → select → finish --------------------
   await page.getByRole('button', { name: /create your first project/i }).click()

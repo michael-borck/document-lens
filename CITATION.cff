@@ -29,7 +29,7 @@ keywords:
   - SDGs
   - greenwashing
   - design science research
-  - electron
+  - tauri
 # When the accompanying paper is published, add it as a preferred-citation:
 # preferred-citation:
 #   type: article

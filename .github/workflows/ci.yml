@@ -50,6 +50,38 @@ jobs:
           path: coverage/
           retention-days: 14
 
+  # ── E2E acceptance (browser harness) ────────────────────────────────────
+  # The renderer runs in Chromium against a Node-side host standing in for the
+  # Tauri shell (real schema + query registry on node:sqlite). The smoke spec
+  # always runs; the backend-gated specs skip cleanly with no ML stack here.
+  e2e:
+    name: E2E (Playwright browser harness)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22' # the harness DB uses node:sqlite (needs Node 22+)
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Install Chromium for Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Build renderer + run e2e
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
   # ── Tauri core (Rust): the coexistence guardrail ────────────────────────
   # Keeps a Tauri phase from silently breaking the Rust shell (and catches
   # registry drift). Cheap — compiles the small src-tauri crate + unit tests,

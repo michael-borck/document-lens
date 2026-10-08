@@ -1,7 +1,7 @@
 # Document Lens
 
 [![CI](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml)
-[![Build and Release](https://github.com/michael-borck/document-lens/actions/workflows/build.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/build.yml)
+[![Build and Release](https://github.com/michael-borck/document-lens/actions/workflows/tauri.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/tauri.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 Desktop app for keyword analysis of document corpora — built for
@@ -11,8 +11,8 @@ sustainability reporting in Australian university annual reports
 the *right* place?), but the analysis workflows generalise to any
 keyword-driven study of unstructured text.
 
-Cross-platform (macOS / Windows / Linux), local-first (SQLite + your
-own files on disk), greenfield rebuild on Electron 33 + React 18.
+Cross-platform (macOS / Windows), local-first (SQLite + your
+own files on disk), greenfield rebuild on Tauri 2 + React 18.
 
 ## Statement of need
 
@@ -41,9 +41,11 @@ defaults, but the framework, axes, and scoring rule are all user-definable).
 
 **End users** — download the installer for your platform from the
 [latest release](https://github.com/michael-borck/document-lens/releases/latest):
-`.dmg` (macOS), `Setup.exe` (Windows), or `.AppImage` (Linux). The Python
+`.dmg` (macOS, Apple Silicon) or `Setup.exe` (Windows). The Python
 analysis backend is bundled — there is nothing else to install, and no network
-connection is required for analysis. macOS builds are signed and notarised.
+connection is required for analysis. macOS builds are signed and notarised;
+Windows builds are currently unsigned, so SmartScreen will warn on first
+install (signing is being arranged).
 
 **From source** — see [Development](#development) and
 [CONTRIBUTING.md](CONTRIBUTING.md).
@@ -132,13 +134,13 @@ the lens value descriptions — see Setup → Function classification.
 
 | Layer | Choice |
 |---|---|
-| Shell | Electron 33 |
+| Shell | Tauri 2 (Rust core; the React renderer talks to a `window.electron` contract backed by Tauri commands — see `src/lib/desktop-bridge.ts`) |
 | Frontend | React 18 + TypeScript + Vite |
 | UI | shadcn/ui + Tailwind |
 | State | Zustand |
 | Charts | Recharts |
-| Storage | SQLite (better-sqlite3 via IPC) |
-| PDF preview | Chromium native PDFium (iframe + blob URL) |
+| Storage | SQLite (rusqlite in the Rust core; keyed Query Registry shared from `src/db/`) |
+| PDF preview | Native webview PDF viewer (iframe + blob URL) |
 | Backend | [`document-analyser`](https://github.com/michael-borck/document-analyser) (FastAPI, Python 3.11+) — embedded child process |
 
 ## Backend architecture
@@ -148,8 +150,8 @@ the `document-analyser` Python service as a child process and talks
 to it on `127.0.0.1:8765`.
 
 - **Production builds** ship a PyInstaller bundle of `document-analyser`
-  inside `resources/backend/`. Spawned on app launch, torn down on
-  quit, auto-restarted with backoff (max 3 attempts) on crash.
+  as a Tauri sidecar next to the executable. Spawned on app launch by the
+  Rust core, torn down on quit, auto-restarted with backoff on crash.
 - **Development** spawns `uvicorn` from a sibling
   `../document-analyser/` source checkout. The `.venv` Python in that
   repo is preferred; falls back to `uv run` then system Python 3.
@@ -221,28 +223,29 @@ git clone https://github.com/michael-borck/document-lens.git
 git clone https://github.com/michael-borck/document-analyser.git  # sibling
 cd document-lens
 npm install
-npm run dev    # spawns Electron + Vite + the dev backend
+npm run dev    # spawns Tauri + Vite + the dev backend
 ```
 
 The first run wipes any pre-existing schema (greenfield — no
-migration scripts; bump `SCHEMA_VERSION` in `electron/database.ts`
+migration scripts; bump `SCHEMA_VERSION` in `src/db/schema.ts`
 when changing tables).
 
 ### Testing
 
 ```bash
-npm run lint           # eslint (src + electron)
+npm run lint           # eslint (src)
 npm run typecheck      # tsc --noEmit
 npm test               # vitest — unit + invariant suite
 npm run test:coverage  # vitest with a v8 coverage report (coverage/)
-npm run test:e2e       # Playwright/Electron: builds, then runs e2e/
+npm run test:e2e       # Playwright (browser harness): builds, then runs e2e/
 npm run test:e2e:smoke # just the backend-free smoke spec
 ```
 
 CI (`.github/workflows/ci.yml`) runs lint + typecheck + tests + coverage and the
-backend-free e2e smoke on every push/PR. The full happy-path e2e (needs the
-`document-analyser` backend) runs on demand via the workflow's *Run workflow*
-button. See [e2e/README.md](e2e/README.md).
+e2e suite on every push/PR. The e2e suite runs the renderer in Chromium with a
+Node-side host standing in for the Tauri shell; the backend-gated specs
+(happy-path, corpus) skip themselves when no `document-analyser` sibling is
+present, so CI without the ML stack stays green. See [e2e/README.md](e2e/README.md).
 
 ### Releasing
 
@@ -255,12 +258,13 @@ button. See [e2e/README.md](e2e/README.md).
 
 ```
 document-lens/
-├── electron/              # Electron main process
-│   ├── main.ts
-│   ├── preload.ts
-│   ├── backend-manager.ts # spawns + supervises document-analyser
-│   └── database.ts        # SQLite schema + greenfield wipe
-├── src/                   # Renderer (React)
+├── src-tauri/             # Tauri shell (Rust)
+│   ├── src/backend.rs     # spawns + supervises document-analyser
+│   ├── src/db.rs          # SQLite lifecycle (path, pragmas, greenfield wipe)
+│   └── src/db_generated.rs# keyed query registry, generated from src/db/
+├── src/
+│   ├── db/                # schema.ts + queries.ts — the shared, pure
+│   │                      # schema/Query Registry (Rust twin is generated)
 │   ├── pages/
 │   │   ├── workflow/      # Overview, Setup, Focus, Coverage, Map,
 │   │   │                  # Read, Discover, Score, Track, Compare,
@@ -268,13 +272,15 @@ document-lens/
 │   │   └── ...            # Library, Keywords, Lenses, Settings
 │   ├── components/
 │   │   ├── project/       # workflows.ts — the workflow catalogue
-│   │   ├── pdf-viewer/    # iframe + Chromium PDFium
+│   │   ├── pdf-viewer/    # iframe + native webview PDF viewer
 │   │   ├── images/        # document image gallery
 │   │   └── ...
-│   ├── services/          # business logic; talks to SQLite via IPC
+│   ├── lib/desktop-bridge.ts  # installs the Tauri-backed window.electron
+│   ├── services/          # business logic; talks to SQLite via the bridge
 │   │                      # and document-analyser over HTTP
 │   ├── stores/            # Zustand
 │   └── types/
+├── e2e/                   # Playwright acceptance suite (browser harness)
 ├── samples/               # sample annual reports + test corpus
 ├── docs/design/           # user stories, IA, methodology notes
 └── resources/             # icons, packaged backend (production)

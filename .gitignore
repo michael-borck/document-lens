@@ -15,12 +15,8 @@ pnpm-debug.log*
 
 # Vite / build output
 dist/
-dist-electron/
 release/
 manual/build/
-
-# Electron-builder
-release/
 
 # Environment
 .env

@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils'
 import { toast } from '@/stores/toastStore'
 import type { BackendStatus } from '@/types/electron'
 
-type Phase = 'checking' | 'starting' | 'ready' | 'unreachable' | 'crashed'
+type Phase = 'checking' | 'not-started' | 'starting' | 'ready' | 'unreachable' | 'crashed'
 
 interface ChipState {
   phase: Phase
@@ -15,7 +15,7 @@ interface ChipState {
 // Plain language, and only when there is something to say: a healthy engine
 // is invisible (researchers shouldn't have to parse infrastructure status);
 // the chip appears only while starting or when something needs attention.
-const PHASE_CONFIG: Record<Exclude<Phase, 'checking'>, { label: string; dot: string }> = {
+const PHASE_CONFIG: Record<Exclude<Phase, 'checking' | 'not-started'>, { label: string; dot: string }> = {
   starting: { label: 'Analysis engine starting…', dot: 'bg-yellow-500 animate-pulse' },
   ready: { label: '', dot: 'bg-green-600' },
   unreachable: { label: 'Analysis engine offline', dot: 'bg-yellow-600' },
@@ -55,10 +55,12 @@ export function BackendStatusChip() {
     }
   }
 
-  // Nothing to report: a transient startup check, or a healthy engine.
-  // Failures elsewhere (import, audit) surface their own errors and the chip
-  // reappears the moment the engine is actually down.
-  if (state.phase === 'checking' || state.phase === 'ready') {
+  // Nothing to report: a transient startup check, the engine not spawned yet
+  // ('not-started' precedes 'starting' and has no PHASE_CONFIG entry — reading
+  // it here whitescreened the app), or a healthy engine. Failures elsewhere
+  // (import, audit) surface their own errors and the chip reappears the moment
+  // the engine is actually down.
+  if (state.phase === 'checking' || state.phase === 'not-started' || state.phase === 'ready') {
     return null
   }
 

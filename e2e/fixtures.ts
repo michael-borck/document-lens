@@ -1,51 +1,47 @@
 /**
- * Shared Playwright fixtures for the Electron e2e suite.
+ * Shared Playwright fixtures for the post-Tauri e2e suite.
  *
- * Each test gets a freshly-launched app in a throwaway `DOCLENS_USER_DATA`
- * profile (a temp dir) so the first-run seed runs clean and the developer's
- * real SQLite database is never touched. The app is launched exactly the way
- * scripts/capture-help-screenshots.mjs launches it — `electron .` from the repo
- * root, non-packaged, which loads the built dist/ renderer.
+ * There is no Electron main process to drive anymore, so each test runs the
+ * real renderer bundle in plain Chromium (served by `vite preview`) with
+ * `window.electron` answered by a Node-side host (harness/node-host.ts) that
+ * stands in for the Rust shell: a throwaway :memory: SQLite database built
+ * from the real schema, the real keyed Query Registry, real filesystem
+ * reads for import, stubbed native dialogs, and — for backend-gated specs —
+ * a real document-analyser uvicorn spawned from the sibling checkout.
+ *
+ * Per-test isolation is the fresh in-memory DB (the old suite's throwaway
+ * DOCLENS_USER_DATA profile equivalent): the app's own first-run seed runs
+ * against it on boot, through the same registry writes production makes.
  */
-import { test as base, expect, type ElectronApplication, type Page } from '@playwright/test'
-import { _electron as electron } from 'playwright-core'
-import { mkdtempSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
-import path from 'node:path'
+import { test as base, expect, type Page } from '@playwright/test'
+import { NodeHost } from './harness/node-host'
+import { installE2eBridge } from './harness/page-bridge'
 
-// Playwright runs from the repo root (where playwright.config.ts lives), so
-// cwd is the project root. Avoid import.meta — the package is CommonJS.
+// Playwright runs from the repo root (where playwright.config.ts lives).
 export const ROOT = process.cwd()
 
 type Fixtures = {
-  /** Throwaway userData profile directory for this test. */
-  profileDir: string
-  /** The launched Electron application. */
-  app: ElectronApplication
-  /** The main window, already loaded. */
+  /** The Node-side main-process double (db, fs, dialogs, backend). */
+  host: NodeHost
+  /** Chromium page with the app already booted (bridge installed). */
   page: Page
 }
 
 export const test = base.extend<Fixtures>({
-  profileDir: async ({}, use) => {
-    const dir = mkdtempSync(path.join(tmpdir(), 'doclens-e2e-'))
-    await use(dir)
-    rmSync(dir, { recursive: true, force: true })
+  host: async ({}, use) => {
+    const host = new NodeHost()
+    await use(host)
+    await host.close()
   },
 
-  app: async ({ profileDir }, use) => {
-    const app = await electron.launch({
-      args: ['.'],
-      cwd: ROOT,
-      env: { ...process.env, DOCLENS_USER_DATA: profileDir },
-    })
-    await use(app)
-    await app.close().catch(() => {})
-  },
-
-  page: async ({ app }, use) => {
-    const page = await app.firstWindow()
+  page: async ({ context, host }, use) => {
+    await context.exposeFunction('__e2eDispatch', (method: string, args: unknown[]) =>
+      host.dispatch(method, args),
+    )
+    await context.addInitScript(installE2eBridge)
+    const page = await context.newPage()
     await page.setViewportSize({ width: 1280, height: 820 })
+    await page.goto('/')
     await page.waitForLoadState('domcontentloaded')
     await use(page)
   },
@@ -54,10 +50,10 @@ export const test = base.extend<Fixtures>({
 export { expect }
 
 /**
- * Poll the backend health until it reports `ready`. Returns false on timeout so
- * a caller can `test.skip()` when the analysis backend isn't reachable.
+ * Poll the backend status until it reports `ready`. Returns false on timeout
+ * so a caller can `test.skip()` when the analysis backend isn't reachable.
  */
-export async function waitForBackendReady(page: Page, timeoutMs = 120_000): Promise<boolean> {
+export async function waitForBackendReady(page: Page, timeoutMs = 30_000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const phase = await page
@@ -67,4 +63,18 @@ export async function waitForBackendReady(page: Page, timeoutMs = 120_000): Prom
     await page.waitForTimeout(2000)
   }
   return false
+}
+
+/**
+ * Bring up the real analysis backend (sibling document-analyser checkout)
+ * and remount the app on top of it, so components that gate on backend
+ * status at mount see `ready`. Returns false — callers test.skip() — when
+ * no backend is available. Mirrors the old suite's app-launched backend.
+ */
+export async function bootWithBackend(page: Page, host: NodeHost): Promise<boolean> {
+  const ok = await host.ensureBackend()
+  if (!ok) return false
+  await page.reload()
+  await page.waitForLoadState('domcontentloaded')
+  return waitForBackendReady(page)
 }

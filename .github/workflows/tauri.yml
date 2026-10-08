@@ -20,6 +20,8 @@ name: Tauri Build and Release
 # here rather than renamed. APPLE_ID / APPLE_TEAM_ID already match. Added this
 # session: APPLE_SIGNING_IDENTITY, TAURI_SIGNING_PRIVATE_KEY (this app's own
 # updater key — pubkey in tauri.conf.json), TAURI_SIGNING_PRIVATE_KEY_PASSWORD.
+# Windows signing (Azure Artifact Signing, ADR-0036) is dormant until its
+# variables/secrets are set — see the "Configure Azure Artifact Signing" step.
 on:
   workflow_dispatch: {}
   push:
@@ -240,6 +242,32 @@ jobs:
       - name: Install npm deps
         run: npm ci
 
+      # ---- Windows code signing (Azure Artifact Signing) ------------------
+      # Dormant until the Azure side is set up (ADR-0036): create the Artifact
+      # Signing account + identity validation + cert profile, then set repo
+      # variables AZURE_SIGNING_ENABLED=true, AZURE_SIGNING_ENDPOINT,
+      # AZURE_SIGNING_ACCOUNT, AZURE_SIGNING_PROFILE and secrets
+      # AZURE_CLIENT_ID / AZURE_CLIENT_SECRET / AZURE_TENANT_ID.
+      - name: Configure Azure Artifact Signing (Windows, when enabled)
+        if: runner.os == 'Windows' && vars.AZURE_SIGNING_ENABLED == 'true'
+        shell: pwsh
+        env:
+          AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+          AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+          AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
+        run: |
+          cargo install artifact-signing-cli
+          # Merge signCommand into the release overlay — a CI-only mutation, so
+          # the committed config stays unsigned and local builds keep working.
+          # Tauri substitutes %1 for each file it signs: the app exe, the
+          # backend sidecar exe, and the NSIS installer (all three signed).
+          $signCmd = "artifact-signing-cli -e $env:AZURE_SIGNING_ENDPOINT -a $env:AZURE_SIGNING_ACCOUNT -c $env:AZURE_SIGNING_PROFILE %1"
+          $cfg = Get-Content src-tauri/tauri.release.conf.json -Raw | ConvertFrom-Json
+          $cfg.bundle | Add-Member -Force -MemberType NoteProperty -Name windows `
+            -Value ([PSCustomObject]@{ signCommand = $signCmd })
+          $cfg | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.release.conf.json
+          Write-Host "Windows signCommand configured (Azure Artifact Signing)"
+
       - name: Build, sign, and release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -256,6 +284,12 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          # Windows code signing (Azure Artifact Signing, ADR-0036). Consumed
+          # by artifact-signing-cli, which only runs when the configure step
+          # above fired (AZURE_SIGNING_ENABLED=true). Empty otherwise.
+          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
         with:
           # matrix.args carries the release overlay (backend sidecar) + target.
           args: ${{ matrix.args }}

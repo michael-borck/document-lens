@@ -18,7 +18,7 @@ Open a GitHub issue with the `question` label, or email
 
 ## Development setup
 
-Document Lens is an Electron + React (TypeScript) desktop app with a Python
+Document Lens is a Tauri (Rust) + React (TypeScript) desktop app with a Python
 analysis backend (`document-analyser`), part of a co-developed "lens family"
 (see [`docs/adr/0003-lens-family-always-latest.md`](docs/adr/0003-lens-family-always-latest.md)).
 
@@ -38,7 +38,7 @@ npm run dev
 npm test          # vitest (deterministic analysis engine)
 npm run typecheck # tsc --noEmit
 npm run lint      # eslint
-npm run build     # vite + electron-builder (produces installers)
+npm run build     # vite + tauri build (produces installers)
 ```
 
 Production builds bundle the backend as a PyInstaller binary; developers run
@@ -59,7 +59,9 @@ against the sibling checkout.
 - **Tests.** Add or update `vitest` tests for any change to the analysis engine.
   Keep the suite green (`npm test`), typecheck clean, and lint clean.
 - **Data-layer access** goes through the keyed query registry
-  (`electron/queries.ts`), never ad-hoc SQL over IPC (ADR-0015).
+  (`src/db/queries.ts`), never ad-hoc SQL over IPC (ADR-0015). Run
+  `npm run gen:rust-db` after changing registry SQL and commit the
+  regenerated `src-tauri/src/db_generated.rs`.
 
 ## Pull requests
 

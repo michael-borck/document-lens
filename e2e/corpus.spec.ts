@@ -13,7 +13,7 @@
  * are applied through the app's own IPC query registry (the same writes the
  * Keywords page would make) before running Compare.
  */
-import { test, expect, waitForBackendReady, ROOT } from './fixtures'
+import { test, expect, bootWithBackend, ROOT } from './fixtures'
 import type { Page } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
@@ -80,19 +80,16 @@ const rowFor = (rows: CompareRow[], docId: string): CompareRow => {
 }
 
 test('corpus import: Compare and Focus reproduce the manifest expectations', async ({
-  app,
+  host,
   page,
 }, testInfo) => {
   test.slow()
   test.skip(!PDFS.every(existsSync), 'corpus PDFs not built — run `npm run build:corpus` first')
 
-  const ready = await waitForBackendReady(page, 150_000)
+  const ready = await bootWithBackend(page, host)
   test.skip(!ready, 'analysis backend not reachable — skipping')
 
-  await app.evaluate(({ dialog }, paths) => {
-    dialog.showOpenDialog = async () => ({ canceled: false, filePaths: paths })
-    dialog.showOpenDialogSync = () => paths
-  }, PDFS)
+  host.mockOpenFileDialog(PDFS)
 
   // --- Create a project and import the 13 corpus PDFs ----------------------
   await page.getByRole('button', { name: /create your first project/i }).click()

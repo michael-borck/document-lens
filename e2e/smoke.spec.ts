@@ -1,11 +1,12 @@
 /**
  * Backend-free acceptance smoke test.
  *
- * Proves the whole app shell wires up on a clean machine: Electron main +
- * preload + IPC + SQLite init + the React renderer + the first-run seed, and
- * that a user can create a project through the wizard end-to-end. None of this
- * needs the analysis backend, so it always runs (and guards the "app boots and
- * a project can be created" invariant on every change).
+ * Proves the whole app wires up on a clean machine: the real renderer bundle
+ * boots, the window.electron bridge answers, the first-run seed commits
+ * through the real Query Registry against the real schema, and a user can
+ * create a project through the wizard end-to-end. None of this needs the
+ * analysis backend, so it always runs (and guards the "app boots and a
+ * project can be created" invariant on every change).
  */
 import { test, expect } from './fixtures'
 

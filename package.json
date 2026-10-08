@@ -18,12 +18,14 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "npm run build:vite && playwright test",
+    "test:e2e:smoke": "npm run build:vite && playwright test e2e/smoke.spec.ts",
     "build:manual": "./manual/build-manual.sh",
     "build:corpus": "node scripts/build-test-corpus.mjs",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "capture:help": "node scripts/capture-help-screenshots.mjs"
+    "capture:help": "npm run build:vite && playwright test --config playwright.capture.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
@@ -64,6 +66,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
+    "@playwright/test": "^1.62.1",
     "@tauri-apps/cli": "^2",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",

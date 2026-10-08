@@ -2,7 +2,7 @@
 # on by default for public repos — this file adds automated dependency-bump PRs.)
 version: 2
 updates:
-  # npm dependencies (the Electron/React app).
+  # npm dependencies (the Tauri/React app).
   - package-ecosystem: npm
     directory: /
     schedule:
@@ -13,10 +13,6 @@ updates:
       dev-dependencies:
         dependency-type: development
     ignore:
-      # Electron major bumps are a coordinated, manual effort (native modules,
-      # notarisation, packaging) — don't let Dependabot open churn PRs for them.
-      - dependency-name: electron
-        update-types: [version-update:semver-major]
       # The Vite / Vitest / ESLint toolchain moves together (plugin-react 6 wants
       # vite 8, vitest 4 drops environmentMatchGlobs, eslint 10 shifts the
       # flat-config generation). Upgrade these deliberately as one coordinated PR,
@@ -24,10 +20,6 @@ updates:
       - dependency-name: vite
         update-types: [version-update:semver-major]
       - dependency-name: "@vitejs/plugin-react"
-        update-types: [version-update:semver-major]
-      - dependency-name: vite-plugin-electron
-        update-types: [version-update:semver-major]
-      - dependency-name: vite-plugin-electron-renderer
         update-types: [version-update:semver-major]
       - dependency-name: vitest
         update-types: [version-update:semver-major]

@@ -57,19 +57,22 @@ _Avoid_: fallback flag (when referring to the concept).
 ### Data access
 
 **Query Registry**:
-The keyed-query indirection in `electron/queries.ts`. The renderer sends a
-query *key* (e.g. `documents.byProject`) over IPC; the main process resolves
+The keyed-query indirection in `src/db/queries.ts`. The renderer sends a
+query *key* (e.g. `documents.byProject`) over the bridge; the shell resolves
 it to SQL it alone holds. The threat model: a compromised renderer can only
-invoke registered queries, never inject SQL. Lives under `electron/` so it
-stays out of the renderer bundle by construction.
+invoke registered queries, never inject SQL. The Rust shell runs a generated
+twin (`src-tauri/src/db_generated.rs`, produced by `npm run gen:rust-db` and
+drift-checked in CI), so the registry the shell executes can never drift from
+the one the renderer was written against.
 _Avoid_: query map, SQL store.
 
 **DbDriver**:
 The swappable adapter behind `db.ts`'s `selectAll`/`runStatement`/etc. The
 **seam** that makes the analysis services testable. Two adapters: the **IPC
-driver** (production, reads `window.electron`) and the **in-memory adapter**
-(tests — `better-sqlite3 :memory:` running the real **Query Registry** against
-the extracted pure schema). Swapped via `setDbDriver`.
+driver** (production, reads `window.electron` — installed by the Tauri
+bridge) and the **in-memory adapter** (tests — `node:sqlite :memory:` running
+the real **Query Registry** against the extracted pure schema). Swapped via
+`setDbDriver`.
 _Avoid_: db client, repository.
 
 ### Supporting terms

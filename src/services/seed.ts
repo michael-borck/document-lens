@@ -58,7 +58,22 @@ export interface SeedResult {
   scoringRulesCreated: number
 }
 
-export async function seedSustainabilityDefaults(): Promise<SeedResult> {
+// In-flight guard: React StrictMode double-mounts effects in dev, and without
+// this two concurrent seeds both pass the idempotency check below and the
+// second dies on UNIQUE constraints (harmless but noisy — and a real tauri dev
+// session shows it too). Concurrent callers share one seed run.
+let inFlight: Promise<SeedResult> | null = null
+
+export function seedSustainabilityDefaults(): Promise<SeedResult> {
+  if (!inFlight) {
+    inFlight = runSeed().finally(() => {
+      inFlight = null
+    })
+  }
+  return inFlight
+}
+
+async function runSeed(): Promise<SeedResult> {
   // Idempotency check: if the SDG keyword list is already there, bail out.
   const existingLists = await listKeywordLists()
   if (existingLists.some((l) => l.source === SDG_KEYWORD_LIST_SOURCE)) {
