@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useOutletContext, useSearchParams } from 'react-router-dom'
-import { Check, Copy, ExternalLink, Eye, EyeOff, RotateCcw } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye, EyeOff, RotateCcw, Sparkles } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -20,6 +20,15 @@ import { countConcept } from '@/services/_shared/keyword-match'
 import { getDocument } from '@/services/documents'
 import { listSections, type DocumentSection } from '@/services/sections'
 import { getPageOffsets, findPageForOffset, type PageOffset } from '@/services/document-pages'
+import {
+  listSuggestionsForDocument,
+  regenerateFramingSuggestions,
+  acceptSuggestion,
+  dismissSuggestion,
+  type MentionSuggestion,
+} from '@/services/framing-suggestions'
+import { FRAMING_LABELS } from '@/services/_shared/framing-rules'
+import { toast } from '@/stores/toastStore'
 import { PdfViewerModal } from '@/components/pdf-viewer/PdfViewerModal'
 import { EmptyState } from '@/components/EmptyState'
 import { useAnalysis } from '@/hooks/useAnalysis'
@@ -61,6 +70,58 @@ export function Read() {
   const [pageOffsets, setPageOffsets] = useState<PageOffset[]>([])
   // Per-instance suppressed spans for the current (doc, keyword) pair.
   const [suppressedSpans, setSuppressedSpans] = useState<SuppressedSpan[]>([])
+  // Open framing suggestions (ADR-0039, rung 0) for the current document.
+  const [framingSuggestions, setFramingSuggestions] = useState<MentionSuggestion[]>([])
+  const [framingRunning, setFramingRunning] = useState(false)
+
+  useEffect(() => {
+    if (!docId) {
+      setFramingSuggestions([])
+      return
+    }
+    let cancelled = false
+    listSuggestionsForDocument(docId).then((rows) => {
+      if (!cancelled) setFramingSuggestions(rows)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [docId])
+
+  const reloadFramings = async () => {
+    if (docId) setFramingSuggestions(await listSuggestionsForDocument(docId))
+  }
+
+  const handleRegenerateFramings = async () => {
+    if (!vm.keywordList) return
+    setFramingRunning(true)
+    try {
+      const r = await regenerateFramingSuggestions({
+        projectId: vm.project.id,
+        keywordListId: vm.keywordList.id,
+      })
+      await reloadFramings()
+      toast.success(
+        r.suggestionsCreated > 0
+          ? `Found ${r.suggestionsCreated} new framing suggestion${r.suggestionsCreated === 1 ? '' : 's'} — flagged below where they fire`
+          : 'No new framing suggestions'
+      )
+    } catch (err) {
+      toast.error(`Framing scan failed: ${err instanceof Error ? err.message : String(err)}`)
+    } finally {
+      setFramingRunning(false)
+    }
+  }
+
+  const handleAcceptFraming = async (id: string) => {
+    await acceptSuggestion(id)
+    await reloadFramings()
+  }
+
+  const handleDismissFraming = async (id: string) => {
+    await dismissSuggestion(id)
+    await reloadFramings()
+  }
 
   useEffect(() => {
     Promise.all(vm.project.documentIds.map((id) => getDocument(id))).then((rows) => {
@@ -338,6 +399,11 @@ export function Read() {
           pageOffsets={pageOffsets}
           suppressedSpans={suppressedSpans}
           onSuppressionsChange={setSuppressedSpans}
+          framingSuggestions={framingSuggestions.filter((s) => s.status === 'open')}
+          framingRunning={framingRunning}
+          onRegenerateFramings={handleRegenerateFramings}
+          onAcceptFraming={handleAcceptFraming}
+          onDismissFraming={handleDismissFraming}
         />
       )}
     </div>
@@ -381,6 +447,11 @@ function ConcordanceResults({
   pageOffsets,
   suppressedSpans,
   onSuppressionsChange,
+  framingSuggestions,
+  framingRunning,
+  onRegenerateFramings,
+  onAcceptFraming,
+  onDismissFraming,
 }: {
   result: ConcordanceResult
   documentId: string
@@ -392,6 +463,11 @@ function ConcordanceResults({
   pageOffsets: PageOffset[]
   suppressedSpans: SuppressedSpan[]
   onSuppressionsChange: (spans: SuppressedSpan[]) => void
+  framingSuggestions: MentionSuggestion[]
+  framingRunning: boolean
+  onRegenerateFramings: () => Promise<void>
+  onAcceptFraming: (id: string) => Promise<void>
+  onDismissFraming: (id: string) => Promise<void>
 }) {
   const openSourceFile = () => {
     if (!documentPath) return
@@ -446,6 +522,16 @@ function ConcordanceResults({
             <ExternalLink className="h-3 w-3" />
           </button>
         )}
+        <button
+          type="button"
+          onClick={onRegenerateFramings}
+          disabled={framingRunning}
+          className="text-xs text-sky-700 hover:text-sky-900 dark:text-sky-400 dark:hover:text-sky-200 inline-flex items-center gap-1 disabled:opacity-50"
+          title="Run the deterministic framing rules over this project's mentions (ADR-0039 rung 0) — suggestions appear flagged on the matching passages"
+        >
+          <Sparkles className={`h-3 w-3 ${framingRunning ? 'animate-spin' : ''}`} />
+          {framingRunning ? 'Scanning…' : 'Suggest framings'}
+        </button>
       </div>
 
       <ul className="space-y-3">
@@ -453,6 +539,9 @@ function ConcordanceResults({
           const section = findSection(m.position)
           const page = findPageForOffset(pageOffsets, m.position)
           const suppressed = suppressedByOffset.get(m.position)
+          const framings = framingSuggestions.filter(
+            (s) => s.keywordId === keywordId && s.startOffset === m.position
+          )
           return (
             <MatchCard
               key={m.index}
@@ -465,6 +554,9 @@ function ConcordanceResults({
               documentLabel={documentLabel}
               keywordLabel={keywordLabel}
               suppressedSpan={suppressed}
+              framings={framings}
+              onAcceptFraming={onAcceptFraming}
+              onDismissFraming={onDismissFraming}
               onSuppress={async () => {
                 const span = await suppressSpan({
                   keywordId,
@@ -500,6 +592,9 @@ function MatchCard({
   documentLabel,
   keywordLabel,
   suppressedSpan,
+  framings,
+  onAcceptFraming,
+  onDismissFraming,
   onSuppress,
   onRestore,
 }: {
@@ -512,6 +607,9 @@ function MatchCard({
   documentLabel: string
   keywordLabel: string
   suppressedSpan: SuppressedSpan | undefined
+  framings: MentionSuggestion[]
+  onAcceptFraming: (id: string) => Promise<void>
+  onDismissFraming: (id: string) => Promise<void>
   onSuppress: () => Promise<void>
   onRestore: () => Promise<void>
 }) {
@@ -560,6 +658,39 @@ function MatchCard({
         </span>
       )}
       <span className="text-muted-foreground"> {match.after}…</span>
+      {framings.length > 0 && (
+        <div className="mt-2 flex items-center gap-1.5 flex-wrap">
+          {framings.map((f) => (
+            <span
+              key={f.id}
+              className="inline-flex items-center gap-1.5 text-[11px] border border-sky-300 bg-sky-50 text-sky-900 rounded px-1.5 py-0.5 dark:bg-sky-950/40 dark:border-sky-800 dark:text-sky-200"
+              title={`Deterministic rule "${f.rule}" — accept records your framing with rule provenance; dismiss keeps it suppressed`}
+            >
+              <Sparkles className="h-3 w-3 shrink-0" />
+              <span>
+                Suggested framing:{' '}
+                <strong>{FRAMING_LABELS[f.value] ?? f.value}</strong>
+              </span>
+              <button
+                type="button"
+                onClick={() => onAcceptFraming(f.id)}
+                className="inline-flex items-center gap-0.5 text-green-700 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200 font-medium"
+              >
+                <Check className="h-3 w-3" />
+                accept
+              </button>
+              <button
+                type="button"
+                onClick={() => onDismissFraming(f.id)}
+                className="text-muted-foreground hover:text-foreground"
+                title="Dismiss — kept on file, this rule never flags this passage again"
+              >
+                ✕ dismiss
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
       <div className="mt-1.5 flex items-center gap-2 flex-wrap text-[10px] text-muted-foreground">
         <span className="tabular-nums">Match {match.index + 1}</span>
         {page !== null && (

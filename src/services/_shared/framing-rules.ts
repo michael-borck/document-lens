@@ -22,6 +22,14 @@
 
 export type FramingValue = '0' | '1' | '2' | '3'
 
+/** The v9 legend's labels, keyed by framing value. */
+export const FRAMING_LABELS: Record<string, string> = {
+  '0': 'Silent',
+  '1': 'Aspirational',
+  '2': 'Quantified',
+  '3': 'Limit',
+}
+
 export interface FramingHit {
   value: FramingValue
   /** Stable rule id — the suggestion's provenance (suggested_by / rule). */
