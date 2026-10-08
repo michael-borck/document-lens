@@ -1,6 +1,8 @@
 # ADR-0040: Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)*
 
-**Status:** Proposed
+**Status:** Accepted (implemented — layout pass, offset alignment,
+document_headings persistence, zone derivation + override, per-mention
+export, Track grouping, Stated-vs-Observed)
 **Date:** 2026-10-08
 **Deciders:** Michael Borck (with Claude)
 **Evidence:** ADR-0032 (two-zone prominence; its "full layout extraction —

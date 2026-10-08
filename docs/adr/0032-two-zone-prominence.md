@@ -1,12 +1,14 @@
 # ADR-0032: Two-zone positional prominence — Leadership voice vs Body
 
-**Status:** Proposed
+**Status:** Accepted (implemented)
 **Date:** 2026-08-13
 **Update:** 2026-10-08 — the "full layout extraction — deferred" alternative
 is superseded by [ADR-0040](0040-layout-pass-prominence-zones.md): a
 deterministic PyMuPDF layout pass now supplies the heading/position
 information this ADR lacked. The two-zone model, fallback rule, and
-inherit-by-offset mechanism below stand unchanged.
+inherit-by-offset mechanism below stand unchanged. Zones now flow
+end-to-end: heading detection → manual override (Library) → per-mention
+export columns → Track grouping → Stated-vs-Observed.
 **Evidence:** researcher correspondence 23–30 Jul 2026 (`research-context/`); coding sheet v5 Legend tab (Axis 3)
 
 ## Context

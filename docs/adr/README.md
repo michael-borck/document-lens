@@ -60,7 +60,7 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0029](0029-focus-first-hub.md) | Focus-first hub: findings deep-link into the tools | Accepted |
 | [0030](0030-find-judge-split.md) | The find/judge split: the tool finds, the researchers judge | Accepted |
 | [0031](0031-per-mention-validation-export.md) | Per-mention validation export, deduplicated one row per SDG per passage | Accepted (implemented) |
-| [0032](0032-two-zone-prominence.md) | Two-zone positional prominence: Leadership voice vs Body | Proposed |
+| [0032](0032-two-zone-prominence.md) | Two-zone positional prominence: Leadership voice vs Body | Accepted (implemented) |
 | [0033](0033-five-functions-mission-groups.md) | Five delivery Functions (+ human-only Cross-cutting); grouping derived from university name | Accepted (implemented) |
 | [0034](0034-framework-invocation-terms.md) | Framework-invocation terms counted apart from topic hits | Proposed |
 | [0035](0035-genai-last-ladder.md) | GenAI last: deterministic → interpretable ML → generative | Accepted |
@@ -68,7 +68,7 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0037](0037-keyword-match-mode.md) | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | Accepted (implemented) |
 | [0038](0038-coding-legend-v9-as-framework.md) | The v9 Coding Legend becomes shipped seed data, not bespoke code | Accepted (in progress) |
 | [0039](0039-climatebert-framing-suggestions.md) | ClimateBERT target analyzers as flagged framing suggestions *(backend)* | Proposed |
-| [0040](0040-layout-pass-prominence-zones.md) | Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)* | Proposed |
+| [0040](0040-layout-pass-prominence-zones.md) | Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)* | Accepted (implemented) |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision
