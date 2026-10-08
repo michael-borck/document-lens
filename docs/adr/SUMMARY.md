@@ -39,6 +39,7 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0036 | Windows code signing via Azure Artifact Signing | 2026-08 | Accepted (dormant CI) | $9.99/mo org-validated signing beats $116–580/yr certs; EV lost its SmartScreen bypass in 2024 |
 | 0037 | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | 2026-10 | Accepted (implemented) | Shipped lists enumerate inflections by hand; an automatic stemmer would silently change counts — make it a per-keyword researcher choice instead |
 | 0038 | The v9 Coding Legend becomes shipped seed data, not bespoke code | 2026-10 | Proposed | Forking the methodology into a bespoke validation module would drift from the Excel instrument; data through the existing seams keeps one methodology |
+| 0039 | ClimateBERT target analyzers as flagged framing suggestions *(backend)* | 2026-10 | Proposed | Mike's framing-first-pass ask (digest item 4); small pinned climate-domain models sit on the interpretable-ML rung — suggestions only, the recorded code stays human |
 
 **Cross-cutting principle** running through 0007 / 0010 / 0011 / 0012 / 0014:
 every computed signal is **deterministic and reproducible**; generative AI is an
