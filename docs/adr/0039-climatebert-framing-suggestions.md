@@ -1,6 +1,8 @@
 # ADR-0039: ClimateBERT target analyzers as flagged framing suggestions *(backend)*
 
-**Status:** Proposed
+**Status:** Accepted (implemented — rung 0 + ML rung, both feeding the
+flagged-suggestion chips; real-model validation and the calibration
+precision/recall hook land with the coding study)
 **Date:** 2026-10-08
 **Deciders:** Michael Borck (with Claude)
 **Evidence:** `research-context/coding-legend-v9.md` Axis 1 (Framing 0–3);
