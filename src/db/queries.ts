@@ -248,6 +248,15 @@ export const QUERIES = {
   'mentionAnnotations.deleteById':
     'DELETE FROM mention_annotations WHERE id = ?',
 
+  // document headings (layout pass — ADR-0040)
+  'documentHeadings.byDocument':
+    'SELECT * FROM document_headings WHERE document_id = ? ORDER BY start_offset',
+  'documentHeadings.insert': `INSERT OR REPLACE INTO document_headings
+       (document_id, page_number, text, font_size, bold, start_offset, end_offset)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+  'documentHeadings.deleteByDocument':
+    'DELETE FROM document_headings WHERE document_id = ?',
+
   // antonym links (positive keyword ↔ counter keyword)
   'antonyms.forPositiveKeyword': `SELECT k.* FROM keywords k
        JOIN keyword_antonyms ka ON ka.counter_keyword_id = k.id

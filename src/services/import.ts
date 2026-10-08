@@ -26,6 +26,7 @@ import {
 import { runStatement, runBatch, now, stringifyJson, type BatchOp } from './db'
 import { api } from './api'
 import { replaceDocumentImages } from './document-images'
+import { replaceDocumentHeadingsOps } from './document-headings'
 import type { Document } from '@/types/data'
 
 /**
@@ -82,6 +83,21 @@ export async function retryExtraction(doc: Document): Promise<void> {
         }
       }
     }
+    // Layout-pass headings (ADR-0040) — same transaction, atomic with the
+    // text they are offset into.
+    ops.push(
+      ...replaceDocumentHeadingsOps(
+        doc.id,
+        (response.extracted_text?.layout?.headings ?? []).map((h) => ({
+          pageNumber: h.page_number,
+          text: h.text,
+          fontSize: h.font_size,
+          bold: h.bold,
+          startOffset: h.start_offset,
+          endOffset: h.end_offset,
+        }))
+      )
+    )
     await runBatch(ops)
 
     await extractImagesBestEffort(doc.id, doc.filePath, doc.filename)
@@ -311,6 +327,21 @@ async function importOne(
         }
       }
     }
+    // Layout-pass headings (ADR-0040) — same transaction, atomic with the
+    // text they are offset into.
+    ops.push(
+      ...replaceDocumentHeadingsOps(
+        created.id,
+        (response.extracted_text?.layout?.headings ?? []).map((h) => ({
+          pageNumber: h.page_number,
+          text: h.text,
+          fontSize: h.font_size,
+          bold: h.bold,
+          startOffset: h.start_offset,
+          endOffset: h.end_offset,
+        }))
+      )
+    )
     await runBatch(ops)
 
     await extractImagesBestEffort(created.id, filePath, filename)

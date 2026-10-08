@@ -487,6 +487,25 @@ export interface ProcessFileOptions {
   include_extracted_text?: boolean
 }
 
+// Layout pass result (ADR-0040): heading candidates aligned into
+// full-text offsets. Absent for non-PDF formats; empty headings +
+// layout_error when the pass degraded. Backend >= layout-pass.
+export interface LayoutHeading {
+  page_number: number
+  text: string
+  font_size: number
+  bold: boolean
+  start_offset: number
+  end_offset: number
+}
+
+export interface LayoutResult {
+  headings: LayoutHeading[]
+  pages_scanned?: number
+  dropped?: number
+  layout_error?: string
+}
+
 // Individual file result from the backend
 export interface FileResult {
   filename: string
@@ -499,6 +518,7 @@ export interface FileResult {
       text: string
     }>
     total_pages?: number
+    layout?: LayoutResult
   }
   metadata?: {
     author?: string
@@ -557,6 +577,7 @@ export interface ProcessFileResponse {
       text: string
     }>
     total_pages?: number
+    layout?: LayoutResult
   }
   metadata?: {
     author?: string

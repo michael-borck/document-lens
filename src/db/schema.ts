@@ -38,8 +38,12 @@
  *      researchers against a specific keyword hit, the one new primitive
  *      the legend-as-data decision commits to. Also seeds the v9 search
  *      stem list (SDG search stems (v9), prefix match mode) on the wipe.
+ *   10: add document_headings (deterministic layout pass — ADR-0040):
+ *      PyMuPDF font-geometry heading candidates aligned into
+ *      extracted_text offsets, persisted at import. Feeds prominence-zone
+ *      derivation (ADR-0032) and better sectioning.
  */
-export const SCHEMA_VERSION = 9
+export const SCHEMA_VERSION = 10
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -382,4 +386,23 @@ CREATE INDEX IF NOT EXISTS idx_mention_annotations_doc
   ON mention_annotations(document_id);
 CREATE INDEX IF NOT EXISTS idx_mention_annotations_kw
   ON mention_annotations(keyword_id);
+
+-- Heading candidates from the deterministic layout pass (ADR-0040):
+-- PyMuPDF font-geometry headings aligned into extracted_text offsets.
+-- Persisted at import; the PDF on disk remains the source of truth (the
+-- pass is re-runnable over the whole Library, so this table is a cache,
+-- not a loss). Consumers: prominence-zone derivation (ADR-0032) and
+-- future heading-aware sectioning. No UI renders headings directly yet.
+CREATE TABLE IF NOT EXISTS document_headings (
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  page_number INTEGER NOT NULL,
+  text TEXT NOT NULL,
+  font_size REAL NOT NULL,
+  bold INTEGER NOT NULL,
+  start_offset INTEGER NOT NULL,
+  end_offset INTEGER NOT NULL,
+  PRIMARY KEY (document_id, start_offset)
+);
+CREATE INDEX IF NOT EXISTS idx_document_headings_doc
+  ON document_headings(document_id, start_offset);
 `
