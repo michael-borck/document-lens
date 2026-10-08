@@ -100,3 +100,61 @@ a methodology fork, and the choice between them is not a matter of taste — see
 - Revisit if: the study produces its tables from the Python tool and the TypeScript harness is
   retired (close rule 4); or a second study needs the analysis, at which point it graduates to its
   own repository (reconsider alternative 2).
+---
+
+## Amendment 2026-10-09: the duplication is half-resolved, and one metric was wrong
+
+The Context section says the two implementations "differ in a way that matters and is not yet
+measured" and that the difference is exact unit-key matching against containment-gated matching.
+That was too narrow, and it deferred a comparison that did not need the coding sheets.
+
+**The statistic was comparable without any data.** Krippendorff's α is a pure function of already
+aligned units. The real sheets were never needed to compare the two α implementations, only to
+compare the two alignment strategies. Measured against the independent `krippendorff` package on
+three-coder data where coders disagree by at most one scale step (the Framing shape):
+
+| adjacent-disagreement rate | reference | this repo's Python | `npm run calibrate` | TS error |
+|---|---|---|---|---|
+| 0.05 | 0.966859 | 0.966859 | 0.935941 | −0.031 |
+| 0.20 | 0.861691 | 0.861691 | 0.744481 | −0.117 |
+| 0.40 | 0.749383 | 0.749383 | 0.568047 | −0.181 |
+
+The **nominal** metric agrees exactly across all three implementations, to floating-point identity.
+The **ordinal** metric does not. `src/services/_shared/krippendorff.ts` is missing the square in
+`ordinalDistance`: it returns a normalised trapezoidal midpoint sum, whereas Krippendorff's ordinal
+metric uses `(Σ n_g − (n_lo + n_hi)/2)²`. Squaring that one expression makes the shipped code match
+the reference to the last digit on every case above, which locates the defect exactly.
+
+Consequences, which are worse than the ADR assumed:
+
+- `scripts/calibrate.mjs:204` computes Framing as `metric: 'ordinal'`, so **the ordinal path is
+  live**. Framing is the Wedding Cake axis and the one axis the paper's argument turns on.
+- The error grows with disagreement and always understates reliability — it makes the tool look
+  *less* reliable, so it is not self-serving, but it is not Krippendorff's α either. §6.3 reports a
+  statistic by that name; a number produced this way will not reproduce against Krippendorff (2011)
+  or against any published value, and the divergence is largest exactly where a reader would be
+  most inclined to trust the figure.
+- The ordinal tests did not catch it because both assert only relative properties: one requires
+  ordinal > nominal (any monotonic discount satisfies it) and one asserts ordinal == nominal on a
+  hand-picked uniform-disagreement case (true of many metrics). Neither pins an absolute value.
+  Relative property tests were substituted for the golden-value test that this metric needs.
+
+Amended rules:
+
+- **Rule 4 is narrowed.** The statistic is no longer an open question: the Python implementation is
+  the only one that computes Krippendorff's ordinal α correctly, so α ownership is settled and
+  `src/services/_shared/krippendorff.ts` must not be used to produce any reported figure. What
+  genuinely still needs the three sheets is the *alignment* comparison — unit counts per axis under
+  exact matching versus containment gating. That comparison is still required before the harness is
+  deleted, and it is a comparison about matching, not about statistics.
+- **The missing square is a defect to fix, not only a reason to retire.** Retirement by
+  supersession would leave `npm run calibrate` reachable and silently wrong on the ordinal axis. A
+  one-line correction plus a golden-value ordinal test against Krippendorff's published worked
+  example makes the shipped path safe to run in the interim, whatever the alignment comparison
+  concludes. Fixing it does not prejudge rule 4.
+- **Moving the harness into the paper repository is rejected.** It would import Node into a
+  Python-and-bash repository to preserve a duplication that has just been shown to be a bug, not a
+  design choice. The comparison runs where Node already is, in this repository, and the harness
+  leaves with its replacement.
+
+Rule 5 and ADR-0041 are unaffected.
