@@ -69,6 +69,8 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0038](0038-coding-legend-v9-as-framework.md) | The v9 Coding Legend becomes shipped seed data, not bespoke code | Accepted (in progress) |
 | [0039](0039-climatebert-framing-suggestions.md) | ClimateBERT target analyzers as flagged framing suggestions *(backend)* | Accepted (implemented) |
 | [0040](0040-layout-pass-prominence-zones.md) | Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)* | Accepted (implemented) |
+| [0041](0041-typed-decision-primitives.md) | Typed decision primitives for the judgement axes — adopt the pattern, not a vendor | Accepted (decided in principle) |
+| [0042](0042-calibration-is-study-evidence.md) | Calibration analysis is study evidence, not part of the instrument | Accepted |
 
 ADRs marked *(backend)* record decisions whose code lives in the co-developed
 `document-analyser` repository; they are kept here so the system's decision
