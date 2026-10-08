@@ -235,6 +235,19 @@ export const QUERIES = {
   'suppressedSpans.byKeywordIds':
     'SELECT keyword_id, document_id, start_offset, end_offset FROM suppressed_spans WHERE keyword_id IN (__IN__)',
 
+  // per-mention human annotations (ADR-0038)
+  'mentionAnnotations.listByDocument':
+    'SELECT * FROM mention_annotations WHERE document_id = ? ORDER BY start_offset, axis',
+  'mentionAnnotations.getById':
+    'SELECT * FROM mention_annotations WHERE id = ?',
+  'mentionAnnotations.create': `INSERT INTO mention_annotations
+       (id, document_id, keyword_id, start_offset, end_offset, axis, value, source, suggested_by, suggestion_score, noted_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  'mentionAnnotations.deleteForSpan':
+    'DELETE FROM mention_annotations WHERE document_id = ? AND keyword_id = ? AND start_offset = ? AND axis = ?',
+  'mentionAnnotations.deleteById':
+    'DELETE FROM mention_annotations WHERE id = ?',
+
   // antonym links (positive keyword ↔ counter keyword)
   'antonyms.forPositiveKeyword': `SELECT k.* FROM keywords k
        JOIN keyword_antonyms ka ON ka.counter_keyword_id = k.id

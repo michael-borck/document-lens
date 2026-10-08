@@ -31,9 +31,11 @@ import {
 } from './scoring-rules'
 import { SDGS, PILLARS, FUNCTIONS } from '@/data/sdg-meta'
 import sustainabilityKeywords from '@/data/sustainability-keywords.json'
+import v9SearchTerms from '@/data/v9-search-terms.json'
 import type { Axis, AxisValue } from '@/types/data'
 
 const SDG_KEYWORD_LIST_SOURCE = 'SDGs (Universities)'
+const V9_LIST_SOURCE = 'SDG search stems (v9)'
 const WEDDING_CAKE_SCORE_NAME = 'Wedding Cake Score'
 
 interface SourceKeyword {
@@ -50,6 +52,28 @@ interface SourceFile {
 }
 
 const KEYWORD_DATA = sustainabilityKeywords as SourceFile
+
+/**
+ * The researchers' own v9 search-term sheet (ADR-0038 seed source).
+ * Stems are verbatim from the coding-sheet template — several are
+ * deliberately truncated words ("marginalis", "recycl"), so every v9
+ * keyword is seeded with prefix match mode (ADR-0037), faithful to the
+ * wildcard search their instrument used.
+ */
+interface V9Entry {
+  cluster: string
+  sdg: number
+  shortName: string
+  stems: string[]
+  counterStems: string[]
+  counterNote: string
+}
+
+const V9_DATA = v9SearchTerms as {
+  source: string
+  rules: string[]
+  entries: V9Entry[]
+}
 
 export interface SeedResult {
   alreadySeeded: boolean
@@ -179,6 +203,65 @@ async function runSeed(): Promise<SeedResult> {
       await setKeywordTag(keyword.id, sdgAxis.id, sdgValue.id)
       await setKeywordTag(keyword.id, pillarAxis.id, pillarValue.id)
       keywordsCreated++
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // 2b. Seed the researchers' v9 search-term list (ADR-0038). Their own
+  // stems, prefix match mode; counter terms are the UNAMBIGUOUS
+  // transgression lists only. The SDG 13/7 climate counter-list is tagged
+  // to BOTH SDGs (sheet rule: one boundary, count once, file by domain).
+  // ------------------------------------------------------------------
+
+  if (!existingLists.some((l) => l.source === V9_LIST_SOURCE)) {
+    const v9List = await createKeywordList({
+      name: 'SDG search terms (v9)',
+      description:
+        'The Planetary Universities research instrument: neutral SDG search stems and unambiguous countervailing terms, verbatim from the coding-sheet template (v9). Stems match by word-start (prefix) — several are deliberately truncated. Framing, prominence and provenance are human-coded afterwards (see the Coding Legend).',
+      type: 'built-in',
+      source: V9_LIST_SOURCE,
+    })
+    await setKeywordListAxes(v9List.id, [sdgAxis.id, pillarAxis.id])
+
+    for (const entry of V9_DATA.entries) {
+      const sdgMeta = SDGS.find((s) => s.number === entry.sdg)
+      const sdgValue = sdgValueByNumber.get(entry.sdg)
+      const pillarValue = sdgMeta ? pillarValueByKey.get(sdgMeta.pillar) : null
+      if (!sdgMeta || !sdgValue) continue
+
+      // SDG 13's climate/energy counter-list is shared with SDG 7.
+      const sharedSdg = entry.sdg === 13 ? 7 : null
+      const sharedSdgValue = sharedSdg ? sdgValueByNumber.get(sharedSdg) : null
+      const sharedSdgMeta = sharedSdg ? SDGS.find((s) => s.number === sharedSdg) : null
+      const sharedPillarValue = sharedSdgMeta ? pillarValueByKey.get(sharedSdgMeta.pillar) : null
+
+      for (const stem of entry.stems) {
+        const kw = await createKeyword({
+          listId: v9List.id,
+          text: stem,
+          polarity: 'positive',
+          matchMode: 'prefix',
+          sortOrder: keywordsCreated,
+        })
+        await setKeywordTag(kw.id, sdgAxis.id, sdgValue.id)
+        if (pillarValue) await setKeywordTag(kw.id, pillarAxis.id, pillarValue.id)
+        keywordsCreated++
+      }
+      for (const stem of entry.counterStems) {
+        const kw = await createKeyword({
+          listId: v9List.id,
+          text: stem,
+          polarity: 'counter',
+          matchMode: 'prefix',
+          notes: entry.counterNote || undefined,
+          sortOrder: keywordsCreated,
+        })
+        await setKeywordTag(kw.id, sdgAxis.id, sdgValue.id)
+        if (pillarValue) await setKeywordTag(kw.id, pillarAxis.id, pillarValue.id)
+        if (sharedSdgValue) await setKeywordTag(kw.id, sdgAxis.id, sharedSdgValue.id)
+        if (sharedPillarValue) await setKeywordTag(kw.id, pillarAxis.id, sharedPillarValue.id)
+        keywordsCreated++
+      }
     }
   }
 

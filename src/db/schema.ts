@@ -33,8 +33,13 @@
  *      ADR-0037). Wipe gives every keyword row the 'exact' DEFAULT; without
  *      the bump, databases created before the column would fail every
  *      keywords.insert.
+ *   9: add mention_annotations (per-mention human annotation store —
+ *      ADR-0038): framing / prominence / provenance codes recorded by
+ *      researchers against a specific keyword hit, the one new primitive
+ *      the legend-as-data decision commits to. Also seeds the v9 search
+ *      stem list (SDG search stems (v9), prefix match mode) on the wipe.
  */
-export const SCHEMA_VERSION = 8
+export const SCHEMA_VERSION = 9
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -349,4 +354,32 @@ CREATE TABLE IF NOT EXISTS industries (
   code TEXT PRIMARY KEY,
   name TEXT NOT NULL
 );
+
+-- Per-mention human annotations (ADR-0038). The recorded value is always
+-- the human's accepted code; ML/AI suggestions may land only as provenance
+-- metadata on the accepted row (source='ai-suggested-accepted', suggested_by
+-- = model id + revision) — never as the value itself (ADR-0035, ADR-0039).
+-- The axis column is an open set (framing, prominence, provenance today; the
+-- v9 legend may grow more) so new axes need no migration. One row per
+-- (document, keyword, span start, axis): a mention can carry several axes,
+-- but only one accepted value per axis.
+CREATE TABLE IF NOT EXISTS mention_annotations (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  keyword_id TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  start_offset INTEGER NOT NULL,
+  end_offset INTEGER NOT NULL,
+  axis TEXT NOT NULL,
+  value TEXT NOT NULL,
+  source TEXT NOT NULL DEFAULT 'human'
+    CHECK(source IN ('human', 'ai-suggested-accepted')),
+  suggested_by TEXT,
+  suggestion_score REAL,
+  noted_at TEXT NOT NULL,
+  UNIQUE(document_id, keyword_id, start_offset, axis)
+);
+CREATE INDEX IF NOT EXISTS idx_mention_annotations_doc
+  ON mention_annotations(document_id);
+CREATE INDEX IF NOT EXISTS idx_mention_annotations_kw
+  ON mention_annotations(keyword_id);
 `

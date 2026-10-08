@@ -1,0 +1,324 @@
+{
+  "source": "planetary-uni-coding-sheet-v9-template.xlsx, \"Search terms\" sheet (Mike Burbridge, Aug 2026). Verbatim researcher-authored stems; ADR-0038 seed source.",
+  "rules": [
+    "SDG stems are neutral: they find where the SDG is discussed; framing is judged afterwards.",
+    "Countervailing terms are UNAMBIGUOUS transgressions only; context-dependent activity is read and judged, never searched.",
+    "SDG 13 & 7 share ONE climate boundary and ONE counter-list: count once, file by domain.",
+    "Net zero / net-zero / decarbonisation are the one admitted target-phrase exception in SDG 13 (see Legend)."
+  ],
+  "entries": [
+    {
+      "cluster": "Environmental",
+      "sdg": 6,
+      "shortName": "Clean Water & Sanitation",
+      "stems": [
+        "water",
+        "sanitation",
+        "catchment",
+        "aquifer"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Environmental",
+      "sdg": 13,
+      "shortName": "Climate Action",
+      "stems": [
+        "climate",
+        "carbon",
+        "emission",
+        "greenhouse",
+        "GHG",
+        "warming",
+        "net zero",
+        "net-zero",
+        "decarbonisation"
+      ],
+      "counterStems": [
+        "oil",
+        "coal",
+        "petroleum",
+        "petrol",
+        "fossil",
+        "exploration",
+        "hydrocarbon",
+        "gas-fired",
+        "diesel",
+        "LNG",
+        "natural gas",
+        "offshore drilling"
+      ],
+      "counterNote": "CLIMATE/ENERGY (shared with SDG 7)"
+    },
+    {
+      "cluster": "Environmental",
+      "sdg": 14,
+      "shortName": "Life Below Water",
+      "stems": [
+        "ocean",
+        "marine",
+        "coastal",
+        "sea",
+        "fish",
+        "reef",
+        "deep sea",
+        "deep-sea"
+      ],
+      "counterStems": [
+        "seabed mining",
+        "deep-sea mining",
+        "overfishing"
+      ],
+      "counterNote": "overfishing: pilot only — likely cut: no institution reports overfishing"
+    },
+    {
+      "cluster": "Environmental",
+      "sdg": 15,
+      "shortName": "Life on Land",
+      "stems": [
+        "biodiversity",
+        "ecosystem",
+        "habitat",
+        "species",
+        "land",
+        "soil",
+        "forest",
+        "nature",
+        "ecology",
+        "ecological",
+        "conservation",
+        "flora",
+        "fauna",
+        "wildlife",
+        "vegetation",
+        "animal",
+        "wetland",
+        "degradation",
+        "degraded"
+      ],
+      "counterStems": [
+        "clearing",
+        "deforestation",
+        "land clearing"
+      ],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 1,
+      "shortName": "No Poverty",
+      "stems": [
+        "poverty",
+        "disadvantage",
+        "hardship",
+        "cost of living",
+        "income"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 2,
+      "shortName": "Zero Hunger",
+      "stems": [
+        "hunger",
+        "food security",
+        "nutrition",
+        "agricultur"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 3,
+      "shortName": "Good Health & Wellbeing",
+      "stems": [
+        "health",
+        "wellbeing",
+        "safety"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 4,
+      "shortName": "Quality Education",
+      "stems": [
+        "education",
+        "teaching",
+        "learning",
+        "student",
+        "curriculum",
+        "graduate",
+        "literacy",
+        "vocational",
+        "lifelong"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 5,
+      "shortName": "Gender Equality",
+      "stems": [
+        "gender",
+        "women",
+        "equal opportunity",
+        "equality",
+        "diversity",
+        "empower",
+        "harassment"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 7,
+      "shortName": "Affordable & Clean Energy",
+      "stems": [
+        "energy",
+        "renewable",
+        "solar",
+        "electricity"
+      ],
+      "counterStems": [],
+      "counterNote": "shares the SDG 13 climate/energy counter-list — see row 13; count once, file by domain"
+    },
+    {
+      "cluster": "Social",
+      "sdg": 11,
+      "shortName": "Sustainable Cities & Communities",
+      "stems": [
+        "urban",
+        "cities",
+        "city",
+        "community",
+        "housing",
+        "transport",
+        "precinct",
+        "settlement",
+        "heritage",
+        "pollution"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Social",
+      "sdg": 16,
+      "shortName": "Peace, Justice & Institutions",
+      "stems": [
+        "governance",
+        "integrity",
+        "ethics",
+        "transparency",
+        "accountability",
+        "human rights",
+        "justice",
+        "corruption",
+        "bribery",
+        "crime"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Economic",
+      "sdg": 8,
+      "shortName": "Decent Work & Economic Growth",
+      "stems": [
+        "employment",
+        "jobs",
+        "work",
+        "workforce",
+        "economy",
+        "productivity",
+        "entrepreneur",
+        "wage"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Economic",
+      "sdg": 9,
+      "shortName": "Industry, Innovation & Infrastructure",
+      "stems": [
+        "innovation",
+        "research",
+        "infrastructure",
+        "industry",
+        "technology",
+        "manufacturing"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Economic",
+      "sdg": 10,
+      "shortName": "Reduced Inequalities",
+      "stems": [
+        "inequality",
+        "equity",
+        "inclusion",
+        "underrepresented",
+        "marginalis",
+        "Indigenous",
+        "First Nation",
+        "disability",
+        "discrimination",
+        "racism",
+        "migra"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Economic",
+      "sdg": 12,
+      "shortName": "Responsible Consumption & Production",
+      "stems": [
+        "waste",
+        "recycl",
+        "circular economy",
+        "procurement",
+        "consumption",
+        "resource",
+        "footprint",
+        "nitrogen",
+        "phosphorus"
+      ],
+      "counterStems": [
+        "landfill",
+        "single-use",
+        "effluent",
+        "discharge",
+        "sewage"
+      ],
+      "counterNote": ""
+    },
+    {
+      "cluster": "Connecting",
+      "sdg": 17,
+      "shortName": "Partnerships for the Goals",
+      "stems": [
+        "partnership",
+        "collaboration",
+        "alliance",
+        "stakeholder",
+        "cross-sect",
+        "capacity building",
+        "development"
+      ],
+      "counterStems": [],
+      "counterNote": ""
+    }
+  ]
+}
