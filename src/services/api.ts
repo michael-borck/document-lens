@@ -454,6 +454,19 @@ class ApiClient {
       }),
     })
   }
+
+  /**
+   * ClimateBERT framing suggestions per passage (ADR-0039, ML rung).
+   * Passages are sentence-grain strings; the backend never sees the
+   * document. Degrades to available=false without the [nlp] stack.
+   * Available on document-analyser with the framing-suggest endpoint.
+   */
+  async framingSuggest(passages: string[]): Promise<FramingSuggestResponse> {
+    return this.request<FramingSuggestResponse>('/semantic/framing-suggest', {
+      method: 'POST',
+      body: JSON.stringify({ passages }),
+    })
+  }
 }
 
 // Custom error class
@@ -796,6 +809,23 @@ export interface SimilarTermsForSource {
 
 export interface SimilarTermsResponse {
   results: SimilarTermsForSource[]
+}
+
+// Framing suggestions (ADR-0039 ML rung) — ClimateBERT per-passage output.
+export interface FramingSuggestionResult {
+  climate: boolean
+  commitment: boolean
+  target: string
+  target_score: number
+  framing_value: string | null
+  model_revision: string | null
+}
+
+export interface FramingSuggestResponse {
+  available: boolean
+  error?: string | null
+  models?: Record<string, string>
+  results: Array<FramingSuggestionResult | null>
 }
 
 // Export singleton instance

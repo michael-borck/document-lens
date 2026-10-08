@@ -101,11 +101,19 @@ export function Read() {
         keywordListId: vm.keywordList.id,
       })
       await reloadFramings()
-      toast.success(
-        r.suggestionsCreated > 0
-          ? `Found ${r.suggestionsCreated} new framing suggestion${r.suggestionsCreated === 1 ? '' : 's'} — flagged below where they fire`
-          : 'No new framing suggestions'
-      )
+      const total = r.suggestionsCreated + r.modelSuggestionsCreated
+      if (total > 0) {
+        const parts = [`${total} new framing suggestion${total === 1 ? '' : 's'}`]
+        if (r.modelSuggestionsCreated > 0) parts.push(`${r.modelSuggestionsCreated} from ClimateBERT`)
+        if (r.modelUnavailable) parts.push('model unavailable — deterministic rules only')
+        toast.success(parts.join(' · ') + ' — flagged below where they fire')
+      } else {
+        toast.success(
+          r.modelUnavailable
+            ? 'No new framing suggestions (ClimateBERT unavailable — deterministic rules only)'
+            : 'No new framing suggestions'
+        )
+      }
     } catch (err) {
       toast.error(`Framing scan failed: ${err instanceof Error ? err.message : String(err)}`)
     } finally {
