@@ -34,7 +34,10 @@ export interface MentionAnnotation {
   notedAt: string
 }
 
-export type AnnotationSource = 'human' | 'ai-suggested-accepted'
+export type AnnotationSource =
+  | 'human'
+  | 'ai-suggested-accepted'
+  | 'rule-suggested-accepted'
 
 /** The v9 legend's axes, as a convenience — the store itself is open-set. */
 export const ANNOTATION_AXES = ['framing', 'prominence', 'provenance'] as const

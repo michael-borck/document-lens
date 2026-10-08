@@ -248,6 +248,22 @@ export const QUERIES = {
   'mentionAnnotations.deleteById':
     'DELETE FROM mention_annotations WHERE id = ?',
 
+  // framing suggestions (ADR-0039)
+  'mentionSuggestions.byDocument':
+    'SELECT * FROM mention_suggestions WHERE document_id = ? ORDER BY start_offset, rule',
+  'mentionSuggestions.openByDocuments': `SELECT * FROM mention_suggestions
+       WHERE status = 'open' AND document_id IN (__IN__)
+       ORDER BY document_id, start_offset, rule`,
+  'mentionSuggestions.getById':
+    'SELECT * FROM mention_suggestions WHERE id = ?',
+  'mentionSuggestions.create': `INSERT OR IGNORE INTO mention_suggestions
+       (id, document_id, keyword_id, start_offset, end_offset, axis, value, rule, score, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?)`,
+  'mentionSuggestions.setStatus':
+    'UPDATE mention_suggestions SET status = ? WHERE id = ?',
+  'mentionSuggestions.deleteForSpanRule':
+    'DELETE FROM mention_suggestions WHERE document_id = ? AND keyword_id = ? AND start_offset = ? AND axis = ? AND rule = ?',
+
   // document headings (layout pass — ADR-0040)
   'documentHeadings.byDocument':
     'SELECT * FROM document_headings WHERE document_id = ? ORDER BY start_offset',

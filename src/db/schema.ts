@@ -46,8 +46,14 @@
  *      {startOffset, endOffset} or null. The human-visible fix when
  *      heading detection misses the foreword: the override wins over
  *      derivation, and its existence is the detection-quality signal.
+ *   12: add mention_suggestions (ADR-0039 framing suggestions) — flagged
+ *      rung-0/ML suggestions per mention span, status open/accepted/
+ *      dismissed; dismissals kept, never deleted. Also widens the
+ *      mention_annotations source vocabulary with
+ *      'rule-suggested-accepted' (deterministic provenance, distinct
+ *      from model suggestions).
  */
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 export const SCHEMA = `
 -- Sentinel: tells us which schema version a database is on. The presence
@@ -384,7 +390,7 @@ CREATE TABLE IF NOT EXISTS mention_annotations (
   axis TEXT NOT NULL,
   value TEXT NOT NULL,
   source TEXT NOT NULL DEFAULT 'human'
-    CHECK(source IN ('human', 'ai-suggested-accepted')),
+    CHECK(source IN ('human', 'ai-suggested-accepted', 'rule-suggested-accepted')),
   suggested_by TEXT,
   suggestion_score REAL,
   noted_at TEXT NOT NULL,
@@ -413,4 +419,29 @@ CREATE TABLE IF NOT EXISTS document_headings (
 );
 CREATE INDEX IF NOT EXISTS idx_document_headings_doc
   ON document_headings(document_id, start_offset);
+
+-- Framing suggestions (ADR-0039): flagged, per-mention-span suggestions
+-- from the deterministic framing rules (rung 0) or pinned ML models
+-- (interpretable-ML rung). NEVER recorded codes -- accepting writes the
+-- human's row into mention_annotations with provenance; dismissing keeps
+-- the row (status='dismissed') so a suggestion never resurfaces to nag.
+-- The rule column is the provenance: a stable rule id (rung 0) or
+-- model@revision.
+CREATE TABLE IF NOT EXISTS mention_suggestions (
+  id TEXT PRIMARY KEY,
+  document_id TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  keyword_id TEXT NOT NULL REFERENCES keywords(id) ON DELETE CASCADE,
+  start_offset INTEGER NOT NULL,
+  end_offset INTEGER NOT NULL,
+  axis TEXT NOT NULL,
+  value TEXT NOT NULL,
+  rule TEXT NOT NULL,
+  score REAL,
+  status TEXT NOT NULL DEFAULT 'open'
+    CHECK(status IN ('open', 'accepted', 'dismissed')),
+  created_at TEXT NOT NULL,
+  UNIQUE(document_id, keyword_id, start_offset, axis, rule)
+);
+CREATE INDEX IF NOT EXISTS idx_mention_suggestions_doc
+  ON mention_suggestions(document_id, status);
 `
