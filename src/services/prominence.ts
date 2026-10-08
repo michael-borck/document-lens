@@ -17,6 +17,7 @@
 
 import { listDocumentHeadings, type DocumentHeading } from './document-headings'
 import { getDocument } from './documents'
+import type { Document } from '@/types/data'
 
 export type ProminenceZone = 'leadership' | 'body'
 
@@ -87,4 +88,20 @@ export async function getLeadershipZone(documentId: string): Promise<LeadershipZ
   }
   const headings = await listDocumentHeadings(documentId)
   return detectLeadershipZone(headings, doc.extractedText?.length ?? 0)
+}
+
+/**
+ * Detection-quality status for the Library indicator (ADR-0026: the
+ * detection state is surfaced, never hidden): 'override' — the human
+ * marked the zone; 'detected' — the layout pass found a leadership
+ * heading; 'none' — no detection and no override (all-Body fallback).
+ */
+export type ZoneStatus = 'override' | 'detected' | 'none'
+
+export function zoneStatusOf(
+  doc: Pick<Document, 'zoneOverride' | 'extractedText'>,
+  headings: DocumentHeading[]
+): ZoneStatus {
+  if (doc.zoneOverride) return 'override'
+  return detectLeadershipZone(headings, doc.extractedText?.length ?? 0) ? 'detected' : 'none'
 }

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw, Search, ArrowUp, ArrowDown, X, Images } from 'lucide-react'
+import { Upload, FolderOpen, Library as LibraryIcon, FileText, AlertCircle, RefreshCw, Trash2, RotateCcw, Search, ArrowUp, ArrowDown, X, Images, Landmark } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/EmptyState'
 import { Loading } from '@/components/Loading'
 import { listDocuments, updateDocumentAttributes, deleteDocument, type UpdateDocumentAttributesInput } from '@/services/documents'
 import { countImagesByDocuments } from '@/services/document-images'
+import { listDocumentHeadings } from '@/services/document-headings'
+import { zoneStatusOf, type ZoneStatus } from '@/services/prominence'
 import { ImageGalleryModal } from '@/components/images/ImageGalleryModal'
 import { importDocuments, retryExtraction, type ImportProgress } from '@/services/import'
 import { useBackendStatus } from '@/hooks/useBackendStatus'
@@ -16,6 +18,7 @@ import { cn } from '@/lib/utils'
 import { InlineEditableCell } from '@/components/InlineEditableCell'
 import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog'
 import { BulkAttributesDialog } from '@/components/dialogs/BulkAttributesDialog'
+import { ZoneDialog } from '@/components/dialogs/ZoneDialog'
 import { selectOne } from '@/services/db'
 
 // The document types the backend's content inference can assign. Seeded as
@@ -32,6 +35,24 @@ const KNOWN_DOCUMENT_TYPES = [
 // Coarse company-size buckets — a manual faceting dimension. Fixed set so the
 // values stay consistent enough to group/compare on.
 const COMPANY_SIZES = ['Small', 'Medium', 'Large']
+
+/**
+ * Per-document prominence-zone status for the Library indicator
+ * (ADR-0032/0040): override / detected / none. Detection needs the
+ * document's stored headings, so this is one small query per document —
+ * the same shape as the image-count pass.
+ */
+async function loadZoneStatuses(docs: Document[]): Promise<Map<string, ZoneStatus>> {
+  const out = new Map<string, ZoneStatus>()
+  await Promise.all(
+    docs.map(async (d) => {
+      if (!d.extractedText) return
+      const headings = await listDocumentHeadings(d.id)
+      out.set(d.id, zoneStatusOf(d, headings))
+    })
+  )
+  return out
+}
 
 // The bulk editor can set these document fields. Sort keys + the comparator
 // live in `@/services/library-sort` so they can be unit-tested (US-X-16).
@@ -82,6 +103,9 @@ export function Library() {
   const [companySuggestions, setCompanySuggestions] = useState<string[]>([])
   const [typeSuggestions, setTypeSuggestions] = useState<string[]>([])
   const [imageCounts, setImageCounts] = useState<Map<string, number>>(new Map())
+  // Per-document prominence-zone status (ADR-0032/0040): override /
+  // detected / none. Loaded in refresh() alongside image counts.
+  const [zoneStatuses, setZoneStatuses] = useState<Map<string, ZoneStatus>>(new Map())
   const [bulkOpen, setBulkOpen] = useState(false)
   // Import needs the analysis engine for extraction — gate it until ready.
   // Push-driven: the button enables itself the moment the engine reports in.
@@ -96,6 +120,7 @@ export function Library() {
     const fresh = await listDocuments()
     setDocs(fresh)
     setImageCounts(await countImagesByDocuments(fresh.map((d) => d.id)))
+    setZoneStatuses(await loadZoneStatuses(fresh))
     // Build company suggestions from the existing corpus so the user
     // gets consistency without a maintained reference list (companies
     // come from filenames + content inference; the right values are
@@ -255,6 +280,7 @@ export function Library() {
           companySuggestions={companySuggestions}
           typeSuggestions={typeSuggestions}
           imageCounts={imageCounts}
+          zoneStatuses={zoneStatuses}
         />
       )}
 
@@ -301,6 +327,7 @@ function DocumentTable({
   companySuggestions,
   typeSuggestions,
   imageCounts,
+  zoneStatuses,
 }: {
   documents: Document[]
   onChange: () => void
@@ -308,8 +335,10 @@ function DocumentTable({
   companySuggestions: string[]
   typeSuggestions: string[]
   imageCounts: Map<string, number>
+  zoneStatuses: Map<string, ZoneStatus>
 }) {
   const [galleryDoc, setGalleryDoc] = useState<Document | null>(null)
+  const [zoneDoc, setZoneDoc] = useState<Document | null>(null)
   const backend = useBackendStatus()
   const [pendingDelete, setPendingDelete] = useState<{
     doc: Document
@@ -662,6 +691,24 @@ function DocumentTable({
               </td>
               <td className="px-2 py-2.5">
                 <div className="flex items-center justify-end gap-0.5">
+                  {doc.extractedText && (
+                    <button
+                      type="button"
+                      onClick={() => setZoneDoc(doc)}
+                      className={cn(
+                        'p-1 rounded transition-colors',
+                        zoneStatuses.get(doc.id) === 'override'
+                          ? 'text-sky-600 hover:text-sky-700 dark:text-sky-400'
+                          : zoneStatuses.get(doc.id) === 'detected'
+                            ? 'text-emerald-600 hover:text-emerald-700 dark:text-emerald-400'
+                            : 'text-muted-foreground/50 hover:text-foreground'
+                      )}
+                      title={`Leadership voice zone: ${zoneStatuses.get(doc.id) ?? 'none'} — click to review or override`}
+                      aria-label={`Leadership voice zone for ${doc.title ?? doc.filename}`}
+                    >
+                      <Landmark className="h-4 w-4" />
+                    </button>
+                  )}
                   {(imageCounts.get(doc.id) ?? 0) > 0 && (
                     <button
                       type="button"
@@ -730,6 +777,15 @@ function DocumentTable({
           open={galleryDoc !== null}
           onOpenChange={(open) => { if (!open) setGalleryDoc(null) }}
           document={galleryDoc}
+        />
+      )}
+
+      {zoneDoc && (
+        <ZoneDialog
+          doc={zoneDoc}
+          open={zoneDoc !== null}
+          onOpenChange={(open) => { if (!open) setZoneDoc(null) }}
+          onSaved={onChange}
         />
       )}
 
