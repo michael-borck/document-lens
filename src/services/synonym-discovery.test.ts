@@ -79,6 +79,29 @@ describe('discoverSynonyms', () => {
     })
   })
 
+  it('suggests corpus inflections of the keyword, deterministic and filtered', async () => {
+    const { pid, list, energy } = seed()
+    // "energies" ×2 in the corpus — a grammatical inflection of "energy";
+    // "energise" is derivational-ish (different lemma path) and must NOT fire.
+    const doc = t.document({ extractedText: 'energies renew and energies renew again and energise the grid' })
+    t.addDocToProject(pid, doc)
+
+    const r = await discoverSynonyms({
+      projectId: pid, keywordListId: list, polarity: 'positive', minNgramFrequency: 1,
+    })
+
+    const inflections = r.perKeyword[0].inflections
+    expect(inflections.map((i) => i.text)).toEqual(['energies'])
+    expect(inflections[0].count).toBe(2)
+
+    // Already-accepted synonyms never resurface as inflections.
+    t.synonym(energy, 'energies', true)
+    const r2 = await discoverSynonyms({
+      projectId: pid, keywordListId: list, polarity: 'positive', minNgramFrequency: 1,
+    })
+    expect(r2.perKeyword[0].inflections).toEqual([])
+  })
+
   it('filters out already-accepted synonyms', async () => {
     const { pid, list, energy } = seed()
     t.synonym(energy, 'clean energy', true) // already accepted

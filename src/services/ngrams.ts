@@ -8,7 +8,7 @@
 
 import { selectAll } from './db'
 
-export type NgramSize = 2 | 3
+export type NgramSize = 1 | 2 | 3
 
 export interface NgramSourceDoc {
   documentId: string
@@ -35,8 +35,8 @@ export interface ComputeNgramsInput {
    * one document" mode). When omitted, scans all project documents.
    */
   documentId?: string
-  /** Which n-gram sizes to compute (default: both). */
-  sizes?: NgramSize[]
+    /** Which n-gram sizes to compute (default: bigrams + trigrams). */
+    sizes?: NgramSize[]
   /** Drop n-grams below this corpus-wide count (default: 3). */
   minCount?: number
   /** Trim down the result set after sorting (default: 100). */

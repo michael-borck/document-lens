@@ -541,8 +541,9 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
         toast.error('Embedding model unavailable — backend returned 503.')
       } else {
         const total = out.perKeyword.reduce((s, k) => s + k.candidates.length, 0)
+        const inflections = out.perKeyword.reduce((s, k) => s + k.inflections.length, 0)
         toast.success(
-          `Found ${total} candidate${total === 1 ? '' : 's'} across ${out.perKeyword.filter((k) => k.candidates.length > 0).length} keyword${out.perKeyword.length === 1 ? '' : 's'}`
+          `Found ${total} candidate${total === 1 ? '' : 's'} and ${inflections} inflection${inflections === 1 ? '' : 's'} across ${out.perKeyword.filter((k) => k.candidates.length > 0 || k.inflections.length > 0).length} keyword${out.perKeyword.length === 1 ? '' : 's'}`
         )
       }
       return out
@@ -571,7 +572,25 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
     }
   }
 
-  const handleReject = (keyword: Keyword, candidate: SynonymCandidate) => {
+  const handleAcceptInflection = async (keyword: Keyword, inf: { text: string }) => {
+    try {
+      // Deterministic suggestion (dictionary rules, no model) — recorded
+      // as a plain user synonym, not ai-suggested-accepted.
+      await createSynonym({ keywordId: keyword.id, text: inf.text, source: 'user' })
+      setAccepted((prev) => {
+        const next = { ...prev }
+        const set = new Set(next[keyword.id] ?? [])
+        set.add(inf.text)
+        next[keyword.id] = set
+        return next
+      })
+      toast.success(`Added "${inf.text}" as a synonym for "${keyword.text}"`)
+    } catch (err) {
+      toast.error(`Failed to add synonym: ${err instanceof Error ? err.message : String(err)}`)
+    }
+  }
+
+  const handleReject = (keyword: Keyword, candidate: { text: string }) => {
     setRejected((prev) => {
       const next = { ...prev }
       const set = new Set(next[keyword.id] ?? [])
@@ -625,6 +644,9 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
         <strong>Synonym</strong> attaches it under the parent keyword (preserves provenance);{' '}
         <strong>Keyword</strong> adds it as a first-class entry on the list with the same polarity
         — useful when the candidate stands on its own (e.g., a new {polarity === 'counter' ? 'counter-' : 'positive '}term that the list should start tracking directly).
+        The <strong>inflection</strong> chips are different: they're deterministic dictionary rules
+        over your corpus (same word, different form — <em>ecosystems</em> for <em>ecosystem</em>),
+        not model output.
       </MLCaveatBanner>
 
       <div className="flex items-end gap-4 mb-6 flex-wrap">
@@ -688,6 +710,7 @@ function SynonymsTab({ vm }: { vm: ProjectViewModel }) {
           existingKeywordPhrases={existingKeywordPhrases}
           onAccept={handleAccept}
           onAcceptAsKeyword={handleAcceptAsKeyword}
+          onAcceptInflection={handleAcceptInflection}
           onReject={handleReject}
         />
       )}
@@ -702,6 +725,7 @@ function SynonymsResults({
   existingKeywordPhrases,
   onAccept,
   onAcceptAsKeyword,
+  onAcceptInflection,
   onReject,
 }: {
   result: DiscoverSynonymsResult
@@ -710,7 +734,8 @@ function SynonymsResults({
   existingKeywordPhrases: Set<string>
   onAccept: (keyword: Keyword, candidate: SynonymCandidate) => Promise<void>
   onAcceptAsKeyword: (keyword: Keyword, candidate: SynonymCandidate) => Promise<void>
-  onReject: (keyword: Keyword, candidate: SynonymCandidate) => void
+  onAcceptInflection: (keyword: Keyword, inflection: { text: string }) => Promise<void>
+  onReject: (keyword: Keyword, candidate: { text: string }) => void
 }) {
   if (result.unavailable) {
     return (
@@ -722,7 +747,9 @@ function SynonymsResults({
     )
   }
 
-  const keywordsWithCandidates = result.perKeyword.filter((k) => k.candidates.length > 0)
+  const keywordsWithCandidates = result.perKeyword.filter(
+    (k) => k.candidates.length > 0 || k.inflections.length > 0
+  )
   if (keywordsWithCandidates.length === 0) {
     return (
       <EmptyState
@@ -739,11 +766,12 @@ function SynonymsResults({
         candidate pool: {result.candidatePoolSize.toLocaleString()} corpus phrases
       </p>
       <ul className="space-y-3">
-        {keywordsWithCandidates.map(({ keyword, candidates }) => {
+        {keywordsWithCandidates.map(({ keyword, candidates, inflections }) => {
           const rej = rejected[keyword.id] ?? new Set<string>()
           const acc = accepted[keyword.id] ?? new Set<string>()
           const visibleCandidates = candidates.filter((c) => !rej.has(c.text))
-          if (visibleCandidates.length === 0) return null
+          const visibleInflections = inflections.filter((i) => !rej.has(i.text))
+          if (visibleCandidates.length === 0 && visibleInflections.length === 0) return null
           return (
             <li key={keyword.id} className="border border-border rounded-md p-3">
               <div className="flex items-center gap-2 mb-2">
@@ -824,17 +852,63 @@ function SynonymsResults({
                           </button>
                         </div>
                       )}
-                    </li>
-                  )
-                })}
-              </ul>
-            </li>
-          )
-        })}
-      </ul>
-    </>
-  )
-}
+                     </li>
+                   )
+                 })}
+               </ul>
+               {visibleInflections.length > 0 && (
+                 <div className="mt-2 pt-2 border-t border-border">
+                   <div className="text-[10px] uppercase tracking-wide text-muted-foreground mb-1.5">
+                     Inflections in corpus · deterministic (dictionary rules, no model)
+                   </div>
+                   <div className="flex flex-wrap gap-1.5">
+                     {visibleInflections.map((inf) => (
+                       <span
+                         key={inf.text}
+                         className={cn(
+                           'inline-flex items-center gap-1 text-xs border rounded px-1.5 py-0.5',
+                           acc.has(inf.text)
+                             ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-300 dark:border-green-800'
+                             : 'bg-sky-50 text-sky-900 border-sky-200 dark:bg-sky-950/30 dark:text-sky-200 dark:border-sky-800'
+                         )}
+                       >
+                         {acc.has(inf.text) && <Check className="h-3 w-3" />}
+                         <span className="font-medium">{inf.text}</span>
+                         <span className="text-muted-foreground tabular-nums">
+                           {inf.count}×/{inf.documentCount}d
+                         </span>
+                         {!acc.has(inf.text) && (
+                           <>
+                             <button
+                               type="button"
+                               onClick={() => onAcceptInflection(keyword, inf)}
+                               className="text-green-700 hover:text-green-900 dark:text-green-300 dark:hover:text-green-100"
+                               title={`Add as a synonym of "${keyword.text}"`}
+                             >
+                               <Check className="h-3 w-3" />
+                             </button>
+                             <button
+                               type="button"
+                               onClick={() => onReject(keyword, inf)}
+                               className="text-muted-foreground hover:text-foreground"
+                               title="Hide (not stored — re-running may resurface it)"
+                             >
+                               <X className="h-3 w-3" />
+                             </button>
+                           </>
+                         )}
+                       </span>
+                     ))}
+                   </div>
+                 </div>
+               )}
+             </li>
+           )
+         })}
+       </ul>
+     </>
+   )
+ }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

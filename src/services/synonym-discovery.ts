@@ -13,17 +13,27 @@
  *   3. Filter out candidates already in each keyword's synonym list so
  *      the user doesn't see what they've already accepted.
  *
- * Returns one entry per keyword with its ranked candidate list. Caller
- * (the Discover Synonyms sub-tab) renders the per-keyword cards and
- * wires Accept (-> createSynonym) / Reject (skip) actions.
+ * Additionally, per keyword: corpus single words that are grammatical
+ * inflections of the keyword (ecosystems for ecosystem) — deterministic,
+ * computed locally with no backend (see _shared/inflections.ts; closes
+ * the documented v1 limitation where the pool held only n-grams).
  *
- * v1 limitations: candidates come from corpus n-grams only — doesn't
- * include single words (frequent single tokens are mostly stopwords or
- * already-keyword tokens). Doesn't query keywords per polarity in a
- * single pass — the caller picks one polarity at a time.
+ * Returns one entry per keyword with its ranked candidate list plus its
+ * inflection list. Caller (the Discover Synonyms sub-tab) renders the
+ * per-keyword cards and wires Accept (-> createSynonym) / Reject (skip)
+ * actions.
+ *
+ * v1 limitations: similar-phrase candidates come from corpus n-grams
+ * only (bigrams + trigrams — single words were mostly stopwords or
+ * already-keyword tokens, so inflections are handled by their own
+ * deterministic path instead). Doesn't query keywords per polarity in a
+ * single pass — the caller picks one polarity at a time. When the
+ * embedding backend is unavailable the whole run reports unavailable,
+ * inflections included.
  */
 
-import { computeNgrams } from './ngrams'
+import { computeNgrams, type NgramSize } from './ngrams'
+import { findInflections, type InflectionCandidate } from './_shared/inflections'
 import { listKeywords, listExistingSynonymsForKeywords } from './keyword-lists'
 import { api, type SimilarTermsResponse } from './api'
 import type { Keyword, KeywordPolarity } from '@/types/data'
@@ -41,7 +51,14 @@ export interface SynonymCandidate {
 
 export interface KeywordSynonymCandidates {
   keyword: Keyword
+  /** Embedding-ranked corpus phrases (backend, interpretable-ML rung). */
   candidates: SynonymCandidate[]
+  /**
+   * Corpus single words that are grammatical inflections of the keyword
+   * (deterministic — rung 0, no model, ADR-0035). Closes the documented
+   * v1 gap: the candidate pool above never contained single words.
+   */
+  inflections: InflectionCandidate[]
 }
 
 export interface DiscoverSynonymsResult {
@@ -82,22 +99,35 @@ export async function discoverSynonyms(
     return { perKeyword: [], candidatePoolSize: 0, unavailable: false }
   }
 
-  // 2. Extract corpus n-grams as candidate pool.
+  // 2. Extract the corpus candidate pool in one tokenising pass:
+  //    unigrams feed the deterministic inflection finder; bigrams +
+  //    trigrams feed the embedding ranker.
   onProgress?.({ phase: 'extracting-ngrams', message: 'Extracting corpus phrases…' })
   const ngramResult = await computeNgrams({
     projectId: input.projectId,
-    sizes: [2, 3],
+    sizes: [1, 2, 3] as NgramSize[],
     minCount: input.minNgramFrequency ?? 3,
     topN: 500,  // ample candidate pool
   })
 
-  if (ngramResult.results.length === 0) {
+  // Unigram stats for the inflection finder: keep its own (low) floor —
+  // an inflection worth suggesting can be rarer than a useful phrase —
+  // and a generous cap; tokenising is the expensive part and it is shared.
+  const unigramStats = new Map<string, { count: number; documentCount: number }>()
+  for (const r of ngramResult.results) {
+    if (r.size !== 1) continue
+    if (unigramStats.size >= 5000) break
+    unigramStats.set(r.phrase, { count: r.count, documentCount: r.documentCount })
+  }
+  const phraseResults = ngramResult.results.filter((r) => r.size !== 1)
+
+  if (phraseResults.length === 0 && unigramStats.size === 0) {
     return { perKeyword: [], candidatePoolSize: 0, unavailable: false }
   }
 
   // 3. Index candidates by phrase for quick metadata lookup post-ranking.
   const candidateMeta = new Map<string, { count: number; documentCount: number }>()
-  for (const r of ngramResult.results) {
+  for (const r of phraseResults) {
     candidateMeta.set(r.phrase.toLowerCase(), { count: r.count, documentCount: r.documentCount })
   }
 
@@ -107,13 +137,13 @@ export async function discoverSynonyms(
   // 5. Rank: send keyword texts + candidate phrases to backend.
   onProgress?.({
     phase: 'ranking',
-    message: `Ranking ${ngramResult.results.length} candidate phrases against ${keywords.length} keyword${keywords.length === 1 ? '' : 's'}…`,
+    message: `Ranking ${phraseResults.length} candidate phrases against ${keywords.length} keyword${keywords.length === 1 ? '' : 's'}…`,
   })
   let response: SimilarTermsResponse
   try {
     response = await api.findSimilarTerms(
       keywords.map((k) => k.text),
-      ngramResult.results.map((r) => r.phrase),
+      phraseResults.map((r) => r.phrase),
       {
         topN: input.topN ?? 8,
         minSimilarity: input.minSimilarity ?? 0.4,
@@ -123,22 +153,30 @@ export async function discoverSynonyms(
     // Treat 503 / unavailable embedding model gracefully.
     const msg = err instanceof Error ? err.message : String(err)
     if (msg.includes('Embedding model unavailable') || msg.includes('503')) {
-      return { perKeyword: [], candidatePoolSize: ngramResult.results.length, unavailable: true }
+      return { perKeyword: [], candidatePoolSize: phraseResults.length, unavailable: true }
     }
     throw err
   }
 
   // 6. Merge: response is keyword-text -> ranked candidates. Filter
-  //    already-accepted, attach corpus metadata.
+  //    already-accepted, attach corpus metadata. Inflections are computed
+  //    locally regardless of what the ranker returned.
   onProgress?.({ phase: 'merging', message: 'Filtering already-accepted suggestions…' })
+  const allKeywordTexts = new Set(keywords.map((k) => k.text.toLowerCase()))
   const perKeyword: KeywordSynonymCandidates[] = []
   for (const keyword of keywords) {
+    const existingForKw = existing.get(keyword.id) ?? new Set<string>()
+    const inflections = findInflections(keyword.text, unigramStats, [
+      keyword.text,
+      ...existingForKw,
+      ...allKeywordTexts,
+    ])
+
     const responseEntry = response.results.find((r) => r.source === keyword.text)
     if (!responseEntry) {
-      perKeyword.push({ keyword, candidates: [] })
+      perKeyword.push({ keyword, candidates: [], inflections })
       continue
     }
-    const existingForKw = existing.get(keyword.id) ?? new Set<string>()
     const candidates: SynonymCandidate[] = []
     for (const c of responseEntry.candidates) {
       const lower = c.candidate.toLowerCase()
@@ -152,7 +190,7 @@ export async function discoverSynonyms(
         documentCount: meta.documentCount,
       })
     }
-    perKeyword.push({ keyword, candidates })
+    perKeyword.push({ keyword, candidates, inflections })
   }
 
   return {

@@ -1,6 +1,8 @@
 # ADR-0038: The v9 Coding Legend becomes shipped seed data, not bespoke code
 
-**Status:** Proposed
+**Status:** Accepted (in progress — seeds + annotation store implemented
+2026-10-08; framework-invocation list awaits the researchers' term list,
+empty in the v9 template)
 **Date:** 2026-10-08
 **Deciders:** Michael Borck (with Claude)
 **Evidence:** `research-context/coding-legend-v9.md` (the codebook, verbatim
