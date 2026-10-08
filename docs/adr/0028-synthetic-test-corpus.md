@@ -1,6 +1,10 @@
 # ADR-0028: Synthetic test corpus: Markdown sources in-repo, PDFs built on demand, expectations as a manifest
 
-**Status:** Proposed
+**Status:** Accepted (implemented)
+**Update:** 2026-10-08 — corpus now carries **prominence-zone ground
+truth** for the layout pass (ADR-0040): an authored VC foreword with a
+designed mention share (Atlas) and a no-leadership-heading control
+(Narrow), enforced as `prominence_zones` expectations in the manifest.
 **Date:** 2026-07-12
 **Evidence:** `src/services/substance.ts`, `src/services/focus.ts` (the signals under test); `src/services/seed.ts` + `src/data/sustainability-keywords.json` (the shipped keyword set the corpus is authored against); `samples/` (real PDFs, hardcoded in `e2e/happy-path.spec.ts`); ADR-0011, ADR-0012, ADR-0016
 

@@ -56,7 +56,7 @@ A paper-ready one-page overview (decision · date · status · driving force) is
 | [0025](0025-optional-ml-extras.md) | *(backend)* Optional ML via extras, with graceful degradation | Accepted |
 | [0026](0026-fail-loudly-not-silently.md) | *(backend)* Fail loudly on ML unavailability, not silently | Accepted |
 | [0027](0027-image-text-extraction-boundary.md) | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | Proposed |
-| [0028](0028-synthetic-test-corpus.md) | Synthetic test corpus: Markdown sources in-repo, PDFs built on demand | Proposed |
+| [0028](0028-synthetic-test-corpus.md) | Synthetic test corpus: Markdown sources in-repo, PDFs built on demand | Accepted (implemented) |
 | [0029](0029-focus-first-hub.md) | Focus-first hub: findings deep-link into the tools | Accepted |
 | [0030](0030-find-judge-split.md) | The find/judge split: the tool finds, the researchers judge | Accepted |
 | [0031](0031-per-mention-validation-export.md) | Per-mention validation export, deduplicated one row per SDG per passage | Accepted (implemented) |

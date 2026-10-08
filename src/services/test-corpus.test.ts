@@ -37,6 +37,7 @@ interface Manifest {
   extra_sdg_tags: Record<string, number[] | string>
   documents: Array<{ id: string; company: string; year: number }>
   expectations: {
+    prominence_zones?: ZoneExpectation[]
     orderings: Array<{ signal: string; higher: string; lower: string; why: string }>
     bands: Array<{ signal: string; doc: string; min?: number; max?: number }>
     trends: Array<{ signal: string; company: string; direction: 'rising' | 'falling'; strict: boolean }>
@@ -172,6 +173,53 @@ function signalValue(doc: DocSignals, signal: string): number {
 }
 
 // ---------------------------------------------------------------------------
+// Prominence zones (ADR-0032 ground truth for Wave 2's layout pass)
+// ---------------------------------------------------------------------------
+
+interface ZoneExpectation {
+  doc: string
+  foreword_heading: string | null
+  why: string
+  leadership_min_mentions?: number
+  leadership_max_mentions?: number
+  body_min_mentions?: number
+  leadership_share_min?: number
+}
+
+/**
+ * The foreword zone as Wave 2's zone model will see it: from the heading
+ * line to the next same-level heading. On the Markdown source this is a
+ * string split; in the app it will be a char-offset range derived from
+ * PDF headings — the counting logic below is the same either way.
+ */
+function splitLeadershipZone(
+  body: string,
+  heading: string | null
+): { leadership: string; body: string } {
+  if (!heading) return { leadership: '', body }
+  const lines = body.split('\n')
+  const start = lines.findIndex((l) => l.trim() === `## ${heading}`)
+  if (start === -1) throw new Error(`Foreword heading not found: ${heading}`)
+  let end = lines.length
+  for (let i = start + 1; i < lines.length; i++) {
+    if (/^## /.test(lines[i].trim())) {
+      end = i
+      break
+    }
+  }
+  return {
+    leadership: lines.slice(start, end).join('\n'),
+    body: [...lines.slice(0, start), ...lines.slice(end)].join('\n'),
+  }
+}
+
+function countMentions(text: string): number {
+  let n = 0
+  for (const kw of keywords) n += countConcept(text, [kw.text])
+  return n
+}
+
+// ---------------------------------------------------------------------------
 // Tests: the manifest, executed
 // ---------------------------------------------------------------------------
 
@@ -188,6 +236,31 @@ describe('test corpus (ADR-0028)', () => {
   it('every document actually exercises the keyword set (no dead fixtures)', () => {
     for (const doc of docs.values()) {
       expect(doc.totalMatches, `${doc.id} has no keyword matches`).toBeGreaterThan(0)
+    }
+  })
+
+  describe('prominence zones', () => {
+    for (const z of manifest.expectations.prominence_zones ?? []) {
+      it(`zone of ${z.doc}: ${z.foreword_heading ?? 'no leadership heading'} (${z.why})`, () => {
+        const body = loadDocBody(`${z.doc}.md`)
+        const { leadership, body: rest } = splitLeadershipZone(body, z.foreword_heading)
+        const leadershipMentions = countMentions(leadership)
+        const bodyMentions = countMentions(rest)
+        const total = leadershipMentions + bodyMentions
+        if (z.leadership_min_mentions !== undefined) {
+          expect(leadershipMentions, `${z.doc} leadership mentions`).toBeGreaterThanOrEqual(z.leadership_min_mentions)
+        }
+        if (z.leadership_max_mentions !== undefined) {
+          expect(leadershipMentions, `${z.doc} leadership mentions (must stay out of a nonexistent zone)`).toBeLessThanOrEqual(z.leadership_max_mentions)
+        }
+        if (z.body_min_mentions !== undefined) {
+          expect(bodyMentions, `${z.doc} body mentions`).toBeGreaterThanOrEqual(z.body_min_mentions)
+        }
+        if (z.leadership_share_min !== undefined) {
+          const share = total === 0 ? 0 : leadershipMentions / total
+          expect(share, `${z.doc} leadership share (${leadershipMentions}/${total})`).toBeGreaterThanOrEqual(z.leadership_share_min)
+        }
+      })
     }
   })
 

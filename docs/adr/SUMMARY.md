@@ -34,7 +34,7 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0025 | *(backend)* Optional ML via extras, graceful degradation | 2026-05→06 | Accepted | Full ML is brittle in one process; not every deployment needs every capability |
 | 0026 | *(backend)* Fail loudly on included-but-broken ML, not silently | 2026-05→07 | Accepted | A silent model-load failure hid a recurring, near-undiagnosable clean-machine bug |
 | 0027 | Images as text: backend extracts, app orchestrates, image-analyser stays image-only | 2026-07 | Proposed | Reports carry load-bearing content in figures the text-only pipeline never counts |
-| 0028 | Synthetic test corpus: Markdown in-repo, PDFs built, manifest expectations | 2026-07 | Proposed | Real reports can't exercise signal extremes on demand or ship with the repo |
+| 0028 | Synthetic test corpus: Markdown in-repo, PDFs built, manifest expectations | 2026-07 | Accepted (implemented) | Real reports can't exercise signal extremes on demand or ship with the repo |
 | 0029 | Focus-first hub: findings deep-link into the tools | 2026-07 | Accepted | Twelve pipeline-ordered tabs buried the "start here" view; research is hub-and-spoke, not a pipeline |
 | 0036 | Windows code signing via Azure Artifact Signing | 2026-08 | Accepted (dormant CI) | $9.99/mo org-validated signing beats $116–580/yr certs; EV lost its SmartScreen bypass in 2024 |
 | 0037 | Per-keyword match mode: literal by default, opt-in prefix (stem) matching | 2026-10 | Accepted (implemented) | Shipped lists enumerate inflections by hand; an automatic stemmer would silently change counts — make it a per-keyword researcher choice instead |

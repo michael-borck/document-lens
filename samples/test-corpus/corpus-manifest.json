@@ -26,6 +26,22 @@
     { "id": "narrow-institute-2024-annual-report", "company": "Narrow Waters Institute", "year": 2024, "sector": "Environmental Research", "company_size": "Small", "type": "Annual Report" }
   ],
   "expectations": {
+    "prominence_zones": [
+      {
+        "doc": "atlas-university-2024-annual-report",
+        "foreword_heading": "Vice-Chancellor's introduction",
+        "why": "high leadership share: the VC introduction deliberately carries a meaningful share of keyword mentions; heading matches the ADR-0032 detection pattern (Wave 2's ground truth)",
+        "leadership_min_mentions": 6,
+        "body_min_mentions": 30,
+        "leadership_share_min": 0.12
+      },
+      {
+        "doc": "narrow-institute-2024-annual-report",
+        "foreword_heading": null,
+        "why": "no VC/Chancellor heading — a Director's report is not leadership voice; every mention must land in body (ADR-0032 fallback: default Body, fail-loudly detection per ADR-0026)",
+        "leadership_max_mentions": 0
+      }
+    ],
     "orderings": [
       { "signal": "repetition", "higher": "veridia-metals-2023-sustainability-report", "lower": "southern-forge-2023-sustainability-report", "why": "greenwash pair: Veridia repeats a few slogans; Southern Forge varies its language" },
       { "signal": "diversity", "higher": "southern-forge-2023-sustainability-report", "lower": "veridia-metals-2023-sustainability-report", "why": "greenwash pair: Southern Forge touches many distinct concepts" },
