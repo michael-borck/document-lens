@@ -330,6 +330,29 @@ async function seedWeddingCakeScore(
 }
 
 /**
+ * The sustainability lens's suggestion capability (ADR-0043).
+ *
+ * Declared here, in lens data, rather than read from the backend's model
+ * constant. Before this, the three ClimateBERT models were named in Python, so
+ * any lens got climate suggestions regardless of its domain and nothing could
+ * report the mismatch. Declaring the domain alongside the models is what lets
+ * the backend refuse: a lens whose domain does not match the loaded models gets
+ * silence, with the reason surfaced in /health.
+ *
+ * `domain` is the lens asserting what it is about, not a label for the models.
+ * Revisions are omitted so they resolve at load and are recorded per suggestion,
+ * which is what makes a rerun attributable.
+ */
+export const SUSTAINABILITY_SUGGESTION_CAPABILITY = {
+  domain: 'climate-disclosure',
+  models: {
+    detector: 'climatebert/distilroberta-base-climate-detector',
+    commitment: 'climatebert/distilroberta-base-climate-commitment',
+    target: 'climatebert/netzero-reduction',
+  },
+} as const
+
+/**
  * Helper exposed to UI / tests: have any of the built-in axes been
  * seeded? Used to gate the seeding call so we don't run it on every
  * app launch when the user already has the defaults.
