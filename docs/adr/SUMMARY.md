@@ -44,6 +44,7 @@ decision's commit date; a `→` marks a decision that matured over a range.
 | 0040 | Deterministic layout pass — PyMuPDF headings feed prominence zones *(backend)* | 2026-10 | Accepted (implemented) | The zone is positional, not semantic; geometry + typography from a pure-pip library automates Leadership voice at rung 0 — no deepdoctection stack |
 | 0041 | Typed decision primitives for the judgement axes — adopt the pattern, not a vendor | 2026-10 | Accepted (decided in principle) | A suggestion must carry a distribution over the legend's categories, read locally; and training on the pilot's labels to score against them is circular |
 | 0042 | Calibration analysis is study evidence, not part of the instrument | 2026-10 | Accepted, amended 2026-10-09 (x2) | Analysis code that exists only for one study must not ship inside the artefact; the audit trail belongs with the claim. Amendment: the shipped ordinal alpha was missing a square and is not Krippendorff's ordinal metric; harness retired, the Python tool is the single implementation |
+| 0043 | The suggestion model belongs to the lens, and a domain mismatch is silence | 2026-10 | Accepted | A lens supplies its own suggestion models as an optional capability block; a model whose domain does not match the lens produces silence, not a plausible wrong answer. Removes the last place where a domain assumption is hardcoded rather than declared |
 
 **Cross-cutting principle** running through 0007 / 0010 / 0011 / 0012 / 0014:
 every computed signal is **deterministic and reproducible**; generative AI is an
