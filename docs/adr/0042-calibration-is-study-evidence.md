@@ -199,3 +199,46 @@ future script needs to read xlsx without adding a dependency.
 and what is compared — and it is still the document that says so. Only the implementation moved.
 
 Rule 4 is now closed. The Python tool in the paper repository is the single implementation.
+
+---
+
+## Amendment 2026-10-09 (third): the alignment comparison is now runnable, and two latent bugs are fixed
+
+The second amendment narrowed rule 4 and left one comparison outstanding: exact unit-key matching
+against containment-gated matching, which needs the three coding sheets. The sheets have not arrived.
+But the comparison can be *executed* against the fixture corpus now, because both policies are
+reachable from one implementation via `MatchSettings.threshold`, and the result is recorded here so
+the real sheets confirm rather than discover it.
+
+| policy | units | fuzzy joins | refused as ambiguous | alpha(Framing) |
+|---|---|---|---|---|
+| exact-key only | 41 | 0 | 11 | 0.5736 |
+| exact + containment | 32 | 10 | 2 | 0.6367 |
+
+Two things to read from this, and one thing not to.
+
+*Read:* the containment gate recovers ten units that exact matching splits, and alpha **rises**. The
+direction matters more than the magnitude. Silent splits lower the unit count, which depresses the
+coefficient with no error raised anywhere — the failure mode this whole comparison exists to detect.
+The gate also refuses nine near-misses outright rather than merging them, which is the other half of
+the mechanism working.
+
+*Do not read:* this as the study's answer. It is synthetic data with planted disagreement rates, and
+the real sheets will have hand-pasted text that the fixtures only imitate. It settles the question of
+whether the policy comparison is *possible* from one repository, which is what rule 4 was protecting.
+
+Two bugs surfaced while building the report layer, both of the same kind: a code path that had never
+been executed and failed on first use.
+
+- `ImportReport.render()` referenced a `codebook` that was not in scope, so importing a real sheet
+  and printing its audit raised `NameError`. It also reported unrecognised values through a
+  comprehension that printed one arbitrary row while labelling it with the wrong axis — so a reader
+  checking a bad value would have been sent to the wrong row. It now renders from the report's own
+  stored fields, which is also why it can print an axis it actually recorded counts for.
+- `MatchResult.render()` derived the pairwise overlap from `self.retrieval`, which is populated during
+  matching but is a different structure. A `MatchResult` built any other way had units but no
+  retrieval rows, and printing raised `KeyError` on the first unit's coder. Coders now come from the
+  units.
+
+Both are the reason the pipeline is built against fixtures rather than waiting for real data: the
+first run on a real sheet should not also be the first run of the code.
