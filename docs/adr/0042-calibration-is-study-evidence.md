@@ -1,11 +1,15 @@
 # ADR-0042: Calibration analysis is study evidence, not part of the instrument
 
-**Status:** Accepted
+**Status:** Accepted — amended 2026-10-09 (x2). Rule 4 closed; the TypeScript harness named
+below was retired, so the analysis has a single implementation. The body is left as written on
+2026-10-08, with two amendments appended.
 **Date:** 2026-10-08
 **Deciders:** Michael Borck
 **Evidence:** ADR-0038 (the legend ships as data, and nothing may exist only to serve it);
 ADR-0031 (per-mention export is the calibration surface);
-`scripts/calibrate.mjs` + `src/services/_shared/krippendorff.ts` (commit `df70ff7`);
+`scripts/calibrate.mjs` + `src/services/_shared/krippendorff.ts` (commit `df70ff7`, both since
+deleted — see the second amendment; the TS ordinal metric also had a defect, fixed in `ea9e183`
+immediately before its removal);
 `../../../research/dsr-document-lens/03-data/agreement/` (the tool's new home);
 `../../../research/dsr-document-lens/03-data/agreement-analysis-design.md`;
 paper §6.3 and §6.4.
