@@ -158,3 +158,40 @@ Amended rules:
   leaves with its replacement.
 
 Rule 5 and ADR-0041 are unaffected.
+
+---
+
+## Amendment 2026-10-09 (second): rule 4 closed, harness retired
+
+Retirement happened earlier than rule 4 anticipated, and the reason is that the precondition it was
+waiting on turned out not to be a precondition.
+
+Rule 4 deferred deletion until the Python tool had produced the study's Tables 5–8 from the real
+sheets, so that no capability would be lost while the replacement was unproven on real data. But the
+capability at risk was only ever the *statistic*, and the statistic had already been settled two
+commits earlier: after restoring the missing square, the two implementations agree exactly across
+120 randomised three-coder cases at both measurement levels. Deleting the harness therefore removes
+a duplicate, not a capability.
+
+The alignment comparison that rule 4 exists to protect is unaffected. It was never a TS-versus-
+Python question; it is a question about two policies, and both are reachable from the Python tool
+alone, because `MatchSettings.threshold` selects between them — 1.0 leaves only the exact-key path,
+0.92 (the default) adds the containment-gated fallback. The deleted harness's own weakness is
+reproducible there as the thing it was: on a passage differing only by a dropped leading clause and
+curly quotes, `normalise_passage` folds the quotes and leaves the two coders' token signatures
+identical (similarity 0.9914, containment true), where the harness's `norm()` would have produced two
+unit keys. So the comparison ADR-0042 requires can be run, and it will be run, from one repository.
+
+Removed: `scripts/calibrate.mjs` (341 lines), `scripts/lib/xlsx.mjs` (185 lines),
+`src/services/_shared/krippendorff.ts` and its test, and the `npm run calibrate` entry.
+
+`scripts/lib/xlsx.mjs` went with it. It existed only to read the coding sheets for this harness —
+nothing else imported it, and the Python tool reads xlsx through `openpyxl`. It was a
+zero-dependency ZIP-and-XML reader, which is real work, but it is work for a script that no longer
+exists and its replacement already has a reader. Worth remembering as available prior art if a
+future script needs to read xlsx without adding a dependency.
+
+`research-context/calibration-protocol.md` stays. It is the study protocol — what is coded, by whom,
+and what is compared — and it is still the document that says so. Only the implementation moved.
+
+Rule 4 is now closed. The Python tool in the paper repository is the single implementation.

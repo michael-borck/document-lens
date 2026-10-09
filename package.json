@@ -25,8 +25,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src",
-    "capture:help": "npm run build:vite && playwright test --config playwright.capture.config.ts",
-    "calibrate": "node --experimental-strip-types --no-warnings scripts/calibrate.mjs"
+    "capture:help": "npm run build:vite && playwright test --config playwright.capture.config.ts"
   },
   "dependencies": {
     "@fontsource-variable/fraunces": "^5.2.9",
