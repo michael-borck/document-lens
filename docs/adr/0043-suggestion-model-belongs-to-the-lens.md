@@ -1,6 +1,6 @@
 # ADR-0043: The suggestion model belongs to the lens, and a domain mismatch is silence
 
-**Status:** Accepted
+**Status:** Accepted — implemented 2026-10-09
 **Date:** 2026-10-09
 **Deciders:** Michael Borck
 **Evidence:** ADR-0030 (the find/judge split), ADR-0038 (the legend ships as data), ADR-0039
@@ -112,3 +112,35 @@ is to measure alternatives against them rather than assume. The problem is that 
   capability block is general or merely accommodates a second instance of the same shape; or if
   ADR-0041's comparison produces a winner for a non-climate domain, at which point the per-lens
   declaration stops being a configuration convenience and becomes load-bearing.
+
+---
+
+## Implementation, 2026-10-09
+
+Rules 1, 2, 3 and 5 are implemented. Rule 4 was already true and is now
+covered by a test.
+
+`document_analyser/analyzers/lens_capability.py` carries `SuggestionCapability`
+(domain, models, revisions) and `capability_state`, which returns a usable flag
+and a reason. Three refusals are deliberate rather than incidental: no models, no domain, and a
+domain that does not match the loaded models. A model id this build does not load is also refused,
+so a capability cannot name something that was never going to run. The default is refusal — a caller
+that declares nothing gets silence.
+
+`document-lens/src/services/seed.ts` declares the sustainability lens's block. Revisions are
+deliberately absent from it: they resolve at load and travel per suggestion, so pinning a sha in the
+seed would freeze something that goes stale and needs a release to change.
+
+`/health` gained `lens_domain`, `suggestion_models` and `suggestion_refusal`.
+
+**The recorded regression did not happen, and that is worth being explicit about.** The prediction in
+Consequences was that until the seed carries the block, the sustainability lens produces no
+suggestions. Both halves landed in the same change, so the window did not open. `MODEL_SPECS` and
+the analyzer singleton remain for the desktop app's existing route, which still calls without a
+declaration; that route is the thing to rewire next, and until it is, the block is declared but not
+yet sent.
+
+Nine tests pin the refusal behaviour rather than the model's accuracy, since the claim under test is
+that a lens gets nothing from another domain's models and that the absence is explicable. Two assert
+the analyzer is never reached on the refusal path, which also keeps the suite from downloading model
+weights.
