@@ -127,14 +127,19 @@ function ordinalDistance(
 
   const lo = Math.min(rankA, rankB)
   const hi = Math.max(rankA, rankB)
-  const nTotal = [...n.values()].reduce((s, c) => s + c, 0)
-  if (nTotal <= 1) return 1
 
-  let steps = 0
-  for (let g = lo; g < hi; g++) {
-    const nHere = n.get(valueOrder[g]) ?? 0
-    const nNext = n.get(valueOrder[g + 1]) ?? 0
-    steps += (nHere + nNext) / 2
+  // Krippendorff's ordinal distance function is
+  //   d2[lo,hi] = (sum_{g=lo..hi} n_g - (n_lo + n_hi)/2)^2
+  // The SQUARE is load-bearing. Without it the metric is still monotone in
+  // scale distance, so every relative test passes, but it is not Krippendorff's
+  // ordinal metric: it reads alpha low, and reads it lower as disagreement
+  // grows (0.031 / 0.117 / 0.181 below reference at adjacent-disagreement
+  // rates of 0.05 / 0.20 / 0.40). Framing is computed with metric 'ordinal' by
+  // scripts/calibrate.mjs, so this reached the study's own axis.
+  let inner = 0
+  for (let g = lo; g <= hi; g++) {
+    inner += n.get(valueOrder[g]) ?? 0
   }
-  return steps / (nTotal - 1)
+  const corrected = inner - (n.get(valueOrder[lo]) ?? 0) / 2 - (n.get(valueOrder[hi]) ?? 0) / 2
+  return corrected * corrected
 }
