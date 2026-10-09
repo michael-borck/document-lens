@@ -283,8 +283,16 @@ document-lens/
 ├── e2e/                   # Playwright acceptance suite (browser harness)
 ├── samples/               # sample annual reports + test corpus
 ├── docs/design/           # user stories, IA, methodology notes
+├── docs/adr/              # decision record (ADRs 0001-0043)
+├── docs/OPEN-THREADS.md   # deferred ideas, what unblocks them, what not to do
 └── resources/             # icons, packaged backend (production)
 ```
+
+## Coming back to this project?
+
+Start with [docs/OPEN-THREADS.md](docs/OPEN-THREADS.md). It records the work
+that is deliberately not being done now, what would unblock each item, and
+the decisions already taken about the ones that look attractive later.
 
 ## Licence
 

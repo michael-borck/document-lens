@@ -93,15 +93,34 @@ corpus; per-document detection-quality field honest (ADR-0026).
 
 ## Wave 4 — Calibration study (when the three coding sheets land)
 
-Protocol already written: `research-context/calibration-protocol.md`
-(gitignored with the rest of `research-context/`). Repo side: sheet
-importer + agreement script (Krippendorff's α per axis, tool-vs-consensus
-precision/recall, stem audit), likely beside the `samples/` machinery.
+Protocol already written: `research-context/calibration-protocol.md`.
+Repo side moved. The analysis lives in the paper repository at
+`research/dsr-document-lens/03-data/agreement/` — not here — because code
+that exists only to serve this study's coding legend must not ship inside
+the artefact (ADR-0042). Krippendorff's α per axis is implemented and
+cross-validated there; passage matching and the report driver still to
+build. The TypeScript `npm run calibrate` harness this roadmap originally
+pointed at has been retired.
 Step 0 asks (cross-coded subset, codebooks, PDFs) go out whenever the
 sheets arrive — the only time-sensitive item in this roadmap.
 
 ## Later / opportunistic
 
+- **Typed logits-read suggestions** (ADR-0041). Replace the per-label
+  scores from the climate classifiers with a read of the next-token
+  distribution over the declared candidate set, so a framing call is
+  reported as `1 Aspirational (0.62) / 2 Quantified (0.31)` rather than a
+  bare label, and "which of these calls are close?" becomes answerable.
+  Blocked on the calibration study: ADR-0041's deliverable is a
+  comparison table over the same passages, and this only gets built if it
+  wins. Not a swap — measure first, then decide. Local implementation
+  only; pin implementation and weights by revision.
+- **Per-lens suggestion models** (ADR-0043). Move `MODEL_SPECS` out of
+  the analysis service and into an optional capability block in lens
+  data, so a lens declares the models it wants or declares none, and a
+  domain mismatch yields silence rather than confident nonsense. Known
+  cost: until the seed carries the block, the sustainability lens
+  produces no suggestions. Cut this seam before opening a second lens.
 - **Cached-parse reuse** (ReportParse's `annotator-add` pattern) once
   re-running analyzers across a 40-university corpus is routine.
 - **Bboxes in the page model** for jump-to-location precision — piggyback
