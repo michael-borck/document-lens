@@ -17,11 +17,11 @@ authors:
     orcid: "https://orcid.org/0000-0002-0950-6396"
     affiliation: "Curtin University"
     email: "michael.borck@curtin.edu.au"
-version: "0.29.0"
-date-released: "2026-07-11"
+version: "0.32.7"
+date-released: "2026-08-20"
 license: MIT
 repository-code: "https://github.com/michael-borck/document-lens"
-url: "https://github.com/michael-borck/document-lens"
+url: "https://documentlens.borck.education"
 keywords:
   - document analysis
   - text analysis
