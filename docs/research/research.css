@@ -1,0 +1,72 @@
+@import url("../styles.css");
+
+/* Research page — same reading-room palette as the landing page, a quieter
+   register: one column of prose, a status line, and a citation block. */
+
+.research-hero { padding: 72px 0 56px; }
+.research-hero .sub { max-width: 40rem; }
+.research-hero h1 { max-width: 20ch; }
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 1.8rem;
+  padding: 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--card);
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+.status::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--wine);
+}
+
+.prose { padding: 0 0 72px; }
+.prose-inner { max-width: 44rem; }
+.prose p { color: var(--ink-soft); font-size: 1.02rem; margin-bottom: 1.1rem; }
+.prose p strong { color: var(--ink); }
+.prose h2 { margin-top: 0.5rem; }
+
+.research-cards { padding: 0 0 80px; }
+.research-cards h2 { margin-bottom: 1.5rem; }
+
+.band-link {
+  display: inline-block;
+  margin-top: 1.2rem;
+  font-weight: 600;
+  color: var(--paper);
+  border-bottom: 1px solid rgba(242, 239, 232, 0.4);
+  text-decoration: none;
+}
+.band-link:hover { border-color: var(--paper); }
+
+.cite { padding: 0 0 80px; }
+.cite-inner { max-width: 44rem; }
+.cite pre {
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  overflow-x: auto;
+  font-size: 0.86rem;
+  line-height: 1.7;
+  margin-top: 1.4rem;
+}
+.cite pre code { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+.cite p { color: var(--ink-soft); font-size: 0.95rem; }
+
+.team { padding: 0 0 80px; }
+.team-list { list-style: none; max-width: 44rem; }
+.team-list li {
+  padding: 14px 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-soft);
+}
+.team-list li:first-child { border-top: 1px solid var(--line); }
+.team-list strong { color: var(--ink); }

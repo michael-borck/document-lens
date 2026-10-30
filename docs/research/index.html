@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>The research behind Document Lens — design science research</title>
+  <meta name="description" content="Document Lens is the artefact of a design science research project: a local-first instrument for lens-based document analysis, built and evaluated with domain researchers." />
+  <link rel="canonical" href="https://documentlens.borck.education/research/" />
+  <link rel="stylesheet" href="research.css" />
+</head>
+<body>
+
+  <nav class="topnav">
+    <div class="container topnav-inner">
+      <a class="brand" href="/" style="text-decoration:none;color:inherit;">Document&nbsp;<em>Lens</em></a>
+      <div class="topnav-links">
+        <a href="/research/">Research</a>
+        <a href="https://github.com/michael-borck/document-lens">GitHub</a>
+        <a href="https://github.com/michael-borck/document-lens/releases">Releases</a>
+        <a href="/#download" class="nav-cta">Download</a>
+      </div>
+    </div>
+  </nav>
+
+  <header class="hero research-hero">
+    <div class="container">
+      <p class="eyebrow">Design science research</p>
+      <h1>Why the instrument is shaped the way it is.</h1>
+      <p class="sub">Document Lens is the artefact of a design science research project. The
+        contribution is not a domain finding but a way of building analysis instruments:
+        a configurable <em>lens</em>, polarity in one keyword list, and a scoring rule
+        the researcher supplies rather than the software hard-codes.</p>
+      <p class="status">Manuscript under review · artefact available now</p>
+    </div>
+  </header>
+
+  <section class="container prose">
+    <div class="prose-inner">
+      <h2>The problem</h2>
+      <p>Researchers asking whether an organisation talks about a topic rarely need only a
+        mention count. They need to know whether the topic appears in the <strong>right
+        place</strong> and whether the language <strong>delivers</strong> or merely
+        <strong>performs</strong>. Done by hand, that reading is careful but slow and hard to
+        reproduce; done with a bespoke script, it is fast but leaves no auditable record of how
+        each decision was made.</p>
+
+      <p>Document Lens was built to hold both halves at once: deterministic, reproducible
+        measures over the researcher's own corpus, with every finding linked back to the passage
+        that produced it. Its first use case was sustainability reporting in Australian
+        university annual reports; the framework — a <em>lens</em> — is what generalises.</p>
+
+      <h2>The artefact</h2>
+      <p>The instrument is open source under the MIT licence. It runs locally: documents,
+        extracted text, and every computed signal live in a SQLite database on the
+        researcher's machine, with no account and no upload. The analysis engine ships with
+        the application. A project can be exported as a portable bundle and its tables
+        exported for independent checking.</p>
+
+      <p>The paper describes a pinned version of the software, because every claim about its
+        behaviour depends on what it actually did when the numbers were computed. Cite the
+        release below rather than a branch.</p>
+    </div>
+  </section>
+
+  <section class="providers-band">
+    <div class="container">
+      <h2>What the design contributes</h2>
+      <div class="grid three">
+        <div class="card plain">
+          <h3>The lens abstraction</h3>
+          <p>Analysis axes, polarised keywords, and a scoring rule are declared as data.
+            Changing the lens changes the domain, without changing the software.</p>
+        </div>
+        <div class="card plain">
+          <h3>Design principles</h3>
+          <p>A set of principles, each stated with the evidence that would refute it — so a
+            reader can judge the design record rather than take it on trust.</p>
+        </div>
+        <div class="card plain">
+          <h3>Local-first as a constraint</h3>
+          <p>Research corpora are often confidential or embargoed. Keeping files and analysis
+            on the device is a design commitment, not a deployment detail.</p>
+        </div>
+      </div>
+      <a class="band-link" href="https://github.com/michael-borck/document-lens/releases/tag/v0.32.7">The released artefact — Document Lens v0.32.7 →</a>
+    </div>
+  </section>
+
+  <section class="container cite">
+    <div class="cite-inner">
+      <h2>Cite the artefact</h2>
+      <p>If you use the software, cite the pinned release. A citation for the paper will be
+        added here once it clears peer review.</p>
+      <pre><code>@software{borck2026documentlens,
+  author  = {Borck, Michael},
+  title   = {Document Lens},
+  version = {0.32.7},
+  date    = {2026-08-20},
+  url     = {https://documentlens.borck.education},
+  license = {MIT},
+  note    = {Local-first instrument for lens-based document analysis}
+}</code></pre>
+    </div>
+  </section>
+
+  <section class="container team">
+    <h2>Team</h2>
+    <ul class="team-list">
+      <li><strong>Michael Borck</strong> — Curtin University. Led the design and built the instrument.</li>
+      <li><strong>Mike Burbridge</strong> — Curtin University, Management &amp; Marketing. Co-design, sustainability framework.</li>
+      <li><strong>Sonja Kuzich</strong> — Curtin University, Education. Co-design, sustainability framework.</li>
+    </ul>
+  </section>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <a href="/">Home</a>
+      <a href="/research/">Research</a>
+      <a href="https://github.com/michael-borck/document-lens">GitHub</a>
+      <a href="https://github.com/michael-borck/document-lens/releases">Releases</a>
+      <span class="copyright">MIT © Michael Borck</span>
+    </div>
+  </footer>
+
+</body>
+</html>
