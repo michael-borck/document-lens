@@ -42,6 +42,30 @@ is a known, accepted, unfixed seam, not because it is blocked.
 *Order matters:* cut this before opening a second lens, not after. A lens
 built while the suggestion layer is hardcoded inherits the problem.
 
+### CPR-style passage sampling for the calibration run
+*Prompted by:* Sonja's conference link to the Climate Policy Radar methodology
+(full comparison: paper repo `04-literature/climate-policy-radar-comparison.md`).
+Their classifier evaluation samples passages three ways — random, label-derived,
+and by embedding similarity to the concept — so ambiguous boundary cases get
+labelled, not just the obvious ones. Our §6.3 recall estimate is capped by the
+passages the coders happen to find; similarity sampling surfaces the ones nobody
+flagged. The same passage-level alignment is what the Coverage-discrepancy entry
+below needs as its diagnostic.
+*Decided 2026-10-21:* adopted before coding began. §6.3 amended ("Boundary
+passages" paragraph + Table 6 pooled/per-slice reporting); ADR-0044 filed for the
+document-analyser candidate-generation endpoint. Remaining work is the
+implementation itself, tracked by that ADR.
+
+### Climate Policy Radar concept lists as a lens source
+*Prompted by:* the same link. Their Wikibase concept store (labels, definitions,
+subconcepts, relationships) is open and structured. A slice could load as a
+climate-policy lens keyword list through the existing bundle/CSV seams — a
+configuration change that honours DP10, not a code change.
+*Unblocked by:* a licence check. Their terms of use govern derivative keyword
+lists; until that is read, this stays an idea. Also respects the second-lens rule
+(do not build a lens just to demonstrate) — worth cutting only if a researcher
+actually wants a climate-policy lens.
+
 ### Resolve the Coverage discrepancy
 *Prompted by:* §6.5. A coverage figure for the validation report implies
 roughly seventy per cent where manual inspection found two passages
@@ -73,6 +97,33 @@ it needs its own domain prior — probably a small set of narrow binary
 predicates (control assertion, incident disclosure, quantified metric)
 rather than a trained language model.
 *Unblocked by:* a second lens existing, plus ADR-0043.
+
+### Biodiversity lens + engagement-level scoring rule (Jonäll 2026)
+*Prompted by:* Jonäll (2026, AAAJ, doi 10.1108/AAAJ-01-2025-7696) — a manual NVivo
+keyword content analysis of 196 Swedish reports that derives peripheral/operational/
+strategic engagement levels, with a published keyword list (her Table 2) and documented
+false positives ("rehabilitation" in patient care, "protection" in electrical
+equipment). The closest manual twin of the instrument's pipeline and the strongest
+second-lens candidate on record: keyword seed list ready-made, exclusion-phrase seeds
+ready-made, external researcher with the need (contactable, CC-BY paper; full note in
+paper repo `04-literature/jonall2026-engagement-levels.md`).
+*Unblocked by:* the second-lens rule — an external researcher who needs the lens for
+their own reasons. A lens built to demonstrate generality evidences plausibility, not
+generality. If it is ever built, an engagement-level rule type for the Scoring Rule
+registry needs its own ADR (next number): general-vs-concrete is computable at rung 0
+(numbers, dates, hedges); proximity-to-core-business stays human under DP9, with
+Function classification as a hint only. The registry's second adapter after Wedding Cake.
+*Cost of being wrong:* low — the candidate is recorded, not built; the paper's §6.6
+portability claim stays designed-for rather than demonstrated either way.
+
+### Concept-level semantic find (embedding hints on keyword coverage)
+*Prompted by:* the same comparison. CPR fills its search gaps with dense
+retrieval; the pinned embedding machinery from ADR-0007 could give a
+thresholded cosine "semantic coverage hint" at concept level — rung 1 on the
+ADR-0035 ladder, flagged suggestions only, never recorded codes (DP9).
+*Unblocked by:* the calibration study. If the embeddings' domain-classification
+agreement is good on settled cells, the same machinery generalises to this; if
+not, the hint would import the same weakness at a finer grain.
 
 ## Waiting on a human decision
 
