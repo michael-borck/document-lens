@@ -46,6 +46,18 @@
 }
 .band-link:hover { border-color: var(--paper); }
 
+.prior { padding: 0 0 72px; }
+.prior-list { list-style: none; margin-bottom: 1.4rem; }
+.prior-item {
+  padding: 20px 0;
+  border-bottom: 1px solid var(--line);
+}
+.prior-item:first-child { border-top: 1px solid var(--line); }
+.prior-item h3 { font-size: 1.15rem; margin-bottom: 0.4rem; }
+.prior-item p { margin-bottom: 0.4rem; }
+.prior-item .ref { font-size: 0.85rem; }
+.prior-item .ref a { color: var(--ink-soft); }
+
 .cite { padding: 0 0 80px; }
 .cite-inner { max-width: 44rem; }
 .cite pre {

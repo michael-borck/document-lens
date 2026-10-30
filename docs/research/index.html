@@ -86,6 +86,53 @@
     </div>
   </section>
 
+  <section class="container prior">
+    <div class="prose-inner">
+      <h2>Where it sits among prior systems</h2>
+      <p>Three systems have done most to automate disclosure analysis, and Document Lens is
+        usefully understood against them. We state the differences as design choices, not
+        deficiencies: each comparator is well matched to the job it was built for.</p>
+      <ul class="prior-list">
+        <li class="prior-item">
+          <h3>ChatReport</h3>
+          <p>An LLM-based tool that analyses corporate sustainability reports against the
+            TCFD's eleven recommendations and produces a 0&ndash;100 conformity score. It grounds
+            answers in retrieved passages with numbered source spans and refines its prompts
+            from expert feedback. The framework is built into the software, and the analysis
+            runs on a hosted model.</p>
+          <p class="ref">Ni et al. (2023), EMNLP System Demonstrations &middot;
+            <a href="https://doi.org/10.18653/v1/2023.emnlp-demo.3">doi:10.18653/v1/2023.emnlp-demo.3</a></p>
+        </li>
+        <li class="prior-item">
+          <h3>ReportParse</h3>
+          <p>A library that parses corporate sustainability reports into structural units
+            &mdash; pages, blocks, sentences &mdash; and annotates them with climate-domain
+            models, including environmental-claim detection. The framework is a choice among
+            annotators the analyst loads; the output is extraction rather than a score.</p>
+          <p class="ref">Morio et al. (2024), IJCAI Demonstrations Track &middot;
+            <a href="https://doi.org/10.24963/ijcai.2024/1024">doi:10.24963/ijcai.2024/1024</a></p>
+        </li>
+        <li class="prior-item">
+          <h3>Climate Policy Radar</h3>
+          <p>A hosted, searchable collection of climate laws, policies, and corporate
+            disclosures &mdash; over 12,000 documents &mdash; with concept tags produced by
+            classifiers and evaluated against expert-labelled passage samples that deliberately
+            include ambiguous boundary cases. Its concept store is curated by the provider, and
+            it serves discovery across a large public corpus.</p>
+          <p class="ref">Climate Policy Radar &middot;
+            <a href="https://climatepolicyradar.org">climatepolicyradar.org</a> &middot;
+            <a href="https://github.com/climatepolicyradar/methodology">methodology</a></p>
+        </li>
+      </ul>
+      <p>Document Lens differs in where the framework lives (data the researcher supplies, not
+        a feature of the software), where the analysis runs (locally and deterministically, with
+        optional model layers clearly flagged), and what happens to human codes (they are inputs the
+        instrument can count and track, not only outputs to review). It scores a researcher's
+        own corpus against a framework the researcher supplies; the comparators above either fix
+        the framework or serve a public collection.</p>
+    </div>
+  </section>
+
   <section class="container cite">
     <div class="cite-inner">
       <h2>Cite the artefact</h2>
