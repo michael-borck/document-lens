@@ -189,7 +189,9 @@ jobs:
         run: |
           cd document-analyser-backend
           cp -r ../nltk_data ./nltk_data
-          cp -r ../hf_cache ./hf_cache
+          # -L dereferences the HF cache's blob/snapshot symlinks; Windows Git Bash
+          # cannot recreate them, and dangling links break the PyInstaller bundle.
+          cp -rL ../hf_cache ./hf_cache
           if [ "$RUNNER_OS" == "Windows" ]; then SEP=";"; else SEP=":"; fi
           pyinstaller --onefile --console --name "document-lens-api" \
             --add-data "document_analyser/data${SEP}document_analyser/data" \
