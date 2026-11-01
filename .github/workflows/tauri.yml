@@ -192,6 +192,10 @@ jobs:
           # -L dereferences the HF cache's blob/snapshot symlinks; Windows Git Bash
           # cannot recreate them, and dangling links break the PyInstaller bundle.
           cp -rL ../hf_cache ./hf_cache
+          # Dereferencing makes the snapshot files real, so the blob store is now
+          # a duplicate of them (the model has two weight formats, ~180 MB).
+          # Drop it: HF resolves snapshots by path and never reads blobs.
+          rm -rf ./hf_cache/hub/*/blobs
           if [ "$RUNNER_OS" == "Windows" ]; then SEP=";"; else SEP=":"; fi
           pyinstaller --onefile --console --name "document-lens-api" \
             --add-data "document_analyser/data${SEP}document_analyser/data" \
