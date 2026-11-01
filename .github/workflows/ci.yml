@@ -16,6 +16,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # ── Version and Zenodo deposit metadata must agree ──────────────────────
+  release-metadata:
+    name: Release metadata
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Check versions and deposit metadata
+        run: bash scripts/check-release.sh
+
   # ── Unit + invariant tests, lint, typecheck, coverage ───────────────────
   test:
     name: Lint · Typecheck · Test

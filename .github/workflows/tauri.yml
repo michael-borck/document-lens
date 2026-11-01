@@ -62,6 +62,10 @@ jobs:
       - name: Checkout desktop app
         uses: actions/checkout@v7
 
+      - name: Verify tag matches the declared version
+        if: github.ref_type == 'tag'
+        run: bash scripts/check-release.sh --tag "$GITHUB_REF_NAME"
+
       - name: Checkout document-analyser backend
         uses: actions/checkout@v7
         with:

@@ -250,10 +250,13 @@ present, so CI without the ML stack stays green. See [e2e/README.md](e2e/README.
 
 ### Releasing
 
-1. Bump `version` in `package.json`
-2. Commit
-3. Tag: `git tag v0.13.0 && git push origin v0.13.0`
-4. GitHub Actions builds + uploads the release artefacts
+Two phases: build the release, then record the Zenodo DOI it earns. The full
+checklist is in [RELEASING.md](RELEASING.md).
+
+1. Bump `package.json`, `src-tauri/Cargo.toml`, `src-tauri/tauri.conf.json`, `CITATION.cff`
+2. Run `bash scripts/check-release.sh` (CI and the tag guard both enforce it)
+3. Commit, tag `vX.Y.Z`, push the tag
+4. After Zenodo mints the DOI, write it back (CITATION.cff, README, docs/research)
 
 ## Project structure
 
