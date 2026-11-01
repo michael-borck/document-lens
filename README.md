@@ -3,6 +3,7 @@
 [![CI](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/ci.yml)
 [![Build and Release](https://github.com/michael-borck/document-lens/actions/workflows/tauri.yml/badge.svg)](https://github.com/michael-borck/document-lens/actions/workflows/tauri.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23864320.svg)](https://doi.org/10.5281/zenodo.23864320)
 
 Desktop app for keyword analysis of document corpora — built for
 researchers studying corporate disclosure. The original use case was
@@ -302,11 +303,11 @@ Zenodo via the repository's [`.zenodo.json`](.zenodo.json).
 
 ```
 Borck, M. (2026). Document Lens (Version 0.33.0) [Computer software].
-Zenodo. <ZENODO-VERSION-DOI>
+Zenodo. https://doi.org/10.5281/zenodo.23864321
 ```
 
-<!-- TODO: replace <ZENODO-VERSION-DOI> with the Zenodo version DOI after the archival
-     release is created, and add the concept DOI ("all versions") beneath it. -->
+Version DOI: <https://doi.org/10.5281/zenodo.23864321> ·
+All versions: <https://doi.org/10.5281/zenodo.23864320>
 
 ## Licence
 

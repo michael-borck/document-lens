@@ -19,6 +19,7 @@ authors:
     email: "michael.borck@curtin.edu.au"
 version: "0.33.0"
 date-released: "2026-10-31"
+doi: "10.5281/zenodo.23864321"
 license: MIT
 repository-code: "https://github.com/michael-borck/document-lens"
 url: "https://documentlens.borck.education"
