@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS keywords (
   notes TEXT,
   sort_order INTEGER NOT NULL DEFAULT 0,
   -- ADR-0037: 'exact' = whole-word/literal-phrase match (always);
-  -- 'prefix' = word-start match with extension (\bsustain + word chars).
+  -- 'prefix' = word-start match (sustain also matches sustainability).
   match_mode TEXT NOT NULL DEFAULT 'exact'
     CHECK(match_mode IN ('exact', 'prefix'))
 );

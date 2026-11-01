@@ -30,9 +30,13 @@ const { QUERIES, UPDATABLE_COLUMNS } = await import(
 )
 
 // JSON.stringify of ASCII SQL yields a string literal that is valid Rust too
-// (escapes ", \, \n identically; our SQL has no \b/\f/unicode). Reused for
-// every embedded SQL string.
-const rustStr = (s) => JSON.stringify(s)
+// (escapes ", \, \n identically). Control characters that Rust spells
+// differently (\b, \f) are re-spelled as \u{...}; everything else is already
+// valid Rust. Reused for every embedded SQL string.
+const rustStr = (s) =>
+  JSON.stringify(s)
+    .replace(/(?<!\\)\\b/g, '\\u{8}')
+    .replace(/(?<!\\)\\f/g, '\\u{c}')
 
 const queryArms = Object.entries(QUERIES)
   .map(([key, sql]) => `        ${rustStr(key)} => Some(${rustStr(sql)}),`)
