@@ -17,8 +17,8 @@ authors:
     orcid: "https://orcid.org/0000-0002-0950-6396"
     affiliation: "Curtin University"
     email: "michael.borck@curtin.edu.au"
-version: "0.32.7"
-date-released: "2026-08-20"
+version: "0.33.0"
+date-released: "2026-10-31"
 license: MIT
 repository-code: "https://github.com/michael-borck/document-lens"
 url: "https://documentlens.borck.education"

@@ -301,7 +301,7 @@ Machine-readable metadata is in [CITATION.cff](CITATION.cff); the release is sna
 Zenodo via the repository's [`.zenodo.json`](.zenodo.json).
 
 ```
-Borck, M. (2026). Document Lens (Version 0.32.7) [Computer software].
+Borck, M. (2026). Document Lens (Version 0.33.0) [Computer software].
 Zenodo. <ZENODO-VERSION-DOI>
 ```
 
