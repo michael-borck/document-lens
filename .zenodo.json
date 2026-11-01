@@ -1,0 +1,33 @@
+{
+  "title": "Document Lens",
+  "description": "A local-first desktop instrument for lens-based analysis of document corpora. A lens is researcher-supplied data: analysis axes, a polarised keyword list, and a scoring-rule binding. The application exposes coverage heatmaps, axis cross-tabulations, a configurable document score, longitudinal trends, cross-document comparison, contextual auditing, and a concordance reader that links every match back to the source page. Documents, extracted text, and computed signals stay in a local SQLite database; optional machine-learning features are local and non-fatal. The first lens is sustainability reporting, with an 'Other' section for researcher-defined lenses. Open source under the MIT licence.",
+  "creators": [
+    {
+      "name": "Borck, Michael",
+      "orcid": "0000-0002-0950-6396",
+      "affiliation": "Curtin University"
+    }
+  ],
+  "keywords": [
+    "document analysis",
+    "text analysis",
+    "content analysis",
+    "framework-driven analysis",
+    "sustainability reporting",
+    "local-first software",
+    "design science research",
+    "Tauri",
+    "Python"
+  ],
+  "license": "MIT",
+  "upload_type": "software",
+  "access_right": "open",
+  "language": "eng",
+  "related_identifiers": [
+    {
+      "relation": "isDocumentedBy",
+      "identifier": "https://documentlens.borck.education",
+      "resource_type": "other"
+    }
+  ]
+}

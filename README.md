@@ -294,6 +294,20 @@ Start with [docs/OPEN-THREADS.md](docs/OPEN-THREADS.md). It records the work
 that is deliberately not being done now, what would unblock each item, and
 the decisions already taken about the ones that look attractive later.
 
+## Citation
+
+If you use Document Lens in academic work, cite the archived release rather than a branch.
+Machine-readable metadata is in [CITATION.cff](CITATION.cff); the release is snapshotted by
+Zenodo via the repository's [`.zenodo.json`](.zenodo.json).
+
+```
+Borck, M. (2026). Document Lens (Version 0.32.7) [Computer software].
+Zenodo. <ZENODO-VERSION-DOI>
+```
+
+<!-- TODO: replace <ZENODO-VERSION-DOI> with the Zenodo version DOI after the archival
+     release is created, and add the concept DOI ("all versions") beneath it. -->
+
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
