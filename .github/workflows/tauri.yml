@@ -278,6 +278,20 @@ jobs:
           $cfg | ConvertTo-Json -Depth 20 | Set-Content src-tauri/tauri.release.conf.json
           Write-Host "Windows signCommand configured (Azure Artifact Signing)"
 
+      - name: Prepare App Store Connect API key
+        if: matrix.os == 'macos-15'
+        env:
+          APPLE_API_KEY_CONTENT: ${{ secrets.APPLE_API_KEY_CONTENT }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+        run: |
+          if [ -n "$APPLE_API_KEY_CONTENT" ] && [ -n "$APPLE_API_KEY" ]; then
+            mkdir -p ~/.appstoreconnect/private_keys
+            printf '%s' "$APPLE_API_KEY_CONTENT" | openssl base64 -d -A > ~/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8
+            chmod 600 ~/.appstoreconnect/private_keys/AuthKey_${APPLE_API_KEY}.p8
+          else
+            echo "No API key secrets; notarization will fall back to Apple ID"
+          fi
+
       - name: Build, sign, and release
         uses: tauri-apps/tauri-action@v0
         env:
@@ -288,11 +302,11 @@ jobs:
           # macOS signing + notarization. Cert + passwords reuse this repo's
           # existing (Electron-era) secret names; APPLE_SIGNING_IDENTITY +
           # the TAURI_SIGNING_* keys were added this session.
-          APPLE_CERTIFICATE: ${{ secrets.CSC_LINK }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE || secrets.CSC_LINK }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD || secrets.CSC_KEY_PASSWORD }}
           APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           # Windows code signing (Azure Artifact Signing, ADR-0036). Consumed
           # by artifact-signing-cli, which only runs when the configure step
