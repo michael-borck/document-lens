@@ -27,7 +27,7 @@ else
 fi
 
 rm -rf .venv-sidecar
-uv venv --python 3.11 .venv-sidecar
+uv venv --python 3.11 --seed .venv-sidecar
 if [ -f .venv-sidecar/bin/activate ]; then
   source .venv-sidecar/bin/activate
 else
