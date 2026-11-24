@@ -11,6 +11,33 @@ and only the last of those is worth adding.
 
 ## Active, waiting on something external
 
+### Small local LLM as a framing-suggestion candidate (rung 3)
+*Prompted by:* the calibration round (2026-10-21). At sector scale (37
+universities, a decade, tens of thousands of framed passages) framing-from-
+scratch is not feasible for humans; the suggested design is tool-proposed
+framing, coder-confirmed. A small local model (Ollama-class, ~0.5-1B, CPU,
+temperature 0) is a candidate for that suggestion layer alongside the existing
+deterministic rules and ClimateBERT (ADR-0039).
+*Unblocked by:* coder-adjudicated framing passages from round 2 to measure
+precision against, and a pinned model build (exact file hash; quantisation
+changes outputs).
+*Testing rule:* ADR-0035 discipline -- candidates measured on the same
+coder-adjudicated passages against the deterministic rules and ClimateBERT; the
+winner becomes the flagged suggestion layer. Never a code of record; watch the
+acceptance rate (near-100% acceptance is the failure smell, per ADR-0039).
+*Deployment rule (if it wins):* tool framing deploys at scale only behind
+human verification -- complete verification of limit-level candidates, a
+stratified random sample elsewhere, and verified precision per framing level
+meeting the 0.8 bar per stratum; below-bar strata fall back to full human
+coding (decision recorded: paper repo calibration-run-plan.md, pending paper
+changes).
+*Expected standing:* likely loses to ClimateBERT on commitment/no-target
+language ( ClimateBERT was trained on exactly this register); may win on
+acknowledgement-vs-silent boundaries. Measure, keep whichever wins.
+*Cost of being wrong:* low -- flagged suggestions only. The real risk is
+suggestion-acceptance creep (coders rubber-stamping), which is a process control
+(acceptance-rate monitoring), not a model choice.
+
 ### Logits-read suggestions for the judgement axes
 *Prompted by:* ADR-0041. Three climate classifiers return per-label scores,
 not a distribution over the four framing levels, so a coder cannot tell
