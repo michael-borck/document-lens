@@ -155,3 +155,80 @@ export function applyExclusions(
     return !patterns.some((p) => p.test(window))
   })
 }
+
+// ---------------------------------------------------------------------------
+// Coding-sheet matching (v11 shape)
+// ---------------------------------------------------------------------------
+// A coding sheet maps keywords to goals and needs three modes the display
+// workflows never used: stems (prefix), multi-word terms that survive a line-end
+// hyphen (phrase), and acronyms that must match whole but take a plural (word).
+// Additive on purpose: existing callers keep buildTermPattern's behaviour.
+
+export type CodingMatchMode = 'prefix' | 'word' | 'phrase'
+
+export interface CodingMatchOptions {
+  /** Words that must not immediately precede the match (e.g. greenhouse before gas). */
+  excludesBefore?: string[]
+}
+
+function escapeRegex(term: string): string {
+  return term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Pattern for a coding keyword.
+ *
+ * - `prefix`: word-start anchored, last token extensible (`emission` finds emissions).
+ * - `phrase`: tokens in order with any spacing or hyphen between them, last token
+ *   extensible (`fossil fuel` finds `fossil -fuel` and `fossil fuels`).
+ * - `word`: whole term, optional plural `s` (`LGC` finds `LGCs`, never `record`).
+ *
+ * A phrase whose last token is numeric takes a word boundary instead, so
+ * `SDG 1` cannot fire on `SDG 13`.
+ */
+export function buildCodingPattern(term: string, mode: CodingMatchMode): RegExp {
+  const rawTokens = term.trim().split(/\s+/).filter(Boolean)
+  if (rawTokens.length === 0) return /$^/g
+  const body = rawTokens.map(escapeRegex).join('[\\s\\-]+')
+  const anchored = /^\w/.test(term) ? `\\b${body}` : body
+  if (mode === 'word') {
+    return rawTokens.length === 1
+      ? new RegExp(`${anchored}s?\\b`, 'gi')
+      : new RegExp(`${anchored}\\b`, 'gi')
+  }
+  if (mode === 'prefix') return new RegExp(`${anchored}\\w*`, 'gi')
+  const last = rawTokens[rawTokens.length - 1] ?? ''
+  return new RegExp(/^[0-9]+$/.test(last) ? `${anchored}\\b` : `${anchored}\\w*`, 'gi')
+}
+
+/** Case-preserving normalisation that keeps offsets identical. */
+export function normaliseForCodingMatch(text: string): string {
+  return text
+    .replace(/[\u00a0\u202f]/g, ' ')
+    .replace(/[\u2080-\u2089]/g, (d) => String(d.charCodeAt(0) - 0x2080))
+}
+
+/** Every coding match, minus those a forbidden word immediately precedes. */
+export function findCodingSpans(
+  text: string,
+  term: string,
+  mode: CodingMatchMode,
+  options: CodingMatchOptions = {}
+): MatchSpan[] {
+  const pattern = buildCodingPattern(term, mode)
+  const spans: MatchSpan[] = []
+  let m: RegExpExecArray | null
+  while ((m = pattern.exec(text)) !== null) {
+    spans.push({ start: m.index, end: m.index + m[0].length, matched: m[0] })
+    if (m.index === pattern.lastIndex) pattern.lastIndex++
+  }
+  const excludes = options.excludesBefore ?? []
+  if (excludes.length === 0) return spans
+  const prefixes = excludes.map(
+    (p) => new RegExp(`(?:^|[^A-Za-z0-9])${escapeRegex(p)}[\\s\\-]+$`, 'i')
+  )
+  return spans.filter((span) => {
+    const before = text.slice(Math.max(0, span.start - 80), span.start)
+    return !prefixes.some((rx) => rx.test(before))
+  })
+}
